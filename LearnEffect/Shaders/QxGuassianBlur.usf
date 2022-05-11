@@ -1,0 +1,2 @@
+return SceneTextureLookup(GetDefaultSceneTextureUV(Parameters,2), 2, false);
+

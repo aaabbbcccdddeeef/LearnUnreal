@@ -1,0 +1,14 @@
+#include "/Engine/Private/Common.ush"
+
+return 0.1;};
+
+float2 Random(float2 uv)
+{
+    float Magic = 3571;
+    float2 PixelPos = uv * 512;
+    float2 Random2 = ( 1.0 / 4320.0 ) * PixelPos + float2( 0.25, 0.0 );
+    float RandomRes = frac( dot( Random2 * Random2, Magic ) );
+    RandomRes = frac( RandomRes * RandomRes * (2 * Magic) );
+    return RandomRes;
+
+//main function
