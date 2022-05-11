@@ -1,6 +1,6 @@
 #include "/Engine/Private/Common.ush"
 
-return 0.1;};
+return 1;};
 
 float2 Random(float2 uv)
 {
