@@ -38,6 +38,10 @@ public class RayLine : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+                "Renderer",
+                "RenderCore",
+                "RHI",
+                "Projects"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
