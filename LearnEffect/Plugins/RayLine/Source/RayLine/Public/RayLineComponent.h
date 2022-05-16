@@ -32,7 +32,7 @@ class RAYLINE_API URayLineComponent : public UMeshComponent
 	GENERATED_UCLASS_BODY()
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "RayLineComponent")
-	float DebugSec;
+	float DebugSec ;
 
 private:
 #pragma region UE_Interfaces
@@ -59,8 +59,8 @@ private:
 
 #pragma endregion
 
-
-
+public:
+	UPROPERTY(VisibleAnywhere)
 	TArray<FRayLineHitPointDesc> RayLineHitPoints;
 
 	friend class FRayLineMeshSceneProxy;

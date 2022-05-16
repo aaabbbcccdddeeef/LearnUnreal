@@ -13,6 +13,7 @@ public:
 		FRHIResourceCreateInfo createInfo;
 		VertexBufferRHI = RHICreateVertexBuffer(NumVerts * sizeof(FDynamicMeshVertex),
 			BUF_Dynamic, createInfo);
+
 	}
 
 	int32 NumVerts;
@@ -24,7 +25,7 @@ public:
 	virtual void InitRHI() override
 	{
 		FRHIResourceCreateInfo createInfo;
-		IndexBufferRHI = RHICreateIndexBuffer(sizeof(int32), sizeof(NumIndices) * NumIndices
+		IndexBufferRHI = RHICreateIndexBuffer(sizeof(int32), sizeof(int32) * NumIndices
 			, BUF_Dynamic, createInfo);
 	}
 
@@ -52,7 +53,7 @@ public:
 	/* Here we can initialize our RHI resources, so we can decide what would be in the final streams and the vertex declaration*/
 	/* In the LocalVertexFactory, 3 vertex declarations are initialized; PositionOnly, PositionAndNormalOnly, and the default, which is the one that will be used in the main rendering*/
 	/* PositionOnly is mandatory if you're enabling depth passes, however we can get rid of the PositionAndNormal since we're not interested in shading and we're only supporting unlit materials*/
-	virtual void InitRHI() override
+	virtual void InitRHITest() 
 	{
 
 		// Check if this vertex factory has a valid feature level that is supported by the current platform
@@ -139,22 +140,34 @@ public:
 			ENQUEUE_RENDER_COMMAND(FRaylineVertexFactoryInit)(
 				[VertexFactory, InVertexBuffer](FRHICommandListImmediate& RHICmdList)
 				{
-					//InitOrUpdateResource(InVertexBuffer);
+					InitOrUpdateResource(InVertexBuffer);
 
+					
 					//FLocalVertexFactory::FDataType Data;
 					FLocalVertexFactory::FDataType newData;
-					newData.PositionComponent = STRUCTMEMBER_VERTEXSTREAMCOMPONENT(InVertexBuffer,
-						FDynamicMeshVertex, Position, VET_Float3);
-					newData.TextureCoordinates.Add(
-						FVertexStreamComponent(InVertexBuffer,
-							STRUCT_OFFSET(FDynamicMeshVertex, TextureCoordinate)
-							, sizeof(FDynamicMeshVertex), VET_Float2)
-					);
-					newData.TangentBasisComponents[0] = STRUCTMEMBER_VERTEXSTREAMCOMPONENT(InVertexBuffer,
-						FDynamicMeshVertex, TangentX, VET_PackedNormal);
-					newData.TangentBasisComponents[1] = STRUCTMEMBER_VERTEXSTREAMCOMPONENT(InVertexBuffer,
-						FDynamicMeshVertex, TangentZ, VET_PackedNormal);
+					{
+						newData.PositionComponent = STRUCTMEMBER_VERTEXSTREAMCOMPONENT(InVertexBuffer,
+							FDynamicMeshVertex, Position, VET_Float3);
+						//newData.PreSkinPositionComponentSRV = InVertexBuffer->
+						newData.TextureCoordinates.Add(
+							FVertexStreamComponent(InVertexBuffer,
+								STRUCT_OFFSET(FDynamicMeshVertex, TextureCoordinate)
+								, sizeof(FDynamicMeshVertex), VET_Float2)
+						);
+						newData.TangentBasisComponents[0] = STRUCTMEMBER_VERTEXSTREAMCOMPONENT(InVertexBuffer,
+							FDynamicMeshVertex, TangentX, VET_PackedNormal);
+						newData.TangentBasisComponents[1] = STRUCTMEMBER_VERTEXSTREAMCOMPONENT(InVertexBuffer,
+							FDynamicMeshVertex, TangentZ, VET_PackedNormal);
+					}
+					
+					
+					//StaticMeshData.PositionComponentSRV = PositionComponentSRV;
+
+					//VertexFactory->PositionVertexBuffer
+					//InVertexBuffer->bin
+
 					VertexFactory->SetData(newData);
+					InitOrUpdateResource(VertexFactory);
 				}
 				);
 		}
@@ -188,19 +201,68 @@ public:
 class FRayLineMeshSceneProxy : public FPrimitiveSceneProxy
 {
 public:
-	FRayLineMeshSceneProxy(URayLineComponent* InRayLineCom);
+
+	FRayLineMeshSceneProxy(URayLineComponent* InRayLineCom) : FPrimitiveSceneProxy(InRayLineCom)
+		, MaterialRelevance(InRayLineCom->GetMaterialRelevance(GetScene().GetFeatureLevel()))
+		, VertexFactory(GetScene().GetFeatureLevel(), "FRayLineProxy")
+	{
+		/*
+		//VertexBuffer.InitWithDummyData(&VertexFactory, GetRequiredVertexCount());
+		VertexBuffers.InitWithDummyData(&VertexFactory, GetRequiredVertexCount());
+
+		//VertexBuffer.NumVerts = GetRequiredVertexCount();
+		IndexBuffer.NumIndices = GetRequiredIndexCount();
+
+		const FColor vertexColor = FColor::White;
+
+		//VertexFactory.Init(&VertexBuffer);
+		FRayLineVertexFactory::InitRayLineVertexFactory(&VertexFactory, &VertexBuffer);
+
+		//BeginInitResource(&VertexBuffer);
+		BeginInitResource(&IndexBuffer);
+		//BeginInitResource(&VertexFactory);
+
+		Material = InRayLineCom->GetMaterial(0);
+		if (Material == nullptr)
+		{
+			Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+		*/
+
+		VertexBuffers.InitWithDummyData(&VertexFactory, GetRequiredVertexCount());
+
+		IndexBuffer.NumIndices = GetRequiredIndexCount();
+
+		// Enqueue initialization of render resource
+		BeginInitResource(&IndexBuffer);
+
+		// Grab material
+		Material = InRayLineCom->GetMaterial(0);
+		if (Material == NULL)
+		{
+			Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+	}
 
 	~FRayLineMeshSceneProxy()
 	{
-		VertexBuffer.ReleaseResource();
+		VertexBuffers.PositionVertexBuffer.ReleaseResource();
+		VertexBuffers.StaticMeshVertexBuffer.ReleaseResource();
+		VertexBuffers.ColorVertexBuffer.ReleaseResource();
 		IndexBuffer.ReleaseResource();
 		VertexFactory.ReleaseResource();
+
+		if (DynamicData != NULL)
+		{
+			delete DynamicData;
+		}
 	}
 
-	void BuildMesh(FRayLineDynamicData* NewDynamicData)
+	void BuildMesh(FRayLineDynamicData* NewDynamicData,
+		TArray<FDynamicMeshVertex>& OutVertices, TArray<int32>& OutIndices)
 	{
-		TArray<FDynamicMeshVertex> Vertices;
-		TArray<int32> Indices;
+		//TArray<FDynamicMeshVertex> Vertices;
+		//TArray<int32> Indices;
 
 		for (int32 i = 0; i < NewDynamicData->HitpointsPosition.Num(); i++)
 		{
@@ -210,20 +272,20 @@ public:
 			newVert2.Position = NewDynamicData->HitpointsPosition[i] + FVector(-100, -100, 0);
 			newVert3.Position = NewDynamicData->HitpointsPosition[i] + FVector(100, -100, 0);
 
-			Vertices.Add(newVert0);
-			Vertices.Add(newVert1);
-			Vertices.Add(newVert2);
-			Vertices.Add(newVert3);
+			OutVertices.Add(newVert0);
+			OutVertices.Add(newVert1);
+			OutVertices.Add(newVert2);
+			OutVertices.Add(newVert3);
 
-			Indices.Add(4 * i);
-			Indices.Add(4 * i + 1);
-			Indices.Add(4 * i + 2);
-			Indices.Add(4 * i + 1);
-			Indices.Add(4 * i + 3);
-			Indices.Add(4 * i + 2);
+			OutIndices.Add(4 * i);
+			OutIndices.Add(4 * i + 1);
+			OutIndices.Add(4 * i + 2);
+			OutIndices.Add(4 * i + 1);
+			OutIndices.Add(4 * i + 3);
+			OutIndices.Add(4 * i + 2);
 		}
 
-		check(Vertices.Num() == GetRequiredVertexCount());
+		/*check(Vertices.Num() == GetRequiredVertexCount());
 		check(Indices.Num() == GetRequiredIndexCount());
 
 		void* vertexBufferData = RHILockVertexBuffer(VertexBuffer.VertexBufferRHI, 0,
@@ -233,15 +295,72 @@ public:
 
 		void* indexBufferData = RHILockIndexBuffer(IndexBuffer.IndexBufferRHI, 0,
 			Indices.Num() * sizeof(int32), RLM_WriteOnly);
-		FMemory::Memcpy(indexBufferData, &Indices[0], Indices.Num() * sizeof(int32));
-		RHIUnlockIndexBuffer(IndexBuffer.IndexBufferRHI);
+		FMemory::Memcpy(indexBufferData, &Indices[0], Indices.Num() * sizeof(int32));*/
+		//RHIUnlockIndexBuffer(IndexBuffer.IndexBufferRHI);
 	}
 
 	void SetDynamicData_RenderThread(FRayLineDynamicData* newDynamicData)
 	{
 		check(IsInRenderingThread());
 
-		BuildMesh(newDynamicData);
+		// Free existing data if present
+		if (DynamicData)
+		{
+			delete DynamicData;
+			DynamicData = NULL;
+		}
+		DynamicData = newDynamicData;
+
+		// Build mesh from cable points
+		TArray<FDynamicMeshVertex> Vertices;
+		TArray<int32> Indices;
+		BuildMesh(newDynamicData, Vertices, Indices);
+
+
+		check(Vertices.Num() == GetRequiredVertexCount());
+		check(Indices.Num() == GetRequiredIndexCount());
+
+		for (int i = 0; i < Vertices.Num(); i++)
+		{
+			const FDynamicMeshVertex& Vertex = Vertices[i];
+
+			VertexBuffers.PositionVertexBuffer.VertexPosition(i) = Vertex.Position;
+			VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(i, Vertex.TangentX.ToFVector(), Vertex.GetTangentY(), Vertex.TangentZ.ToFVector());
+			VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i, 0, Vertex.TextureCoordinate[0]);
+			VertexBuffers.ColorVertexBuffer.VertexColor(i) = Vertex.Color;
+		}
+
+		{
+			auto& VertexBuffer = VertexBuffers.PositionVertexBuffer;
+			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
+			RHIUnlockVertexBuffer(VertexBuffer.VertexBufferRHI);
+		}
+
+		{
+			auto& VertexBuffer = VertexBuffers.ColorVertexBuffer;
+			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
+			RHIUnlockVertexBuffer(VertexBuffer.VertexBufferRHI);
+		}
+
+		{
+			auto& VertexBuffer = VertexBuffers.StaticMeshVertexBuffer;
+			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTangentSize(), RLM_WriteOnly);
+			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetTangentData(), VertexBuffer.GetTangentSize());
+			RHIUnlockVertexBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI);
+		}
+
+		{
+			auto& VertexBuffer = VertexBuffers.StaticMeshVertexBuffer;
+			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTexCoordSize(), RLM_WriteOnly);
+			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetTexCoordData(), VertexBuffer.GetTexCoordSize());
+			RHIUnlockVertexBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI);
+		}
+
+		void* IndexBufferData = RHILockIndexBuffer(IndexBuffer.IndexBufferRHI, 0, Indices.Num() * sizeof(int32), RLM_WriteOnly);
+		FMemory::Memcpy(IndexBufferData, &Indices[0], Indices.Num() * sizeof(int32));
+		RHIUnlockIndexBuffer(IndexBuffer.IndexBufferRHI);
 	}
 
 
@@ -268,30 +387,30 @@ public:
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRayLineMeshSceneProxy_GetDynamicMeshElements);
 
 		const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
-		auto wireframeMI = new FColoredMaterialRenderProxy(
+
+		auto WireframeMaterialInstance = new FColoredMaterialRenderProxy(
 			GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy() : NULL,
-			FLinearColor(0.f, 0.5f, 1.f)
+			FLinearColor(0, 0.5f, 1.f)
 		);
 
-		Collector.RegisterOneFrameMaterialProxy(wireframeMI);
+		Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
 
-		FMaterialRenderProxy* MaterialProxy = nullptr;
+		FMaterialRenderProxy* MaterialProxy = NULL;
 		if (bWireframe)
 		{
-			MaterialProxy = wireframeMI;
+			MaterialProxy = WireframeMaterialInstance;
 		}
 		else
 		{
 			MaterialProxy = Material->GetRenderProxy();
 		}
 
-		for (int32 viewIndex = 0; viewIndex < Views.Num(); viewIndex++)
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
-			if (VisibilityMap & (1 << viewIndex))
+			if (VisibilityMap & (1 << ViewIndex))
 			{
-				const FSceneView* view = Views[viewIndex];
-
-				// Draw the mesh
+				const FSceneView* View = Views[ViewIndex];
+				// Draw the mesh.
 				FMeshBatch& Mesh = Collector.AllocateMesh();
 				FMeshBatchElement& BatchElement = Mesh.Elements[0];
 				BatchElement.IndexBuffer = &IndexBuffer;
@@ -299,36 +418,25 @@ public:
 				Mesh.VertexFactory = &VertexFactory;
 				Mesh.MaterialRenderProxy = MaterialProxy;
 
-				BatchElement.FirstIndex = 0;
-				BatchElement.NumPrimitives = GetRequiredIndexCount() / 3;
-				BatchElement.MinVertexIndex = 0;
-				BatchElement.MaxVertexIndex = GetRequiredVertexCount();
-
-				/*
 				bool bHasPrecomputedVolumetricLightmap;
 				FMatrix PreviousLocalToWorld;
 				int32 SingleCaptureIndex;
 				bool bOutputVelocity;
 				GetScene().GetPrimitiveUniformShaderParameters_RenderThread(GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
 
-
-				FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer
-					= Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
-				DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), PreviousLocalToWorld,
-					GetBounds(), GetLocalBounds(), true, bHasPrecomputedVolumetricLightmap,
-					DrawsVelocity(), bOutputVelocity);
+				FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
+				DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, bHasPrecomputedVolumetricLightmap, DrawsVelocity(), bOutputVelocity);
 				BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
-				*/
 
-				BatchElement.PrimitiveUniformBuffer = CreatePrimitiveUniformBufferImmediate(
-					GetLocalToWorld(), GetBounds(), GetLocalBounds(), GetLocalBounds(), false, DrawsVelocity());
-
+				BatchElement.FirstIndex = 0;
+				BatchElement.NumPrimitives = GetRequiredIndexCount() / 3;
+				BatchElement.MinVertexIndex = 0;
+				BatchElement.MaxVertexIndex = GetRequiredVertexCount();
 				Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
 				Mesh.Type = PT_TriangleList;
 				Mesh.DepthPriorityGroup = SDPG_World;
 				Mesh.bCanApplyViewModeOverrides = false;
-
-				Collector.AddMesh(viewIndex, Mesh);
+				Collector.AddMesh(ViewIndex, Mesh);
 			}
 		}
 	}
@@ -356,40 +464,17 @@ public:
 private:
 
 	UMaterialInterface* Material;
-	FRaylineMeshVertexBuffer VertexBuffer;
+	//FRaylineMeshVertexBuffer VertexBuffer;
 	FRaylineIndexBuffer IndexBuffer;
-	FRayLineVertexFactory VertexFactory;
-	//FLocalVertexFactory VertexFactory;
+	//FRayLineVertexFactory VertexFactory;
+	FLocalVertexFactory VertexFactory;
 
+	FStaticMeshVertexBuffers VertexBuffers;
 
 	FMaterialRelevance MaterialRelevance;
+
+	FRayLineDynamicData* DynamicData = nullptr;
 };
-
-FRayLineMeshSceneProxy::FRayLineMeshSceneProxy(URayLineComponent* InRayLineCom) 
-	: FPrimitiveSceneProxy(InRayLineCom)
-	, MaterialRelevance(InRayLineCom->GetMaterialRelevance(GetScene().GetFeatureLevel()))
-	, VertexFactory(GetScene().GetFeatureLevel())
-{
-	//VertexBuffer.InitWithDummyData(&VertexFactory, GetRequiredVertexCount());
-
-	VertexBuffer.NumVerts = GetRequiredVertexCount();
-	IndexBuffer.NumIndices = GetRequiredIndexCount();
-
-	const FColor vertexColor = FColor::White;
-
-	//VertexFactory.Init(&VertexBuffer);
-	FRayLineVertexFactory::InitRayLineVertexFactory(&VertexFactory, &VertexBuffer);
-
-	BeginInitResource(&VertexBuffer);
-	BeginInitResource(&IndexBuffer);
-	BeginInitResource(&VertexFactory);
-
-	Material = InRayLineCom->GetMaterial(0);
-	if (Material == nullptr)
-	{
-		Material = UMaterial::GetDefaultMaterial(MD_Surface);
-	}
-}
 
 URayLineComponent::URayLineComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
