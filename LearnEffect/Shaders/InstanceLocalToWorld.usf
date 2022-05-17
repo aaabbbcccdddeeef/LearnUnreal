@@ -1,0 +1,9 @@
+float3 InputVector;
+
+MaterialFloat3 res = TransformLocalVectorToWorld(Parameters,InputVector);
+return res;
+// #if USE_INSTANCING
+//     return mul(InputVector, (MaterialFloat3x3)GetPrimitiveData(MaterialParameters.PrimitiveId).InstanceLocalToWorld);
+// #else
+//     return mul(InputVector, GetLocalToWorld3x3());
+// #endif

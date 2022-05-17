@@ -1,0 +1,30 @@
+
+
+//下面这段采样mask得到边缘的mask
+//float offsetScale = 3.f;
+uint2 texSize;
+InTex.GetDimensions(texSize.x, texSize.y);
+// static float Occlusion;
+//static float WorldHeight;
+const int Samples = 4;
+// Poisson Disk sample positions 
+static const float2 PoissonDisk[Samples] = {
+	{-1., 0.},
+	{1., 0.},
+	{0., 1.},
+    {0., -1.}
+};
+float2 offset = float2(1./texSize.x, 1./texSize.y);
+float centerValue = Texture2DSample(InTex, InTexSampler, UV).a;
+float sum = 0.f;
+for (int i = 0; i < Samples; i++){
+	float4 texValue = Texture2DSample(InTex, InTexSampler, UV + PoissonDisk[i] * offsetScale * offset);
+	
+	// if (Position.z > WorldHeight - Bias) {
+	// 	Occlusion += 1.0;
+	// }
+    sum += texValue.a - centerValue;
+}
+sum = sum / Samples;
+sum *= centerValue;
+return sum;
