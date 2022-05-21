@@ -1,0 +1,30 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.1",
+	"FriendlyName": "BT - ShaderReaderPro",
+	"Description": "Create shading code in your favorite editor and see your changes reflected in UE immidiatly after save your files",
+	"Category": "Bear Teacher",
+	"CreatedBy": "Bear Teacher",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/42f50ebeb59c478db54c7f348c0c0233",
+	"SupportURL": "",
+	"EngineVersion": "4.26.0",
+	"CanContainContent": true,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "ShaderReaderPro",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Win32",
+				"Android",
+				"Mac",
+				"IOS"
+			]
+		}
+	]
+}
