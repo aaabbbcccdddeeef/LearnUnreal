@@ -31,6 +31,10 @@
 			"Name": "ShaderReaderPro",
 			"Enabled": true,
 			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/42f50ebeb59c478db54c7f348c0c0233"
+		},
+		{
+			"Name": "RenderDocPlugin",
+			"Enabled": true
 		}
 	]
 }

@@ -1,0 +1,41 @@
+struct BoxBlur
+{
+    Texture2D SceneTex;
+    SamplerState SceneTexSampler;
+    float2 r;
+    float2 UVOffset[9];
+
+    void Init(
+        in Texture2D InSceneTex,
+        in SamplerState InSceneTexSampler,
+        in float2 InRadius)
+    {
+
+        SceneTex = InSceneTex;
+        SceneTexSampler = InSceneTexSampler;
+        r = InRadius;
+        
+
+        
+        UVOffset[0] = float2(-r.x, r.y);
+        UVOffset[1] = float2(0, r.y);
+        UVOffset[2] = float2(r.x, r.y);
+        UVOffset[3] = float2(-r.x, 0);
+        UVOffset[4] = float2(0, 0);
+        UVOffset[5] = float2(r.x, 0);
+        UVOffset[6] = float2(-r.x, -r.y);
+        UVOffset[7] = float2(0, -r.y);
+        UVOffset[8] = float2(r.x, -r.y);
+    }
+
+    float3 Render(float2 uv)
+    {
+        float3 resColor = float3(0, 0, 0);
+        //resColor += SceneTex.SampleLevel(SceneTexSampler, uv + , 0).rgb;
+        for (int i = 0; i < 9; i++)
+        {
+            resColor += SceneTex.SampleLevel(SceneTexSampler, uv + UVOffset[i], 0).rgb;
+        }
+        return resColor / 9.f;
+    }
+};

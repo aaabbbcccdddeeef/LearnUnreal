@@ -1,0 +1,3 @@
+float2 texSize;
+InSceneTex.GetDimensions(texSize.x, texSize.y);
+return texSize;
