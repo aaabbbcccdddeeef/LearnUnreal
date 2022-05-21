@@ -1,0 +1,36 @@
+struct DirectionalBlur
+{
+    Texture2D SceneTex;
+    SamplerState SceneTexSampler;
+    float2 BlurCenter;
+    int SampleTimes;
+    float BlurSize;
+
+    void Init(in Texture2D InSceneTex,
+        in SamplerState InSceneTexSampler,
+        in float2 InBlurCenter,
+        in int InSampleTimes,
+        in float InBlurSize)
+    {
+        SceneTex = InSceneTex;
+        SceneTexSampler = InSceneTexSampler;
+        BlurCenter = InBlurCenter;
+        SampleTimes = InSampleTimes;
+        BlurSize = InBlurSize;
+    }
+
+    float3 Render(float2 uv)
+    {
+        float3 RetColor;
+        float2 BlurVector = (BlurCenter - uv) * BlurSize;
+
+        for(int i = 0; i < SampleTimes; i++)
+        {
+            RetColor += SceneTex.SampleLevel(SceneTexSampler, uv, 0).rgb;
+            uv += BlurVector;
+        }
+        RetColor /= SampleTimes;
+        return RetColor;
+    }
+};
+

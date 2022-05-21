@@ -1,0 +1,17 @@
+#include "/Engine/Private/Common.ush"
+Texture2D SceneTex;
+float2 BlurCenter;
+float SampleTimes;
+float BlurSize;
+float2 uv;
+//SamplerState SceneTexSampler;
+
+float3 RetColor;
+float2 BlurVector = (BlurCenter - uv) * BlurSize;
+for(int i = 0; i < SampleTimes; i++)
+{
+    RetColor += SceneTex.SampleLevel(SceneTexSampler, uv, 0).rgb;
+    uv += BlurVector;
+}
+RetColor /= SampleTimes;
+return RetColor;
