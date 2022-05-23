@@ -1,3 +1,5 @@
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
 // Simple pass-through vertex shader
 
 void MainVS(
@@ -9,8 +11,8 @@ void MainVS(
 }
 
 // Simple solid color pixel shader
-float4 MyColor;
+float4 TestColor;
 float4 MainPS() : SV_Target0
 {
-    return MyColor;
+    return TestColor;
 }

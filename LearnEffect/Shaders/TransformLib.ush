@@ -1,0 +1,12 @@
+#include "/Engine/Private/Common.ush"
+
+struct QxTransformLib
+{
+
+    float4 WorldPSToViewPS(in float4 PositionWS)
+    {
+        float4 viewPosition = mul(InWorldPS, View.TranslatedWorldToView);
+        return viewPosition;
+    }
+
+}
