@@ -79,7 +79,7 @@ public:
 		const uint16 Indices[] = { 0, 1, 2, 2, 1, 3 };
 
 		TResourceArray <uint16, INDEXBUFFER_ALIGNMENT> IndexBuffer;
-		uint32 NumIndices = ARRAY_COUNT(Indices);
+		uint32 NumIndices = UE_ARRAY_COUNT(Indices);
 		IndexBuffer.AddUninitialized(NumIndices);
 		FMemory::Memcpy(IndexBuffer.GetData(), Indices, NumIndices * sizeof(uint16));
 
@@ -195,3 +195,122 @@ void UQxRenderBPLib::DrawQxShaderTestToRT(
 		}
 		);
 }
+
+
+
+
+void UQxRenderBPLib::TextureWriting(UTexture2D* TextureToWrite, AActor* selfref)
+{
+	check(IsInGameThread());
+
+	if (TextureToWrite == nullptr || selfref == nullptr)
+	{
+		return;
+	}
+
+	TextureToWrite->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
+	TextureToWrite->SRGB = 0;
+
+	FTexture2DMipMap& mipmap = TextureToWrite->PlatformData->Mips[0];
+	void* Data = mipmap.BulkData.Lock(LOCK_READ_WRITE);
+
+	int32 textureX = TextureToWrite->PlatformData->SizeX;
+	int32 textureY = TextureToWrite->PlatformData->SizeY;
+	TArray<FColor> colors;
+	colors.AddUninitialized(textureX * textureY);
+	for (int32 i = 0; i < textureX * textureY; i++)
+	{
+		colors[i] = FColor::Blue;
+	}
+	int32 stride = (int32)(sizeof(uint8) * 4);
+	check((sizeof(uint8) * 4) == sizeof(FColor));
+	FMemory::Memcpy(Data, colors.GetData(), textureX * textureY * stride);
+	mipmap.BulkData.Unlock();
+	TextureToWrite->UpdateResource();
+
+}
+
+void TextureWriting2_RenderThread(FRHICommandListImmediate& RHICmdList,
+	ERHIFeatureLevel::Type InFeatureLevel,
+	UTexture2D* TextureToWrite)
+{
+	check(IsInRenderingThread());
+	if (TextureToWrite == nullptr)
+	{
+		return;
+	}
+
+	FTextureReferenceRHIRef targetTexRHI = TextureToWrite->TextureReference.TextureReferenceRHI;
+	FRHITexture* texRef = targetTexRHI->GetTextureReference()->GetReferencedTexture();
+	FRHITexture2D* texRef2D = (FRHITexture2D*)(texRef);
+
+	TArray<FColor> bitmap;
+	uint32 LolStride = 0;
+	char* textureDataPtr = (char*)RHICmdList.LockTexture2D(texRef2D, 0,
+		EResourceLockMode::RLM_ReadOnly, LolStride, false);
+
+	for (uint32  row = 0; row < texRef2D->GetSizeY(); row++)
+	{
+		uint32* pixelPtr = (uint32*)(textureDataPtr);
+
+		for (uint32 column = 0; column < texRef2D->GetSizeX(); column++)
+		{
+			uint32 encodePixel = *pixelPtr;
+			// 为什么这里是这样转换， 以及最后结果为什么不对
+			uint8	r = (encodePixel && 0x000000FF);
+			uint8 g = (encodePixel && 0x0000FF00) >> 8;
+			uint8 b = (encodePixel & 0x00FF0000) >> 16;
+			uint8 a = (encodePixel & 0xFF000000) >> 24;
+
+			FColor col = FColor(r, g, b, a);
+			bitmap.Add(col);
+			pixelPtr++;
+
+		}
+		// 移动到下一行
+		textureDataPtr += LolStride;
+	}
+
+	RHICmdList.UnlockTexture2D(texRef2D, 0, false);
+
+	if (bitmap.Num())
+	{
+		IFileManager::Get().MakeDirectory(*FPaths::ScreenShotDir(), true);
+		const FString screenFileName = FPaths::ScreenShotDir() / TEXT("VisualizeTexture");
+		// #Unkown 下面这句是什么意思
+		uint32 extendXWithMSAA = TextureToWrite->GetSizeX();
+		if (TextureToWrite->GetSizeY() > 0)
+		{
+			extendXWithMSAA = bitmap.Num() / TextureToWrite->GetSizeY();
+		}
+
+		// 保存颜色数组到一个bitmap 文件
+		FFileHelper::CreateBitmap(*screenFileName, extendXWithMSAA, TextureToWrite->GetSizeY(), bitmap.GetData());
+
+		UE_LOG(LogConsoleResponse, Display, TEXT("Content was saved to \"%s\""), *FPaths::ScreenShotDir());
+	}
+	else
+	{
+		UE_LOG(LogConsoleResponse, Error, TEXT("Failed to save BMP, format or texture type is not supported"));
+	}
+}
+
+void UQxRenderBPLib::TextureWriting2(UTexture2D* TextureToWrite, AActor* selfref)
+{
+	check(IsInGameThread());
+	if (TextureToWrite == nullptr || selfref == nullptr)
+	{
+		return;
+	}
+
+	UWorld* world = selfref->GetWorld();
+	ERHIFeatureLevel::Type featureLevel = world->Scene->GetFeatureLevel();
+
+	ENQUEUE_RENDER_COMMAND(QxWriteToTexture)(
+		[featureLevel, TextureToWrite](FRHICommandListImmediate& RHICmdList)
+		{
+			TextureWriting2_RenderThread(RHICmdList, featureLevel, TextureToWrite);
+		}
+		);
+}
+

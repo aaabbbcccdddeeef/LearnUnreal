@@ -25,4 +25,10 @@ public:
 			AActor* InActor, FLinearColor InColor,
 			UTexture* MyTexture,
 			FMyUniformData InMyUniformData);
+
+	UFUNCTION(BlueprintCallable, Category = "QxRender", meta = (WorldContext = "WorldContextObject"))
+	static void TextureWriting(UTexture2D* TextureToWrite, AActor* selfref);
+
+	UFUNCTION(BlueprintCallable, Category = "QxRender", meta = (WorldContext = "WorldContextObject"))
+	static void TextureWriting2(UTexture2D* TextureToWrite, AActor* selfref);
 };
