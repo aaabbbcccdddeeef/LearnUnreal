@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include <ShaderParameterMacros.h>
+#include "Shader.h"
+#include "ShaderParameters.h"
 #include "QxShaders.generated.h"
 
 /**
@@ -111,5 +113,61 @@ SHADER_PARAMETER(FVector4, ColorFour)
 SHADER_PARAMETER(int32, ColorIndex)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+
+#pragma endregion
+
+
+#pragma region DefineMyComputeShader
+class FQxCheckboardComputeShader : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FQxCheckboardComputeShader, Global)
+public:
+
+	FQxCheckboardComputeShader()
+	{
+
+	}
+
+	FQxCheckboardComputeShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		//#Unkown  这里和shader里的名字不对应， 不会有问题吗???
+		OutputSurface.Bind(Initializer.ParameterMap, TEXT("OutputSurface"));
+	}
+
+	static bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FShaderPermutationParameters& Parameters,
+		FShaderCompilerEnvironment& OutEnvironment)
+	{
+		//OutEnvironment.SetDefine(TEXT("MY_DEFINE"), 1);
+	}
+
+	void SetParameters(FRHICommandList& RHICmdList,
+		FTexture2DRHIRef& InOutSurfaceValue,
+		FUnorderedAccessViewRHIRef& UAV)
+	{
+		FRHIComputeShader* shaderRHI = RHICmdList.GetBoundComputeShader();
+
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier,
+			EResourceTransitionPipeline::EComputeToCompute, UAV);
+		OutputSurface.SetTexture(RHICmdList, shaderRHI, InOutSurfaceValue, UAV);
+
+	}
+
+	void UnsetParameters(FRHICommandList& RHICmdList,
+		FUnorderedAccessViewRHIRef& UAV)
+	{
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable,
+			EResourceTransitionPipeline::EComputeToCompute, UAV);
+		OutputSurface.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
+	}
+
+private:
+	LAYOUT_FIELD(FRWShaderParameter, OutputSurface);
+};
 
 #pragma endregion

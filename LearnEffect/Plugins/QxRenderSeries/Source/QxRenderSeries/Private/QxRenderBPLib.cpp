@@ -7,6 +7,8 @@
 #include "QxShaders.h"
 //#include <Templates/UnrealTemplate.h>
 
+#define LOCTEXT_NAMESPACE "QxRenderBPLib"
+
 #pragma region PrepareTestDatas
 struct FQxTestVertex
 {
@@ -314,3 +316,62 @@ void UQxRenderBPLib::TextureWriting2(UTexture2D* TextureToWrite, AActor* selfref
 		);
 }
 
+void DrawCheckBoard_RenderThread(FRHICommandListImmediate& RHICmdList, 
+	FTextureRenderTargetResource* InTextureRTResource,
+	ERHIFeatureLevel::Type InFeatureLevel)
+{
+	check(IsInRenderingThread());
+
+	FTexture2DRHIRef rtTexRHI = InTextureRTResource->GetRenderTargetTexture();
+	uint32 GGroupSize = 32;
+
+	FIntPoint fullResolution = FIntPoint(rtTexRHI->GetSizeX(), rtTexRHI->GetSizeY());
+	uint32 groupSizeX = FMath::DivideAndRoundUp((uint32)rtTexRHI->GetSizeX(), GGroupSize);
+	uint32 groupSizeY = FMath::DivideAndRoundUp((uint32)rtTexRHI->GetSizeY(), GGroupSize);
+
+	TShaderMapRef<FQxCheckboardComputeShader> computeShader(GetGlobalShaderMap(InFeatureLevel));
+
+	RHICmdList.SetComputeShader(computeShader.GetComputeShader());
+
+	FRHIResourceCreateInfo createInfo;
+
+	// Create a tmp resource
+	FTexture2DRHIRef gSurfaceTexture2D = RHICreateTexture2D(rtTexRHI->GetSizeX(),
+		rtTexRHI->GetSizeY(),
+		PF_FloatRGBA, 1, 1, TexCreate_ShaderResource | TexCreate_UAV,
+		createInfo);
+	FUnorderedAccessViewRHIRef gUAV = RHICreateUnorderedAccessView(gSurfaceTexture2D);
+
+	computeShader->SetParameters(RHICmdList, rtTexRHI, gUAV);
+	DispatchComputeShader(RHICmdList, computeShader, groupSizeX, groupSizeY, 1);
+	computeShader->UnsetParameters(RHICmdList, gUAV);
+
+	FRHICopyTextureInfo copyInfo;
+	RHICmdList.CopyTexture(gSurfaceTexture2D, rtTexRHI, copyInfo);
+}
+
+
+void UQxRenderBPLib::DrawCheckBoard(const UObject* WorldContextObject, UTextureRenderTarget2D* OutRenderTarget)
+{
+	check(IsInGameThread());
+
+	if (!OutRenderTarget)
+	{
+		FMessageLog("Blueprint").Warning(
+			LOCTEXT("UGraphicToolsBlueprintLibrary::DrawCheckerBoard",
+			"DrawUVDisplacementToRenderTarget: Output render target is required."));
+		return;
+	}
+
+	FTextureRenderTargetResource* textureRTResource = OutRenderTarget->GameThread_GetRenderTargetResource();
+	ERHIFeatureLevel::Type featureLevel = WorldContextObject->GetWorld()->Scene->GetFeatureLevel();
+
+	ENQUEUE_RENDER_COMMAND(QxDrawCheckboard)(
+		[featureLevel, textureRTResource](FRHICommandListImmediate& RHICmdList)
+		{
+			DrawCheckBoard_RenderThread(
+				RHICmdList, textureRTResource, featureLevel
+			);
+		}
+		);
+}

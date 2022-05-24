@@ -9,6 +9,8 @@ IMPLEMENT_SHADER_TYPE(, FQxShaderTestPS, TEXT("/QxShaders/QxTest.usf"), TEXT("Ma
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMyUniform, "FMyUniform");
 
+IMPLEMENT_SHADER_TYPE(, FQxCheckboardComputeShader, TEXT("/QxShaders/QxCheckboard.usf"), TEXT("MainCS"), SF_Compute);
+
 void FQxShaderTestPS::SetTestColor(FRHICommandList& RHICmdList, const FLinearColor& InTestColor)
 {
 	FRHIPixelShader* ps = RHICmdList.GetBoundPixelShader();
