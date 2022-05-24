@@ -14,3 +14,14 @@ void FQxShaderTestPS::SetTestColor(FRHICommandList& RHICmdList, const FLinearCol
 	SetShaderValue(RHICmdList, ps, TestColor, InTestColor);
 
 }
+
+void FQxShaderTestPS::SetTestTexture(FRHICommandList& RHICmdList, FTextureReferenceRHIRef InTextureRHI)
+{
+	FRHIPixelShader* ps = RHICmdList.GetBoundPixelShader();
+
+	FRHISamplerState* testSamplerState = 
+		TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	SetTextureParameter(RHICmdList, ps, TestTexture, TestTextureSampler, testSamplerState, InTextureRHI);
+
+}

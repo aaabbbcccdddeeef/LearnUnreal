@@ -96,7 +96,8 @@ TGlobalResource<FSimpleIndexBuffer> GSimpleIndexBuffer;
 void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	FTextureRenderTargetResource* OutRTResource,
 	ERHIFeatureLevel::Type InFeatureLevel,
-	FLinearColor InColor)
+	FLinearColor InColor,
+	FTextureReferenceRHIRef InTextureRHI)
 {
 	FGlobalShaderMap* globalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
@@ -120,6 +121,7 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	SetGraphicsPipelineState(RHICmdList, graphicPSOInit);
 
 	pixelShader->SetTestColor(RHICmdList, InColor);
+	pixelShader->SetTestTexture(RHICmdList, InTextureRHI);
 
 	//RHICmdList.SetStreamSource(0, )
 	RHICmdList.SetStreamSource(0, GSimpleScreenVertexBuffer.VertexBufferRHI, 0);
@@ -138,7 +140,8 @@ void DrawQxShaderTestToRT_RenderThread(
 	FRHICommandListImmediate& RHICmdList,
 	FTextureRenderTargetResource* OutRTResource,
 	ERHIFeatureLevel::Type InFeatureLevel,
-	FLinearColor InColor)
+	FLinearColor InColor,
+	FTextureReferenceRHIRef InTextureRHI)
 {
 	check(IsInRenderingThread());
 
@@ -150,7 +153,7 @@ void DrawQxShaderTestToRT_RenderThread(
 
 	RHICmdList.BeginRenderPass(rpInfo, TEXT("QxShaderTest"));
 #pragma region MyRegion
-	RenderMyTest1(RHICmdList, OutRTResource, InFeatureLevel, InColor);
+	RenderMyTest1(RHICmdList, OutRTResource, InFeatureLevel, InColor, InTextureRHI);
 #pragma endregion
 
 	
@@ -163,7 +166,8 @@ void DrawQxShaderTestToRT_RenderThread(
 void UQxRenderBPLib::DrawQxShaderTestToRT(
 	UTextureRenderTarget2D* OutRenderTarget, 
 	AActor* InActor, 
-	FLinearColor InColor)
+	FLinearColor InColor,
+	UTexture* MyTexture)
 {
 	check(IsInGameThread());
 
@@ -175,14 +179,15 @@ void UQxRenderBPLib::DrawQxShaderTestToRT(
 
 	FTextureRenderTargetResource* rtResource =
 		OutRenderTarget->GameThread_GetRenderTargetResource();
+	FTextureReferenceRHIRef myTextureRHI = MyTexture->TextureReference.TextureReferenceRHI;
 
 	UWorld* world = InActor->GetWorld();
 	ERHIFeatureLevel::Type featureLevel = world->Scene->GetFeatureLevel();
 
 	ENQUEUE_RENDER_COMMAND(QxDrawTest)(
-		[rtResource, featureLevel, InColor](FRHICommandListImmediate& RHICmdList)
+		[rtResource, featureLevel, InColor, myTextureRHI](FRHICommandListImmediate& RHICmdList)
 		{
-			DrawQxShaderTestToRT_RenderThread(RHICmdList, rtResource, featureLevel, InColor);
+			DrawQxShaderTestToRT_RenderThread(RHICmdList, rtResource, featureLevel, InColor, myTextureRHI);
 		}
 		);
 }

@@ -52,6 +52,8 @@ public:
 		: FGlobalShader(Initializer)
 	{
 		TestColor.Bind(Initializer.ParameterMap, TEXT("TestColor"));
+		TestTexture.Bind(Initializer.ParameterMap, TEXT("MyTexture"));
+		TestTextureSampler.Bind(Initializer.ParameterMap, TEXT("MyTextureSampler"));
 	}
 
 	static bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters)
@@ -67,7 +69,11 @@ public:
 
 	void SetTestColor(FRHICommandList& RHICmdList, const FLinearColor& InTestColor);
 
+	void SetTestTexture(FRHICommandList& RHICmdList, FTextureReferenceRHIRef InTextureRHI);
 private:
 	// 定义一个输出参数
 	LAYOUT_FIELD(FShaderParameter, TestColor);
+
+	LAYOUT_FIELD(FShaderResourceParameter, TestTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, TestTextureSampler);
 };

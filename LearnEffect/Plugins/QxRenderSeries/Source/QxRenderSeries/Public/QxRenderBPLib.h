@@ -8,6 +8,7 @@
 
 class UTextureRenderTarget2D;
 class AActor;
+class UTexture;
 
 /**
  * 
@@ -20,5 +21,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "QxRender", meta = (WorldContext = "WorldContextObject"))
 	static void DrawQxShaderTestToRT(
 			UTextureRenderTarget2D* OutRenderTarget,
-			AActor* InActor, FLinearColor InColor);
+			AActor* InActor, FLinearColor InColor,
+			UTexture* MyTexture);
 };
