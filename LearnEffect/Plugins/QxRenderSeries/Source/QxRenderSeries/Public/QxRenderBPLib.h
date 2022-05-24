@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "QxShaders.h"
 #include "QxRenderBPLib.generated.h"
 
 class UTextureRenderTarget2D;
 class AActor;
+class UTexture;
 
 /**
  * 
@@ -20,5 +22,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "QxRender", meta = (WorldContext = "WorldContextObject"))
 	static void DrawQxShaderTestToRT(
 			UTextureRenderTarget2D* OutRenderTarget,
-			AActor* InActor, FLinearColor InColor);
+			AActor* InActor, FLinearColor InColor,
+			UTexture* MyTexture,
+			FMyUniformData InMyUniformData);
 };

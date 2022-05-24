@@ -76,7 +76,7 @@ class FSimpleIndexBuffer : public FIndexBuffer
 public:
 	void InitRHI() override
 	{
-		const uint16 Indices[] = { 0, 1, 2 };
+		const uint16 Indices[] = { 0, 1, 2, 2, 1, 3 };
 
 		TResourceArray <uint16, INDEXBUFFER_ALIGNMENT> IndexBuffer;
 		uint32 NumIndices = ARRAY_COUNT(Indices);
@@ -96,7 +96,9 @@ TGlobalResource<FSimpleIndexBuffer> GSimpleIndexBuffer;
 void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	FTextureRenderTargetResource* OutRTResource,
 	ERHIFeatureLevel::Type InFeatureLevel,
-	FLinearColor InColor)
+	FLinearColor InColor,
+	FTextureReferenceRHIRef InTextureRHI,
+	FMyUniformData InMyUniformData)
 {
 	FGlobalShaderMap* globalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
@@ -120,6 +122,8 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	SetGraphicsPipelineState(RHICmdList, graphicPSOInit);
 
 	pixelShader->SetTestColor(RHICmdList, InColor);
+	pixelShader->SetTestTexture(RHICmdList, InTextureRHI);
+	pixelShader->SetMyUniform(RHICmdList, InMyUniformData);
 
 	//RHICmdList.SetStreamSource(0, )
 	RHICmdList.SetStreamSource(0, GSimpleScreenVertexBuffer.VertexBufferRHI, 0);
@@ -128,9 +132,9 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 		GSimpleIndexBuffer.IndexBufferRHI,
 		/*BaseVertexIndex=*/ 0,
 		/* MinIndex = */  0,
-		/* NumVertices = */3,
+		/* NumVertices = */6,
 		/*StartIndex=*/0,
-		/* NumPrimitives = */1,
+		/* NumPrimitives = */2,
 		/*NumInstances=*/1);
 }
 
@@ -138,7 +142,9 @@ void DrawQxShaderTestToRT_RenderThread(
 	FRHICommandListImmediate& RHICmdList,
 	FTextureRenderTargetResource* OutRTResource,
 	ERHIFeatureLevel::Type InFeatureLevel,
-	FLinearColor InColor)
+	FLinearColor InColor,
+	FTextureReferenceRHIRef InTextureRHI, 
+	FMyUniformData InMyUniformData)
 {
 	check(IsInRenderingThread());
 
@@ -150,7 +156,7 @@ void DrawQxShaderTestToRT_RenderThread(
 
 	RHICmdList.BeginRenderPass(rpInfo, TEXT("QxShaderTest"));
 #pragma region MyRegion
-	RenderMyTest1(RHICmdList, OutRTResource, InFeatureLevel, InColor);
+	RenderMyTest1(RHICmdList, OutRTResource, InFeatureLevel, InColor, InTextureRHI, InMyUniformData);
 #pragma endregion
 
 	
@@ -163,7 +169,9 @@ void DrawQxShaderTestToRT_RenderThread(
 void UQxRenderBPLib::DrawQxShaderTestToRT(
 	UTextureRenderTarget2D* OutRenderTarget, 
 	AActor* InActor, 
-	FLinearColor InColor)
+	FLinearColor InColor,
+	UTexture* MyTexture,
+	FMyUniformData InMyUniformData)
 {
 	check(IsInGameThread());
 
@@ -175,14 +183,15 @@ void UQxRenderBPLib::DrawQxShaderTestToRT(
 
 	FTextureRenderTargetResource* rtResource =
 		OutRenderTarget->GameThread_GetRenderTargetResource();
+	FTextureReferenceRHIRef myTextureRHI = MyTexture->TextureReference.TextureReferenceRHI;
 
 	UWorld* world = InActor->GetWorld();
 	ERHIFeatureLevel::Type featureLevel = world->Scene->GetFeatureLevel();
 
 	ENQUEUE_RENDER_COMMAND(QxDrawTest)(
-		[rtResource, featureLevel, InColor](FRHICommandListImmediate& RHICmdList)
+		[rtResource, featureLevel, InColor, myTextureRHI, InMyUniformData](FRHICommandListImmediate& RHICmdList)
 		{
-			DrawQxShaderTestToRT_RenderThread(RHICmdList, rtResource, featureLevel, InColor);
+			DrawQxShaderTestToRT_RenderThread(RHICmdList, rtResource, featureLevel, InColor, myTextureRHI, InMyUniformData);
 		}
 		);
 }
