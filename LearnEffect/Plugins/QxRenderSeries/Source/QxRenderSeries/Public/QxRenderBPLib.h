@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "QxShaders.h"
 #include "QxRenderBPLib.generated.h"
 
 class UTextureRenderTarget2D;
@@ -22,5 +23,6 @@ public:
 	static void DrawQxShaderTestToRT(
 			UTextureRenderTarget2D* OutRenderTarget,
 			AActor* InActor, FLinearColor InColor,
-			UTexture* MyTexture);
+			UTexture* MyTexture,
+			FMyUniformData InMyUniformData);
 };

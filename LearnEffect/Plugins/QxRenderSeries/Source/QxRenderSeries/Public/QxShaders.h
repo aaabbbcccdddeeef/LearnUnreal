@@ -4,11 +4,30 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-//#include "QxShaders.generated.h"
+#include <ShaderParameterMacros.h>
+#include "QxShaders.generated.h"
 
 /**
  * 
  */
+
+USTRUCT(BlueprintType)
+struct FMyUniformData
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "QxRendering")
+		FVector4 ColorOne;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "QxRendering")
+		FVector4 ColorTwo;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "QxRendering")
+		FVector4 ColorThree;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "QxRendering")
+		FVector4 ColorFour;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "QxRendering")
+		int32 ColorIndex;
+};
 
 
 class FQxShaderTestVS : public FGlobalShader
@@ -70,6 +89,10 @@ public:
 	void SetTestColor(FRHICommandList& RHICmdList, const FLinearColor& InTestColor);
 
 	void SetTestTexture(FRHICommandList& RHICmdList, FTextureReferenceRHIRef InTextureRHI);
+
+	void SetMyUniform(FRHICommandList& RHICmdList, FMyUniformData InTextureRHI);
+
+	
 private:
 	// 定义一个输出参数
 	LAYOUT_FIELD(FShaderParameter, TestColor);
@@ -77,3 +100,16 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, TestTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, TestTextureSampler);
 };
+
+#pragma region DefineMyUniformBuffers
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMyUniform, )
+SHADER_PARAMETER(FVector4, ColorOne)
+SHADER_PARAMETER(FVector4, ColorTwo)
+SHADER_PARAMETER(FVector4, ColorThree)
+SHADER_PARAMETER(FVector4, ColorFour)
+SHADER_PARAMETER(int32, ColorIndex)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+
+#pragma endregion
