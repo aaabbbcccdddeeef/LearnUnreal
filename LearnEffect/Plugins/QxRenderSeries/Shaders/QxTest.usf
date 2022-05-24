@@ -14,5 +14,6 @@ void MainVS(
 float4 TestColor;
 float4 MainPS() : SV_Target0
 {
-    return TestColor;
+    //return TestColor;
+    return float4(TestColor.xyz, 1.f);
 }

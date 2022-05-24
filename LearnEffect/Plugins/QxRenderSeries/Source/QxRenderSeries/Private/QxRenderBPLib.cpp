@@ -76,7 +76,7 @@ class FSimpleIndexBuffer : public FIndexBuffer
 public:
 	void InitRHI() override
 	{
-		const uint16 Indices[] = { 0, 1, 2 };
+		const uint16 Indices[] = { 0, 1, 2, 2, 1, 3 };
 
 		TResourceArray <uint16, INDEXBUFFER_ALIGNMENT> IndexBuffer;
 		uint32 NumIndices = ARRAY_COUNT(Indices);
@@ -128,9 +128,9 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 		GSimpleIndexBuffer.IndexBufferRHI,
 		/*BaseVertexIndex=*/ 0,
 		/* MinIndex = */  0,
-		/* NumVertices = */3,
+		/* NumVertices = */6,
 		/*StartIndex=*/0,
-		/* NumPrimitives = */1,
+		/* NumPrimitives = */2,
 		/*NumInstances=*/1);
 }
 
