@@ -1,6 +1,12 @@
 #include "/Engine/Public/Platform.ush"
 #include "/Engine/Private/Common.ush"
 
+struct TestStruct
+{
+    float3 TestPosition;
+};
+
+RWStructuredBuffer<TestStruct> TestStructBuffer;
 
 RWTexture2D<float4> RWOutputSurface;
 
@@ -11,4 +17,5 @@ void MainCS(uint3 GroupID : SV_GroupID,
 {
     RWOutputSurface[DispatchThreadId.xy] = float4(1, 0, 0, 1);
 
+    TestStructBuffer[0].TestPosition = float3(0.5, 0.5, 0.5);
 }

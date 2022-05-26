@@ -16,3 +16,4 @@ Content/StarterContent
 Plugins/glTFRuntime/
 LearnEffect/PackagedWS/
 *.log
+LearnEffect/enc_temp_folder/
