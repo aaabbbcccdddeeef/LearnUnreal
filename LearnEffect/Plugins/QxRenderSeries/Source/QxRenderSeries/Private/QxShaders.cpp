@@ -4,8 +4,8 @@
 #include "QxShaders.h"
 
 
-IMPLEMENT_SHADER_TYPE(, FQxShaderTestVS, TEXT("/QxShaders/QxTest.usf"), TEXT("MainVS"), SF_Vertex);
-IMPLEMENT_SHADER_TYPE(, FQxShaderTestPS, TEXT("/QxShaders/QxTest.usf"), TEXT("MainPS"), SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FQxShaderTestVS, "/QxShaders/QxTest.usf", "MainVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FQxShaderTestPS, "/QxShaders/QxTest.usf", "MainPS", SF_Pixel);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMyUniform, "FMyUniform");
 
