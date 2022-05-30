@@ -19,6 +19,14 @@
 			"Name": "QxRenderSeries",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"Name": "QxRenderSeriesEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"AdditionalDependencies": [
+				"UnrealEd"
+			]
 		}
 	]
 }
