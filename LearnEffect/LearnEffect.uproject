@@ -33,8 +33,25 @@
 			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/42f50ebeb59c478db54c7f348c0c0233"
 		},
 		{
-			"Name": "RenderDocPlugin",
+			"Name": "GPAPlugin",
 			"Enabled": true
+		},
+		{
+			"Name": "VariantManager",
+			"Enabled": true
+		},
+		{
+			"Name": "DatasmithImporter",
+			"Enabled": true
+		},
+		{
+			"Name": "DataprepEditor",
+			"Enabled": true
+		},
+		{
+			"Name": "ElectronicNodes",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/5cb2a394d0c04e73891762be4cbd7216"
 		}
 	]
 }
