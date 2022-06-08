@@ -1,0 +1,25 @@
+
+struct QxRayMarchTexture
+{
+    // float SampleVolumeTextureWithCamera(Texture3D Volume, SamplerState VolumeSampler)
+    // {
+
+    // }
+
+    float RayMarchTexture(Texture3D Volume, SamplerState VolumeSampler,float MaxSteps,// float XYFrames,
+        float3 CurPos_UVW, float3 CameraDir_LS)
+    {
+        //float numFrames = XYFrames * XYFrames;
+
+        float accumDist = 0;
+
+        float stepSize = 1 / MaxSteps;
+        for(int i = 0; i < MaxSteps; i++)
+        {
+            float curSample = Volume.SampleLevel(VolumeSampler, CurPos_UVW, 0).r;
+            accumDist += curSample * stepSize;
+            CurPos_UVW += -CameraDir_LS * stepSize;
+        }
+        return accumDist;
+    }
+};
