@@ -5,6 +5,7 @@
 #include "QxRenderSeries.h"
 #include <Engine/TextureRenderTarget2D.h>
 #include "QxShaders.h"
+#include <GameFramework/GameUserSettings.h>
 //#include <Templates/UnrealTemplate.h>
 
 #define LOCTEXT_NAMESPACE "QxRenderBPLib"
@@ -102,6 +103,12 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	FTextureReferenceRHIRef InTextureRHI,
 	FMyUniformData InMyUniformData)
 {
+	//GDynamicRHI
+	//FD3D12DynamicRHI* rhiPtr = dynamic_cast<FD3D12DynamicRHI>(GDynamicRHI);
+	//if (rhiPtr)
+	//{
+	//}
+
 	FGlobalShaderMap* globalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
 	TShaderMapRef<FQxShaderTestVS> vertexShader(globalShaderMap);
@@ -375,3 +382,21 @@ void UQxRenderBPLib::DrawCheckBoard(const UObject* WorldContextObject, UTextureR
 		}
 		);
 }
+
+bool UQxRenderBPLib::GetUseD3D12InGame()
+{
+	bool bPreferD3D12 = false;
+	GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bUseD3D12InGame"), bPreferD3D12, GGameUserSettingsIni);
+
+	UE_LOG(LogTemp, Warning, TEXT("content from function "));
+	return bPreferD3D12;
+}
+
+void UQxRenderBPLib::SetUseD3D12InGame(bool InUseD3D12)
+{
+	GConfig->SetBool(TEXT("D3DRHIPreference"), TEXT("bUseD3D12InGame"), InUseD3D12, GGameUserSettingsIni);
+	//SaveConfig(CPF_Config, *GGameUserSettingsIni);
+	UGameUserSettings::GetGameUserSettings()->SaveSettings();
+	UE_LOG(LogTemp, Warning, TEXT("content from function "));
+}
+

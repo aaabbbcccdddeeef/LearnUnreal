@@ -35,4 +35,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "QxRender", meta = (WorldContext = "WorldContextObject"))
 	static void DrawCheckBoard(const UObject* WorldContextObject,
 		UTextureRenderTarget2D* OutRenderTarget);
+
+	UFUNCTION(BlueprintCallable, Category = "QxRender")
+	static bool GetUseD3D12InGame();
+
+	UFUNCTION(BlueprintCallable, Category = "QxRender")
+	static void SetUseD3D12InGame(bool InUseD3D12);
 };

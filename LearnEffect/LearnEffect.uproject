@@ -65,5 +65,8 @@
 			"Name": "DatasmithGLTFImporter",
 			"Enabled": true
 		}
+	],
+	"TargetPlatforms": [
+		"WindowsNoEditor"
 	]
 }
