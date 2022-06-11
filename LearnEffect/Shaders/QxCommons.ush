@@ -1,0 +1,14 @@
+#include "/Engine/Private/Common.ush"
+
+// 这里用QxCommon只是为了在custom node中用起来方便
+struct QxCommon
+{
+    // 获得uniform 的scale 非uniform的不要用这个
+    float GetUniformScale(FMaterialPixelParameters Parameters)
+    {
+        float scale = length(TransformLocalVectorToWorld(Parameters, float3(1., 0., 0.)).xyz);
+        return scale;
+    }
+
+
+};

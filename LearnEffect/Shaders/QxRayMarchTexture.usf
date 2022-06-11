@@ -1,3 +1,4 @@
+#include "/Engine/Private/Common.ush"
 
 struct QxRayMarchTexture
 {
@@ -22,4 +23,11 @@ struct QxRayMarchTexture
         }
         return accumDist;
     }
+
+    float Test(FMaterialPixelParameters Parameters)
+    {
+        float scale = length(TransformLocalVectorToWorld(Parameters, float3(1., 0., 0.)).xyz);
+        return scale;
+    }
+
 };
