@@ -16,11 +16,14 @@ public:
 
 	void PluginButtonClicked();
 
-	void ExtendToolbar();
 	void AddMenuExtension(FMenuBuilder& MenuBuilder);
 	void ExtendMenuItem();
 	void ExtendMenuItem2();
+	void ExtendToolBar();
+	void ExtendToolBar2();
 	void AddToolBarExtension(FToolBarBuilder& InBuilder);
+
+	TSharedRef<class SDockTab> OnSpawnPluginTab(const class FSpawnTabArgs& SpawnTabArgs);
 private:
 	TSharedPtr<FUICommandList> PluginCommands;
 };

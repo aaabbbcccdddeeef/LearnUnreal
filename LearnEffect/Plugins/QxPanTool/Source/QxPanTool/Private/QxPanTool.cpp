@@ -116,6 +116,9 @@ void FQxPanToolModule::PluginButtonClicked()
 	FGlobalTabmanager::Get()->TryInvokeTab(QxPanToolTabName);
 }
 
+/**
+ * 在工具栏和菜单上添加按钮
+ */
 void FQxPanToolModule::RegisterMenus()
 {
 	// Owner will be used for cleanup in call to UToolMenus::UnregisterOwner

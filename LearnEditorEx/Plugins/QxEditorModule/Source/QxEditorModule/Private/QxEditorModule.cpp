@@ -8,6 +8,7 @@
 
 #define LOCTEXT_NAMESPACE "FQxEditorModuleModule"
 
+static const FName QxTestToolTabName("QxPanTool");
 
 void FQxEditorModuleModule::StartupModule()
 {
@@ -22,21 +23,17 @@ void FQxEditorModuleModule::StartupModule()
 		FExecuteAction::CreateRaw(this, &FQxEditorModuleModule::PluginButtonClicked));
 	// PluginCommands->MapAction()
 	// ExtendMenuItem();
-	ExtendMenuItem2();
+	//ExtendMenuItem2();
+
+	ExtendToolBar();
+	//ExtendToolBar2();
+
+	FGlobalTabmanager::Get()->RegisterTabSpawner(QxTestToolTabName,
+		FOnSpawnTab::CreateRaw(this, &FQxEditorModuleModule::OnSpawnPluginTab));
 }
 
 
 
-void FQxEditorModuleModule::ExtendToolbar()
-{
-	TSharedPtr<FExtender> MenuBarExtender = MakeShareable(new FExtender());
-		
-	// FToolBarExtensionDelegate& tmpDelegate =
-	// 	;
-	MenuBarExtender->AddToolBarExtension("SettingsXX", EExtensionHook::After,
-	                                     PluginCommands, 
-	                                     FToolBarExtensionDelegate::CreateRaw(this, &FQxEditorModuleModule::AddToolBarExtension));
-}
 
 void FQxEditorModuleModule::AddMenuExtension(FMenuBuilder& MenuBuilder)
 {
@@ -73,6 +70,38 @@ void FQxEditorModuleModule::ExtendMenuItem2()
 	}
 }
 
+void FQxEditorModuleModule::ExtendToolBar()
+{
+	FLevelEditorModule& editorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	// 创建工具栏扩展项
+	{
+		TSharedPtr<FExtender> ToolBarExtender = MakeShareable(new FExtender());
+
+		ToolBarExtender->AddToolBarExtension("Settings", EExtensionHook::After,
+			PluginCommands,
+			FToolBarExtensionDelegate::CreateRaw(this, &FQxEditorModuleModule::AddToolBarExtension));
+
+		editorModule.GetToolBarExtensibilityManager()->AddExtender(ToolBarExtender);
+	}
+
+
+
+}
+
+void FQxEditorModuleModule::ExtendToolBar2()
+{
+	UToolMenu* toolBarMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar");
+	{
+		FToolMenuSection& section = toolBarMenu->FindOrAddSection("Settings");
+		{
+			FToolMenuEntry& entry = section.AddEntry(FToolMenuEntry::InitToolBarButton(
+				FQxTestCommands::Get().OpenPluginWindow));
+			entry.SetCommandList(PluginCommands);
+		}
+	}
+}
+
 void FQxEditorModuleModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
@@ -83,11 +112,35 @@ void FQxEditorModuleModule::PluginButtonClicked()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Plugin Button Clicked"));
 
+	// 激活一个全局的tab窗口
+	FGlobalTabmanager::Get()->TryInvokeTab(QxTestToolTabName);
 }
 
 void FQxEditorModuleModule::AddToolBarExtension(FToolBarBuilder& InBuilder)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Test Add Toolbar Extension"));
+
+	//一个空的下拉菜单
+	auto ContextMenu = []()
+	{
+		FMenuBuilder menuBuilder(true, nullptr);
+		return menuBuilder.MakeWidget();
+	};
+
+	// 添加一个工具栏按钮
+	InBuilder.AddToolBarButton(FQxTestCommands::Get().OpenPluginWindow);
+
+	// 添加一个下拉菜单
+	InBuilder.AddComboButton(FUIAction(),
+		FOnGetContent::CreateLambda(ContextMenu),
+		TAttribute<FText>(),
+		TAttribute<FText>());
+
+}
+
+TSharedRef<class SDockTab> FQxEditorModuleModule::OnSpawnPluginTab(const class FSpawnTabArgs& SpawnTabArgs)
+{
+	return SNew(SDockTab);
 }
 
 #undef LOCTEXT_NAMESPACE
