@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class QxEditorModule : ModuleRules
+public class QxAssets : ModuleRules
 {
-	public QxEditorModule(ReadOnlyTargetRules Target) : base(Target)
+	public QxAssets(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
@@ -34,16 +34,10 @@ public class QxEditorModule : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Projects",
-				"InputCore",
-				"UnrealEd",
-				"ToolMenus",
 				"CoreUObject",
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
-				"QxAssets"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
