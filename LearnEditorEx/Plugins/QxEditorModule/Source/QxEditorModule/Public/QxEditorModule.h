@@ -9,6 +9,7 @@ class FUICommandList;
 class FQxEditorModuleModule : public IModuleInterface
 {
 public:
+	
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
@@ -18,6 +19,7 @@ public:
 	void ExtendToolbar();
 	void AddMenuExtension(FMenuBuilder& MenuBuilder);
 	void ExtendMenuItem();
+	void ExtendMenuItem2();
 	void AddToolBarExtension(FToolBarBuilder& InBuilder);
 private:
 	TSharedPtr<FUICommandList> PluginCommands;

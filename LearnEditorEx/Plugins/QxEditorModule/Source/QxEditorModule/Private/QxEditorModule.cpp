@@ -4,6 +4,7 @@
 #include "Framework/Commands/Commands.h"
 #include "LevelEditor.h"
 #include "QxTestCommands.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "FQxEditorModuleModule"
 
@@ -20,8 +21,10 @@ void FQxEditorModuleModule::StartupModule()
 	PluginCommands->MapAction(FQxTestCommands::Get().OpenPluginWindow,
 		FExecuteAction::CreateRaw(this, &FQxEditorModuleModule::PluginButtonClicked));
 	// PluginCommands->MapAction()
-	ExtendMenuItem();
+	// ExtendMenuItem();
+	ExtendMenuItem2();
 }
+
 
 
 void FQxEditorModuleModule::ExtendToolbar()
@@ -50,9 +53,23 @@ void FQxEditorModuleModule::ExtendMenuItem()
 	{	// 创建菜单拓展项，就是菜单栏内的子项
 		TSharedPtr<FExtender> MenuExtender = MakeShareable(new FExtender());
 		// 增加菜单到 General UI扩展点之后
+		// 注意： "VisitForum" ExtensionHook这个不是自定义的，而是根据已有的扩展点来看的，可以通过修改editor 设置看到
 		MenuExtender->AddMenuExtension("VisitForums", EExtensionHook::After,
 			PluginCommands, FMenuExtensionDelegate::CreateRaw(this, &FQxEditorModuleModule::AddMenuExtension));
 		LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(MenuExtender);
+	}
+}
+
+void FQxEditorModuleModule::ExtendMenuItem2()
+{
+	FToolMenuOwnerScoped ownerScoped(this);
+	{
+		UToolMenu* menu =UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Window");
+		{
+			// 在Window Layout 部分添加
+			FToolMenuSection& section = menu->FindOrAddSection("WindowLayout");
+			section.AddMenuEntryWithCommandList(FQxTestCommands::Get().OpenPluginWindow, PluginCommands);
+		}
 	}
 }
 
