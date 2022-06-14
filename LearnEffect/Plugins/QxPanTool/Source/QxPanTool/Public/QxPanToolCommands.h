@@ -11,7 +11,10 @@ class FQxPanToolCommands : public TCommands<FQxPanToolCommands>
 public:
 
 	FQxPanToolCommands()
-		: TCommands<FQxPanToolCommands>(TEXT("QxPanTool"), NSLOCTEXT("Contexts", "QxPanTool", "QxPanTool Plugin"), NAME_None, FQxPanToolStyle::GetStyleSetName())
+		: TCommands<FQxPanToolCommands>(
+			TEXT("QWPanTX"),
+			NSLOCTEXT("Contexts", "QxPanTool", "QxPanTool Plugin"),
+			NAME_None, FQxPanToolStyle::GetStyleSetName())
 	{
 	}
 
