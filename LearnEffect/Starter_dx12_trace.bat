@@ -1,0 +1,1 @@
+"E:\DevTools\UE_5.0\Engine\Binaries\Win64\UnrealEditor.exe" "E:\WS\UE5WS\TestUE5\TestUE5.uproject" -dx12 -trace=memory
