@@ -1,0 +1,12 @@
+#include "/Engine/Public/Platform.ush"
+
+StructuredBuffer<float3> VertexPositions;
+RWTexture2D<float4> OutputTexture;
+
+// #TODO 关于这里为什么用32,32,1还没有弄明白
+[numthreads(32, 32, 1)]
+void MainCompute(uint3 ThreadId : SV_DispatchThreadID)
+{
+	float3 vert = normalize(VertexPositions[0]);
+	OutputTexture[ThreadId.xy] = float4(vert.x, vert.y, vert.z, 1.f);
+}

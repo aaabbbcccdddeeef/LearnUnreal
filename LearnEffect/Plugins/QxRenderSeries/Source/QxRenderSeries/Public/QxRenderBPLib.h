@@ -41,4 +41,16 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "QxRender")
 	static void SetUseD3D12InGame(bool InUseD3D12);
+
+	
+	/**
+	 * @brief 测试用 RDG实现的Compute Shader处理Inrender target
+	 * @param InRenderTarget 
+	 * @param InVertexPositions 用来选择生成颜色
+	 */
+	UFUNCTION(BlueprintCallable, Category = "QxRender")
+	static void RenderTexture_WithCSRDG(UTextureRenderTarget2D* InRenderTarget, TArray<FVector> InVertexPositions);
+
+	UFUNCTION(BlueprintCallable, Category = "QxRender")
+	static TArray<FVector> GetMeshVerticesWS(UStaticMeshComponent* InMeshComponent);
 };

@@ -6,6 +6,9 @@
 #include <Engine/TextureRenderTarget2D.h>
 #include "QxShaders.h"
 #include <GameFramework/GameUserSettings.h>
+
+#include "QxCSShader_RDG.h"
+#include "QxRenderUtils.h"
 //#include <Templates/UnrealTemplate.h>
 
 #define LOCTEXT_NAMESPACE "QxRenderBPLib"
@@ -130,7 +133,7 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	graphicPSOInit.BoundShaderState.PixelShaderRHI = pixelShader.GetPixelShader();
 	SetGraphicsPipelineState(RHICmdList, graphicPSOInit);
 
-	FGraphicsPipelineState* PipelineState;
+	// FGraphicsPipelineState* PipelineState;
 	// PipelineState.set
 	// graphicPSOInit.set
 	
@@ -402,5 +405,27 @@ void UQxRenderBPLib::SetUseD3D12InGame(bool InUseD3D12)
 	//SaveConfig(CPF_Config, *GGameUserSettingsIni);
 	UGameUserSettings::GetGameUserSettings()->SaveSettings();
 	UE_LOG(LogTemp, Warning, TEXT("content from function "));
+}
+
+void UQxRenderBPLib::RenderTexture_WithCSRDG(UTextureRenderTarget2D* InRenderTarget, TArray<FVector> InVertexPositions)
+{
+	TShaderMapRef<FQxCSSahder_RDG> qxCS_RDG(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+
+	ENQUEUE_RENDER_COMMAND(QxCSRDGRender)(
+	[qxCS_RDG, InRenderTarget, InVertexPositions](FRHICommandListImmediate& RHICmdList)
+	{
+		qxCS_RDG->BuildAndExecuteRenderGraph_RenderThread(
+				RHICmdList,
+				InRenderTarget,
+				InVertexPositions
+			);
+	}
+	);
+	
+}
+
+TArray<FVector> UQxRenderBPLib::GetMeshVerticesWS(UStaticMeshComponent* InMeshComponent)
+{
+	return FQxRenderUtils::GetVertexPositonsWS(InMeshComponent);
 }
 
