@@ -34,7 +34,7 @@
 		},
 		{
 			"Name": "GPAPlugin",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "VariantManager",
@@ -63,6 +63,10 @@
 		},
 		{
 			"Name": "DatasmithGLTFImporter",
+			"Enabled": true
+		},
+		{
+			"Name": "RenderDocPlugin",
 			"Enabled": true
 		}
 	],

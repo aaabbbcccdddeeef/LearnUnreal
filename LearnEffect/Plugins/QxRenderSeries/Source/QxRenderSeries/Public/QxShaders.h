@@ -63,6 +63,7 @@ public:
 class FQxShaderTestPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FQxShaderTestPS, Global)
+
 public:
 	FQxShaderTestPS()
 	{
@@ -96,7 +97,7 @@ public:
 
 	
 private:
-	// ¶¨ÒåÒ»¸öÊä³ö²ÎÊı
+	// å®šä¹‰ä¸€ä¸ªè¾“å‡ºå‚æ•°
 	LAYOUT_FIELD(FShaderParameter, TestColor);
 
 	LAYOUT_FIELD(FShaderResourceParameter, TestTexture);
@@ -131,7 +132,7 @@ public:
 	FQxCheckboardComputeShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
-		//#Unkown  ÕâÀïºÍshaderÀïµÄÃû×Ö²»¶ÔÓ¦£¬ ²»»áÓĞÎÊÌâÂğ???
+		//#Unkown  è¿™é‡Œå’Œshaderé‡Œçš„åå­—ä¸å¯¹åº”ï¼Œ ä¸ä¼šæœ‰é—®é¢˜å—???
 		OutputSurface.Bind(Initializer.ParameterMap, TEXT("OutputSurface"));
 	}
 

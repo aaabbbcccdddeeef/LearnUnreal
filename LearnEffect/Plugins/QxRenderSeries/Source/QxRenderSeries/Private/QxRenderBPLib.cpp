@@ -17,7 +17,7 @@ struct FQxTestVertex
 	FVector2D UV;
 };
 
-// ¶¨Òå¶¥µãÉùÃ÷
+// å®šä¹‰é¡¶ç‚¹å£°æ˜Ž
 class FQxTestVertexDeclaration : public FRenderResource
 {
 public:
@@ -40,7 +40,7 @@ public:
 
 };
 
-// ¶¨ÒåÒ»¸ö³¤·½ÐÎµÄstatic vertex buffer
+// å®šä¹‰ä¸€ä¸ªé•¿æ–¹å½¢çš„static vertex buffer
 class FSimpleScreenVertexBuffer : public FVertexBuffer
 {
 public:
@@ -73,7 +73,7 @@ TGlobalResource<FQxTestVertexDeclaration> GQxTestVertexDeclaration;
 TGlobalResource<FSimpleScreenVertexBuffer> GSimpleScreenVertexBuffer;
 
 
-//Ë÷Òý»º³åÇø
+//ç´¢å¼•ç¼“å†²åŒº
 class FSimpleIndexBuffer : public FIndexBuffer
 {
 public:
@@ -114,7 +114,7 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	TShaderMapRef<FQxShaderTestVS> vertexShader(globalShaderMap);
 	TShaderMapRef<FQxShaderTestPS> pixelShader(globalShaderMap);
 
-	// ÉèÖÃGraphic pipeline state
+	// è®¾ç½®Graphic pipeline state
 	FGraphicsPipelineStateInitializer graphicPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(graphicPSOInit);
 	graphicPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
@@ -122,7 +122,7 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	graphicPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 	graphicPSOInit.PrimitiveType = PT_TriangleList;
 
-	//ÉèÖÃ¶¥µãÉùÃ÷
+	//è®¾ç½®é¡¶ç‚¹å£°æ˜Ž
 	graphicPSOInit.BoundShaderState.VertexDeclarationRHI = GQxTestVertexDeclaration.VertexDeclarationRHI;
 
 
@@ -130,6 +130,10 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	graphicPSOInit.BoundShaderState.PixelShaderRHI = pixelShader.GetPixelShader();
 	SetGraphicsPipelineState(RHICmdList, graphicPSOInit);
 
+	FGraphicsPipelineState* PipelineState;
+	// PipelineState.set
+	// graphicPSOInit.set
+	
 	pixelShader->SetTestColor(RHICmdList, InColor);
 	pixelShader->SetTestTexture(RHICmdList, InTextureRHI);
 	pixelShader->SetMyUniform(RHICmdList, InMyUniformData);
@@ -265,7 +269,7 @@ void TextureWriting2_RenderThread(FRHICommandListImmediate& RHICmdList,
 		for (uint32 column = 0; column < texRef2D->GetSizeX(); column++)
 		{
 			uint32 encodePixel = *pixelPtr;
-			// ÎªÊ²Ã´ÕâÀïÊÇÕâÑù×ª»»£¬ ÒÔ¼°×îºó½á¹ûÎªÊ²Ã´²»¶Ô
+			// ä¸ºä»€ä¹ˆè¿™é‡Œæ˜¯è¿™æ ·è½¬æ¢ï¼Œ ä»¥åŠæœ€åŽç»“æžœä¸ºä»€ä¹ˆä¸å¯¹
 			uint8	r = (encodePixel && 0x000000FF);
 			uint8 g = (encodePixel && 0x0000FF00) >> 8;
 			uint8 b = (encodePixel & 0x00FF0000) >> 16;
@@ -276,7 +280,7 @@ void TextureWriting2_RenderThread(FRHICommandListImmediate& RHICmdList,
 			pixelPtr++;
 
 		}
-		// ÒÆ¶¯µ½ÏÂÒ»ÐÐ
+		// ç§»åŠ¨åˆ°ä¸‹ä¸€è¡Œ
 		textureDataPtr += LolStride;
 	}
 
@@ -286,14 +290,14 @@ void TextureWriting2_RenderThread(FRHICommandListImmediate& RHICmdList,
 	{
 		IFileManager::Get().MakeDirectory(*FPaths::ScreenShotDir(), true);
 		const FString screenFileName = FPaths::ScreenShotDir() / TEXT("VisualizeTexture");
-		// #Unkown ÏÂÃæÕâ¾äÊÇÊ²Ã´ÒâË¼
+		// #Unkown ä¸‹é¢è¿™å¥æ˜¯ä»€ä¹ˆæ„æ€
 		uint32 extendXWithMSAA = TextureToWrite->GetSizeX();
 		if (TextureToWrite->GetSizeY() > 0)
 		{
 			extendXWithMSAA = bitmap.Num() / TextureToWrite->GetSizeY();
 		}
 
-		// ±£´æÑÕÉ«Êý×éµ½Ò»¸öbitmap ÎÄ¼þ
+		// ä¿å­˜é¢œè‰²æ•°ç»„åˆ°ä¸€ä¸ªbitmap æ–‡ä»¶
 		FFileHelper::CreateBitmap(*screenFileName, extendXWithMSAA, TextureToWrite->GetSizeY(), bitmap.GetData());
 
 		UE_LOG(LogConsoleResponse, Display, TEXT("Content was saved to \"%s\""), *FPaths::ScreenShotDir());

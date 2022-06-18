@@ -3,6 +3,8 @@
 
 #include "QxShaders.h"
 
+#include "ShaderParameterStruct.h"
+
 
 IMPLEMENT_GLOBAL_SHADER(FQxShaderTestVS, "/QxShaders/QxTest.usf", "MainVS", SF_Vertex);
 IMPLEMENT_GLOBAL_SHADER(FQxShaderTestPS, "/QxShaders/QxTest.usf", "MainPS", SF_Pixel);
@@ -27,6 +29,7 @@ void FQxShaderTestPS::SetTestTexture(FRHICommandList& RHICmdList, FTextureRefere
 
 	SetTextureParameter(RHICmdList, ps, TestTexture, TestTextureSampler, testSamplerState, InTextureRHI);
 
+	// SetShaderParameters(RHICmdList, ps, ps->getpix)
 }
 
 void FQxShaderTestPS::SetMyUniform(FRHICommandList& RHICmdList, FMyUniformData InMyUniformData)
