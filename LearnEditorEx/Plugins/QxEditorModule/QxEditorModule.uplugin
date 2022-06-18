@@ -19,11 +19,20 @@
 			"Name": "QxEditorModule",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ZZMeshTools",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
 		{
 			"Name": "QxAssets",
+			"Enabled": true
+		},
+		{
+			"Name": "DataprepEditor",
 			"Enabled": true
 		}
 	]
