@@ -56,4 +56,12 @@ public:
 
 	static void PostResolveSceneColor_RenderThread(FRHICommandListImmediate& FrhiCommandListImmediate,
 		FSceneRenderTargets& SceneRenderTargets);
+
+	static void PostClear_RenderThread(FRHICommandListImmediate& FrhiCommandListImmediate,
+		FSceneRenderTargets& SceneRenderTargets);
+
+	const FSceneRenderTargetItem& RequestSurface(FRHICommandListImmediate& RHICmdList);
+
+
+	TRefCountPtr<IPooledRenderTarget> PooledRenderTarget;
 };

@@ -12,6 +12,7 @@
 
 #include "QxCSShader_RDG.h"
 #include "QxRenderUtils.h"
+#include "RenderTargetPool.h"
 //#include <Templates/UnrealTemplate.h>
 
 #define LOCTEXT_NAMESPACE "QxRenderBPLib"
@@ -436,17 +437,34 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 	FRHICommandListImmediate& RHICmdList,
 	FSceneRenderTargets& SceneRenderTargets)
 {
+	// Used to gather CPU profiling data for the UE4 session frontend
+	// 添加给front end等用的标记
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_QxShaderPlugin_PixelShader); 
+	// Used to profile GPU activity and add metadata to be consumed by for example RenderDoc
+	// 添加给renderdoc等用的标记
+	SCOPED_DRAW_EVENT(RHICmdList, QxShaderPlugin_Pixel); 
+
+
 	//获得 当前render target的color buffer
 	FTextureRHIRef rtTextureRHI = SceneRenderTargets.GetSceneColorSurface();
+	//SceneRenderTargets
+	SceneRenderTargets
 
-	/*
+		// 请求一个临时RT
+
+		// 原来的RT转换成SRV
+
+		// 绘制
+
+		// 
 	{
-	// SceneRenderTargets.BeginRenderingPrePass()
-	//
-	RHICmdList.Transition(FRHITransitionInfo(rtTextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
+		//SceneRenderTargets.BeginRenderingPrePass();
+		//
+	FSceneRenderTargetItem& renderTargete =		RequestSurface(RHICmdList);
+	RHICmdList.Transition(FRHITransitionInfo(rtTextureRHI, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 
 
-	FRHIRenderPassInfo rpInfo(rtTextureRHI, ERenderTargetActions::DontLoad_Store);
+	FRHIRenderPassInfo rpInfo(renderTargete.TargetableTexture, ERenderTargetActions::DontLoad_Store);
 
 	RHICmdList.BeginRenderPass(rpInfo, TEXT("QxShaderTest"));
 
@@ -470,9 +488,20 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 	FGraphicsPipelineStateInitializer graphicPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(graphicPSOInit);
 	graphicPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-	graphicPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+	//graphicPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 	graphicPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 	graphicPSOInit.PrimitiveType = PT_TriangleList;
+
+	bool bAdditiveBlend = true;
+	// set the state
+	if (bAdditiveBlend)
+	{
+		graphicPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+	}
+	else
+	{
+		graphicPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+	}
 
 	//设置顶点声明
 	graphicPSOInit.BoundShaderState.VertexDeclarationRHI = GQxTestVertexDeclaration.VertexDeclarationRHI;
@@ -487,7 +516,9 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 	// graphicPSOInit.set
 	
 	pixelShader->SetTestColor(RHICmdList, FLinearColor::Red);
-	// pixelShader->SetTestTexture(RHICmdList, InTextureRHI);
+	 pixelShader->SetTestTexture(RHICmdList, InTextureRHI);
+
+
 	pixelShader->SetMyUniform(RHICmdList, TestUniformData);
 
 	//RHICmdList.SetStreamSource(0, )
@@ -504,15 +535,57 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 #pragma endregion
 
 	RHICmdList.EndRenderPass();
-	}*/
+	}
 
+
+
+	// RHICmdList.Transition(FRHITransitionInfo(RenderTargetResource->GetRenderTargetTexture(), ERHIAccess::RTV, ERHIAccess::SRVMask));
+}
+
+void UQxRenderBPLib::PostClear_RenderThread(FRHICommandListImmediate& FrhiCommandListImmediate, FSceneRenderTargets& SceneRenderTargets)
+{
+	// Used to gather CPU profiling data for the UE4 session frontend
+	// 添加给front end等用的标记
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_QxShaderPlugin_PixelShader);
+	// Used to profile GPU activity and add metadata to be consumed by for example RenderDoc
+	// 添加给renderdoc等用的标记
+	SCOPED_DRAW_EVENT(RHICmdList, QxShaderPlugin_Pixel_Clear);
+
+
+	//获得 当前render target的color buffer
+	FTextureRHIRef rtTextureRHI = SceneRenderTargets.GetSceneColorSurface();
 	FRHIRenderPassInfo RPInfo(rtTextureRHI, ERenderTargetActions::DontLoad_Store);
 	TransitionRenderPassTargets(RHICmdList, RPInfo);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
 	DrawClearQuad(RHICmdList, FLinearColor::Green);
 	RHICmdList.EndRenderPass();
-
-	// RHICmdList.Transition(FRHITransitionInfo(RenderTargetResource->GetRenderTargetTexture(), ERHIAccess::RTV, ERHIAccess::SRVMask));
 }
 
+const FSceneRenderTargetItem& UQxRenderBPLib::RequestSurface(FRHICommandListImmediate& RHICmdList)
+{
+	if (PooledRenderTarget)
+	{
+		RHICmdList.Transition(FRHITransitionInfo(PooledRenderTarget->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
+		return PooledRenderTarget->GetRenderTargetItem();
+	}
+
+	if (!RenderTargetDesc.IsValid())
+	{
+		// useful to use the CompositingGraph dependency resolve but pass the data between nodes differently
+		static FSceneRenderTargetItem Null;
+
+		return Null;
+	}
+
+	if (!PooledRenderTarget)
+	{
+		GRenderTargetPool.FindFreeElement(RHICmdList, RenderTargetDesc, PooledRenderTarget, RenderTargetDesc.DebugName);
+	}
+
+	check(!PooledRenderTarget->IsFree());
+
+	FSceneRenderTargetItem& RenderTargetItem = PooledRenderTarget->GetRenderTargetItem();
+
+	return RenderTargetItem;
+}
 

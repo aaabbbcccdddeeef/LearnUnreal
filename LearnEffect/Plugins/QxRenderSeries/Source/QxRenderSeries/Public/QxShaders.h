@@ -93,6 +93,8 @@ public:
 
 	void SetTestTexture(FRHICommandList& RHICmdList, FTextureReferenceRHIRef InTextureRHI);
 
+	void SetTestTexture(FRHICommandList& RHICmdList, FTextureRHIRef  InTextureRHI);
+
 	void SetMyUniform(FRHICommandList& RHICmdList, FMyUniformData InTextureRHI);
 
 	

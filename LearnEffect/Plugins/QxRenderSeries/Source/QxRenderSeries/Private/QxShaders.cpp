@@ -32,6 +32,18 @@ void FQxShaderTestPS::SetTestTexture(FRHICommandList& RHICmdList, FTextureRefere
 	// SetShaderParameters(RHICmdList, ps, ps->getpix)
 }
 
+void FQxShaderTestPS::SetTestTexture(FRHICommandList& RHICmdList, FTextureRHIRef InTextureRHI)
+{
+	FRHIPixelShader* ps = RHICmdList.GetBoundPixelShader();
+
+	FRHISamplerState* testSamplerState =
+		TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	SetTextureParameter(RHICmdList, ps, TestTexture, TestTextureSampler, testSamplerState, InTextureRHI);
+
+	// SetShaderParameters(RHICmdList, ps, ps->getpix)
+}
+
 void FQxShaderTestPS::SetMyUniform(FRHICommandList& RHICmdList, FMyUniformData InMyUniformData)
 {
 	FMyUniform uniformObj;
