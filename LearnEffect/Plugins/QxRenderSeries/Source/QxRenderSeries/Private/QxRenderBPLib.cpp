@@ -7,6 +7,9 @@
 #include "QxShaders.h"
 #include <GameFramework/GameUserSettings.h>
 
+#include "ClearQuad.h"
+#include "Renderer/Private/PostProcess/SceneRenderTargets.h"
+
 #include "QxCSShader_RDG.h"
 #include "QxRenderUtils.h"
 //#include <Templates/UnrealTemplate.h>
@@ -428,4 +431,88 @@ TArray<FVector> UQxRenderBPLib::GetMeshVerticesWS(UStaticMeshComponent* InMeshCo
 {
 	return FQxRenderUtils::GetVertexPositonsWS(InMeshComponent);
 }
+
+void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
+	FRHICommandListImmediate& RHICmdList,
+	FSceneRenderTargets& SceneRenderTargets)
+{
+	//获得 当前render target的color buffer
+	FTextureRHIRef rtTextureRHI = SceneRenderTargets.GetSceneColorSurface();
+
+	/*
+	{
+	// SceneRenderTargets.BeginRenderingPrePass()
+	//
+	RHICmdList.Transition(FRHITransitionInfo(rtTextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
+
+
+	FRHIRenderPassInfo rpInfo(rtTextureRHI, ERenderTargetActions::DontLoad_Store);
+
+	RHICmdList.BeginRenderPass(rpInfo, TEXT("QxShaderTest"));
+
+	FMyUniformData TestUniformData;
+	TestUniformData.ColorOne = FVector4(FLinearColor::Black );
+	TestUniformData.ColorTwo = FVector4(FLinearColor::Red);
+	TestUniformData.ColorThree = FVector4(FLinearColor::Green);
+	TestUniformData.ColorFour = FVector4(FLinearColor::Blue);
+	TestUniformData.ColorIndex = 1;
+
+	// FTextureReferenceRHIRef rtRHI = rtTextureRHI;
+#pragma region MyRegion
+	// RenderMyTest1(RHICmdList, OutRTResource, GMaxRHIFeatureLevel, FLinearColor::Red, FTextureReferenceRHIRef(), TestUniformData);
+
+	FGlobalShaderMap* globalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+
+	TShaderMapRef<FQxShaderTestVS> vertexShader(globalShaderMap);
+	TShaderMapRef<FQxShaderTestPS> pixelShader(globalShaderMap);
+
+	// 设置Graphic pipeline state
+	FGraphicsPipelineStateInitializer graphicPSOInit;
+	RHICmdList.ApplyCachedRenderTargets(graphicPSOInit);
+	graphicPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+	graphicPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+	graphicPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+	graphicPSOInit.PrimitiveType = PT_TriangleList;
+
+	//设置顶点声明
+	graphicPSOInit.BoundShaderState.VertexDeclarationRHI = GQxTestVertexDeclaration.VertexDeclarationRHI;
+
+
+	graphicPSOInit.BoundShaderState.VertexShaderRHI = vertexShader.GetVertexShader();
+	graphicPSOInit.BoundShaderState.PixelShaderRHI = pixelShader.GetPixelShader();
+	SetGraphicsPipelineState(RHICmdList, graphicPSOInit);
+
+	// FGraphicsPipelineState* PipelineState;
+	// PipelineState.set
+	// graphicPSOInit.set
+	
+	pixelShader->SetTestColor(RHICmdList, FLinearColor::Red);
+	// pixelShader->SetTestTexture(RHICmdList, InTextureRHI);
+	pixelShader->SetMyUniform(RHICmdList, TestUniformData);
+
+	//RHICmdList.SetStreamSource(0, )
+	RHICmdList.SetStreamSource(0, GSimpleScreenVertexBuffer.VertexBufferRHI, 0);
+
+	RHICmdList.DrawIndexedPrimitive(
+		GSimpleIndexBuffer.IndexBufferRHI,
+		 0,
+		  0,
+		6,
+		0,
+		2,
+		1);
+#pragma endregion
+
+	RHICmdList.EndRenderPass();
+	}*/
+
+	FRHIRenderPassInfo RPInfo(rtTextureRHI, ERenderTargetActions::DontLoad_Store);
+	TransitionRenderPassTargets(RHICmdList, RPInfo);
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
+	DrawClearQuad(RHICmdList, FLinearColor::Green);
+	RHICmdList.EndRenderPass();
+
+	// RHICmdList.Transition(FRHITransitionInfo(RenderTargetResource->GetRenderTargetTexture(), ERHIAccess::RTV, ERHIAccess::SRVMask));
+}
+
 

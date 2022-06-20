@@ -53,4 +53,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "QxRender")
 	static TArray<FVector> GetMeshVerticesWS(UStaticMeshComponent* InMeshComponent);
+
+	static void PostResolveSceneColor_RenderThread(FRHICommandListImmediate& FrhiCommandListImmediate,
+		FSceneRenderTargets& SceneRenderTargets);
 };
