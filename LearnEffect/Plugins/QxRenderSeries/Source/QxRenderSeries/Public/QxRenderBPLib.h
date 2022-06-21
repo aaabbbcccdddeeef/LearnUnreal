@@ -60,8 +60,8 @@ public:
 	static void PostClear_RenderThread(FRHICommandListImmediate& FrhiCommandListImmediate,
 		FSceneRenderTargets& SceneRenderTargets);
 
-	const FSceneRenderTargetItem& RequestSurface(FRHICommandListImmediate& RHICmdList);
+	static   FSceneRenderTargetItem& RequestSurface(FRHICommandListImmediate& RHICmdList);
 
 
-	TRefCountPtr<IPooledRenderTarget> PooledRenderTarget;
+	static  TRefCountPtr<IPooledRenderTarget> PooledRenderTarget;
 };

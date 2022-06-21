@@ -17,6 +17,8 @@
 
 #define LOCTEXT_NAMESPACE "QxRenderBPLib"
 
+TRefCountPtr<IPooledRenderTarget> UQxRenderBPLib::PooledRenderTarget;
+
 #pragma region PrepareTestDatas
 struct FQxTestVertex
 {
@@ -446,25 +448,30 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 
 
 	//获得 当前render target的color buffer
-	FTextureRHIRef rtTextureRHI = SceneRenderTargets.GetSceneColorSurface();
+	FTextureRHIRef rtTextureRHI = SceneRenderTargets.GetSceneColor()->GetRenderTargetItem().ShaderResourceTexture;
+		//SceneRenderTargets.GetSceneColorSurface();
 	//SceneRenderTargets
-	SceneRenderTargets
+	//GRenderTargetPool
 
-		// 请求一个临时RT
+	// 请求一个临时RT
 
-		// 原来的RT转换成SRV
+	// 原来的RT转换成SRV
 
-		// 绘制
+	// 绘制
 
-		// 
+	// 
 	{
 		//SceneRenderTargets.BeginRenderingPrePass();
 		//
 	FSceneRenderTargetItem& renderTargete =		RequestSurface(RHICmdList);
 	RHICmdList.Transition(FRHITransitionInfo(rtTextureRHI, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 
+		
+	// FRHIRenderPassInfo rpInfo(renderTargete.TargetableTexture, ERenderTargetActions::DontLoad_Store);
+	FRHIRenderPassInfo rpInfo(
+		SceneRenderTargets.GetSceneColor()->GetRenderTargetItem().TargetableTexture,
+		ERenderTargetActions::DontLoad_Store);
 
-	FRHIRenderPassInfo rpInfo(renderTargete.TargetableTexture, ERenderTargetActions::DontLoad_Store);
 
 	RHICmdList.BeginRenderPass(rpInfo, TEXT("QxShaderTest"));
 
@@ -516,7 +523,7 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 	// graphicPSOInit.set
 	
 	pixelShader->SetTestColor(RHICmdList, FLinearColor::Red);
-	 pixelShader->SetTestTexture(RHICmdList, InTextureRHI);
+	// pixelShader->SetTestTexture(RHICmdList, rtTextureRHI);
 
 
 	pixelShader->SetMyUniform(RHICmdList, TestUniformData);
@@ -542,7 +549,7 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 	// RHICmdList.Transition(FRHITransitionInfo(RenderTargetResource->GetRenderTargetTexture(), ERHIAccess::RTV, ERHIAccess::SRVMask));
 }
 
-void UQxRenderBPLib::PostClear_RenderThread(FRHICommandListImmediate& FrhiCommandListImmediate, FSceneRenderTargets& SceneRenderTargets)
+void UQxRenderBPLib::PostClear_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneRenderTargets)
 {
 	// Used to gather CPU profiling data for the UE4 session frontend
 	// 添加给front end等用的标记
@@ -561,14 +568,21 @@ void UQxRenderBPLib::PostClear_RenderThread(FRHICommandListImmediate& FrhiComman
 	RHICmdList.EndRenderPass();
 }
 
-const FSceneRenderTargetItem& UQxRenderBPLib::RequestSurface(FRHICommandListImmediate& RHICmdList)
+FSceneRenderTargetItem& UQxRenderBPLib::RequestSurface(FRHICommandListImmediate& RHICmdList)
 {
-	if (PooledRenderTarget)
+	if (PooledRenderTarget.IsValid())
 	{
 		RHICmdList.Transition(FRHITransitionInfo(PooledRenderTarget->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 		return PooledRenderTarget->GetRenderTargetItem();
 	}
-
+	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
+	const FTextureRHIRef& rtTexture = SceneRenderTargets.GetSceneColorSurface();
+	
+	FPooledRenderTargetDesc RenderTargetDesc =
+	FPooledRenderTargetDesc::Create2DDesc(
+		FIntPoint(rtTexture->GetSizeXYZ().X, rtTexture->GetSizeXYZ().Y)
+		, PF_B8G8R8A8, FClearValueBinding::None, TexCreate_None,
+		TexCreate_ShaderResource, false);
 	if (!RenderTargetDesc.IsValid())
 	{
 		// useful to use the CompositingGraph dependency resolve but pass the data between nodes differently
@@ -585,7 +599,12 @@ const FSceneRenderTargetItem& UQxRenderBPLib::RequestSurface(FRHICommandListImme
 	check(!PooledRenderTarget->IsFree());
 
 	FSceneRenderTargetItem& RenderTargetItem = PooledRenderTarget->GetRenderTargetItem();
-
+	RenderTargetItem.TargetableTexture = RenderTargetItem.ShaderResourceTexture;
+	if (PooledRenderTarget.IsValid())
+	{
+		RHICmdList.Transition(FRHITransitionInfo(PooledRenderTarget->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
+		return PooledRenderTarget->GetRenderTargetItem();
+	}
 	return RenderTargetItem;
 }
 

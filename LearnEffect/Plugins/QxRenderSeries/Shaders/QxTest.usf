@@ -42,7 +42,7 @@ float4 MainPS(
             break;
     }
     
-    outColor *= TestColor;
-    //outColor = float4(0.f, 0.f, 0.f, 1.f);
+    // outColor *= TestColor;
+    outColor = float4(0.f, 0.f, 1.f, 1.f);
     return outColor;
 }
