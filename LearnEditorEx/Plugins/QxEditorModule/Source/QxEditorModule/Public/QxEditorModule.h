@@ -6,6 +6,8 @@
 #include "Modules/ModuleManager.h"
 class FUICommandList;
 
+DECLARE_LOG_CATEGORY_EXTERN(QxToolLog, Log, All);
+
 class FQxEditorModuleModule : public IModuleInterface
 {
 public:

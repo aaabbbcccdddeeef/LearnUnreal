@@ -19,8 +19,8 @@ public:
 	FString Test1;
 
 	UPROPERTY(EditAnywhere, Category = "QxAssets")
-		float test2;
+	float Test2;
 
 	UPROPERTY(EditAnywhere, Category = "QxAssets")
-		int32 test3;
+	int32 test3;
 };

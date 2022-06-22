@@ -1,12 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "QxEditorModule.h"
+
+#include "ColorStructDetail.h"
 #include "Framework/Commands/Commands.h"
 #include "LevelEditor.h"
+#include "QxAssetDetail.h"
 #include "QxTestCommands.h"
 #include "ToolMenus.h"
+#include "PropertyEditorDelegates.h"
+#include "QxDataAsset.h"
 
 #define LOCTEXT_NAMESPACE "FQxEditorModuleModule"
+
+DEFINE_LOG_CATEGORY(QxToolLog);
 
 static const FName QxTestToolTabName("QxPanTool");
 
@@ -22,14 +29,31 @@ void FQxEditorModuleModule::StartupModule()
 	PluginCommands->MapAction(FQxTestCommands::Get().OpenPluginWindow,
 		FExecuteAction::CreateRaw(this, &FQxEditorModuleModule::PluginButtonClicked));
 	// PluginCommands->MapAction()
-	// ExtendMenuItem();
+	ExtendMenuItem();
 	//ExtendMenuItem2();
 
-	ExtendToolBar();
+	// ExtendToolBar();
 	//ExtendToolBar2();
 
 	FGlobalTabmanager::Get()->RegisterTabSpawner(QxTestToolTabName,
 		FOnSpawnTab::CreateRaw(this, &FQxEditorModuleModule::OnSpawnPluginTab));
+
+	// // FQxAssetDetail tmp;
+	//注册绑定
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyEditorModule.RegisterCustomClassLayout( UQxDataAsset::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FQxAssetDetail::MakeInstance));
+
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout("ColorStruct",
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FColorStructDetail::MakeInstance));
+	
+	// 通知自定义模块修改完成
+	PropertyEditorModule.NotifyCustomizationModuleChanged();
+	
+	
+
+	// PropertyEditorModule.
+	//通知自定义模块修改完成
 }
 
 
@@ -37,7 +61,7 @@ void FQxEditorModuleModule::StartupModule()
 
 void FQxEditorModuleModule::AddMenuExtension(FMenuBuilder& MenuBuilder)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Test Add MenuBarItem Extension"));
+	UE_LOG(QxToolLog, Warning, TEXT("Test Add MenuBarItem Extension"));
 	// MenuBuilder.AddMenuEntry()
 	MenuBuilder.AddMenuEntry(FQxTestCommands::Get().OpenPluginWindow);
 }
@@ -106,11 +130,15 @@ void FQxEditorModuleModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
+
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyEditorModule.UnregisterCustomClassLayout(UQxDataAsset::StaticClass()->GetFName());
+	PropertyEditorModule.UnregisterCustomPropertyTypeLayout("ColorStruct");
 }
 
 void FQxEditorModuleModule::PluginButtonClicked()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Plugin Button Clicked"));
+	UE_LOG(QxToolLog, Warning, TEXT("Plugin Button Clicked"));
 
 	// 激活一个全局的tab窗口
 	FGlobalTabmanager::Get()->TryInvokeTab(QxTestToolTabName);
@@ -118,7 +146,7 @@ void FQxEditorModuleModule::PluginButtonClicked()
 
 void FQxEditorModuleModule::AddToolBarExtension(FToolBarBuilder& InBuilder)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Test Add Toolbar Extension"));
+	UE_LOG(QxToolLog, Warning, TEXT("Test Add Toolbar Extension"));
 
 	//一个空的下拉菜单
 	auto ContextMenu = []()

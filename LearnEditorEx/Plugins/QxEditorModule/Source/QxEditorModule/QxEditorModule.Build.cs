@@ -43,7 +43,8 @@ public class QxEditorModule : ModuleRules
 				"Slate",
 				"SlateCore",
 				"EditorStyle",
-				"QxAssets"
+				"QxAssets",
+				"PropertyEditor"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
