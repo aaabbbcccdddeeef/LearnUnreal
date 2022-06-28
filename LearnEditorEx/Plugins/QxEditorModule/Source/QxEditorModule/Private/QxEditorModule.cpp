@@ -3,6 +3,9 @@
 #include "QxEditorModule.h"
 
 #include "ColorStructDetail.h"
+#include "ContentBrowserModule.h"
+#include "EditorDirectories.h"
+#include "IContentBrowserSingleton.h"
 #include "Framework/Commands/Commands.h"
 #include "LevelEditor.h"
 #include "QxAssetDetail.h"
@@ -10,6 +13,9 @@
 #include "ToolMenus.h"
 #include "PropertyEditorDelegates.h"
 #include "QxDataAsset.h"
+#include "SZZPathPickerButton.h"
+#include "DesktopWidgets/Public/Widgets/Input/SFilePathPicker.h"
+// #include "SPathPicker.h"
 
 #define LOCTEXT_NAMESPACE "FQxEditorModuleModule"
 
@@ -29,10 +35,10 @@ void FQxEditorModuleModule::StartupModule()
 	PluginCommands->MapAction(FQxTestCommands::Get().OpenPluginWindow,
 		FExecuteAction::CreateRaw(this, &FQxEditorModuleModule::PluginButtonClicked));
 	// PluginCommands->MapAction()
-	ExtendMenuItem();
+	// ExtendMenuItem();
 	//ExtendMenuItem2();
 
-	// ExtendToolBar();
+	ExtendToolBar();
 	//ExtendToolBar2();
 
 	FGlobalTabmanager::Get()->RegisterTabSpawner(QxTestToolTabName,
@@ -166,9 +172,65 @@ void FQxEditorModuleModule::AddToolBarExtension(FToolBarBuilder& InBuilder)
 
 }
 
+void FQxEditorModuleModule::OnPathSelected(const FString& InPath)
+{
+	FQxEditorModuleModule::Get().PorxyMeshPath = InPath;
+}
+
+FQxEditorModuleModule& FQxEditorModuleModule::Get()
+{
+	return FModuleManager::Get().LoadModuleChecked<FQxEditorModuleModule>("QxEditorModule");
+}
+
 TSharedRef<class SDockTab> FQxEditorModuleModule::OnSpawnPluginTab(const class FSpawnTabArgs& SpawnTabArgs)
 {
-	return SNew(SDockTab);
+// 	[
+// 	SNew(SFilePathPicker)
+// 		.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+// 		.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+// 		.BrowseButtonToolTip(LOCTEXT("FileButtonToolTipText", "Choose a source import file"))
+// 		.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
+// 		.BrowseTitle(LOCTEXT("PropertyEditorTitle", "Source import file picker..."))
+// 		.FilePath(this, &FLevelOfDetailSettingsLayout::GetSourceImportFilename, LODIndex)
+// 		.FileTypeFilter(FileTypeFilter)
+// 		.OnPathPicked(this, &FLevelOfDetailSettingsLayout::SetSourceImportFilename, LODIndex)
+// ];
+	// FContentBrowserSingleton::CreatePathPicker
+
+	
+	
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+
+	PorxyMeshPath = TEXT("/Game/");
+	FPathPickerConfig PathPickerConfig;
+	PathPickerConfig.DefaultPath = PorxyMeshPath;
+	PathPickerConfig.OnPathSelected = FOnPathSelected::CreateStatic(&FQxEditorModuleModule::OnPathSelected);
+
+	FSaveAssetDialogConfig saveConfig;
+	saveConfig.DefaultPath = PorxyMeshPath;
+	// saveConfig.
+	
+	TSharedRef<SWidget> pathPicker =
+			ContentBrowserModule.Get().CreatePathPicker(PathPickerConfig);
+			// ContentBrowserModule.Get().CreateModalSaveAssetDialog(saveConfig);
+
+	// TSharedRef<SVerticalBox> pathPicker = 
+	
+	return SNew(SDockTab)
+		[
+			// pathPicker
+			SNew(SZZPathPickerButton)
+		// SNew(SFilePathPicker)
+		// .BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+		// .BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		// .BrowseButtonToolTip(LOCTEXT("FileButtonToolTipText", "Choose a source import file"))
+		// .BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
+		// .BrowseTitle(LOCTEXT("PropertyEditorTitle", "Source import file picker..."))
+		// .FilePath(this, &FLevelOfDetailSettingsLayout::GetSourceImportFilename, LODIndex)
+		// .FileTypeFilter(FileTypeFilter)
+		// .OnPathPicked(this, &FLevelOfDetailSettingsLayout::SetSourceImportFilename, LODIndex)
+		
+		];
 }
 
 #undef LOCTEXT_NAMESPACE

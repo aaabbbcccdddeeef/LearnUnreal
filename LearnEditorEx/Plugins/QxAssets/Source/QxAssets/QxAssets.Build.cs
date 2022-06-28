@@ -18,6 +18,7 @@ public class QxAssets : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				// ... add other private include paths required here ...
+				"ContentBrowser/Private/",
 			}
 			);
 			

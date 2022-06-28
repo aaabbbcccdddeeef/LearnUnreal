@@ -18,6 +18,7 @@ public class QxEditorModule : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				// ... add other private include paths required here ...
+				"ContentBrowser/Private"
 			}
 			);
 			
@@ -44,7 +45,10 @@ public class QxEditorModule : ModuleRules
 				"SlateCore",
 				"EditorStyle",
 				"QxAssets",
-				"PropertyEditor"
+				"PropertyEditor",
+				"ContentBrowser",
+				"DesktopWidgets",
+				"UMG"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

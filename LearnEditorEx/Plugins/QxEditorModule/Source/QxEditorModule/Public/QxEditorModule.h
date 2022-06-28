@@ -26,6 +26,12 @@ public:
 	void AddToolBarExtension(FToolBarBuilder& InBuilder);
 
 	TSharedRef<class SDockTab> OnSpawnPluginTab(const class FSpawnTabArgs& SpawnTabArgs);
+	
+	static void OnPathSelected(const FString& InPath);
+
+	static FQxEditorModuleModule& Get();
 private:
 	TSharedPtr<FUICommandList> PluginCommands;
+
+	FString PorxyMeshPath;
 };
