@@ -89,7 +89,8 @@ void AQxConfigTest::TestConfigWrite()
 		FRotator(-90, 0, 0),
 		GGameIni
 		);
-
+	FConfigCacheIni* tmp = GConfig;
+	
 	GConfig->Flush(false, GGameIni);
 }
 
