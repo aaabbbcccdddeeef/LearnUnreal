@@ -3,6 +3,8 @@
 
 #include "QxMultiOccluder.h"
 
+#include "QxRenderBPLib.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Materials/MaterialParameterCollectionInstance.h"
 
 
@@ -32,7 +34,6 @@ void UQxMultiOccluder::BeginPlay()
 void UQxMultiOccluder::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-	OccluderTexture = nullptr;
 }
 
 void UQxMultiOccluder::BeginDestroy()
@@ -53,21 +54,59 @@ void UQxMultiOccluder::TickComponent(float DeltaTime, ELevelTick TickType,
 
 void UQxMultiOccluder::CollectOccluderInfos(TArray<FBoxOccluderInfo>& OutOccluderInfos, int32& OutOccluderNum)
 {
-	// TArray<FBoxOccluderInfo> tmp = CollectOccluderInfos_BP();
-	// OutOccluderInfos.Append(tmp);
-	FBoxOccluderInfo testData;
-	testData.Center = FVector(0, 500, 0);
-	testData.BoxExtent = FVector(0, 500, 0);
-	testData.ForwardVector = FVector(0, 500, 0);
-	testData.UpVector = FVector(0, 500, 0);
-	
-	for (int i = 0; i < 4 * 64; ++i)
-	{
-		OutOccluderInfos.Add(testData);
-	}
+	OutOccluderInfos.Empty();
+	int OutCcluderNum;
+	TArray<FBoxOccluderInfo> tmp = CollectOccluderInfos_BP(OutCcluderNum);
+	OutOccluderInfos.Append(tmp);
+	// FBoxOccluderInfo testData;
+	// testData.Center = FVector(0, 500, 0);
+	// testData.BoxExtent = FVector(0, 500, 0);
+	// testData.ForwardVector = FVector(0, 500, 0);
+	// testData.UpVector = FVector(0, 500, 0);
+	//
+	// for (int i = 0; i < 4 * 64; ++i)
+	// {
+	// 	OutOccluderInfos.Add(testData);
+	// }
 }
 
+void UpdateOccluderTexture_RenderThread(
+	FRHICommandListImmediate& RHICmdList,
+	UTextureRenderTarget2D* InOccluderTexture,
+	int32 InOccluderNum,
+	const TArray<FBoxOccluderInfo>& InOccluderInfos)
+{
+	check(IsInRenderingThread());
+	if (InOccluderTexture == nullptr)
+	{
+		return;
+	}
 
+	// UWorld* world = GetWorld();
+	// ERHIFeatureLevel::Type featureLevel = world->Scene->GetFeatureLevel();
+
+	FTextureReferenceRHIRef targetTexRHI = InOccluderTexture->TextureReference.TextureReferenceRHI;
+	FRHITexture* texRef = targetTexRHI->GetTextureReference()->GetReferencedTexture();
+	FRHITexture2D* texRef2D = (FRHITexture2D*)(texRef);
+
+	TArray<FColor> bitmap;
+	uint32 LolStride = 0;
+	char* textureDataPtr = (char*)RHICmdList.LockTexture2D(texRef2D, 0,
+		EResourceLockMode::RLM_WriteOnly, LolStride, false);
+	
+	TArray<FLinearColor> ColorData;
+	ColorData.AddUninitialized(width * height);
+	for (int32 i = 0; i < width * height; ++i)
+	{
+		float test = FMath::RandRange(20, 90);
+		ColorData[i] = FLinearColor(i, test, i, 1);
+	}
+
+	FMemory::Memcpy(textureDataPtr, ColorData.GetData(),
+		ColorData.Num() * sizeof(FLinearColor));
+
+	RHICmdList.UnlockTexture2D(texRef2D, 0, false);
+}
 
 void UQxMultiOccluder::CollectOccluderAndUpdateTexture()
 {
@@ -118,10 +157,16 @@ void UQxMultiOccluder::CollectOccluderAndUpdateTexture()
 	// }
 #pragma endregion
 	ColorData.AddUninitialized(width * height);
-	for (int32 i = 0; i < width * height; ++i)
+	check(width * height == BoxOccluderInfos.Num() * 4);
+	for (int32 i = 0; i < BoxOccluderInfos.Num(); ++i)
 	{
-		float test = FMath::RandRange(20, 90);
-		ColorData[i] = FLinearColor(i, test, i, 1);
+		// float test = FMath::RandRange(20, 90);
+		// ColorData[i] = FLinearColor(i, test, i, 1);
+		const FBoxOccluderInfo& OccluderInfo = BoxOccluderInfos[i];
+		ColorData[i] = FLinearColor(OccluderInfo.Center);
+		ColorData[i + 1] = FLinearColor(OccluderInfo.BoxExtent);
+		ColorData[i + 2] = FLinearColor(OccluderInfo.ForwardVector);
+		ColorData[i + 3] = FLinearColor(OccluderInfo.UpVector);
 	}
 	
 	// 第一种实现，游戏线程中更新，后续交给UE4
@@ -149,14 +194,61 @@ void UQxMultiOccluder::CollectOccluderAndUpdateTexture()
 	
 }
 
-void UQxMultiOccluder::UpdateOccluderTexture_RenderThread(
-	UTexture2D* InOccluderTexture,
-	int32 InOccluderNum,
-	TArray<FBoxOccluderInfo>& InOccluderInfos)
+void UQxMultiOccluder::CollectOccluderAndUpdateRT()
 {
-	// UMaterialParameterCollectionInstance* test;
-	// test->
+// 	if (!OccluderRT)
+// 	{
+// 		return;
+// 	}
+// 	const int32 TextureWidth = 4;
+// 	// UTextureRenderTarget2D* test;
+// 	if (OccluderRT->SizeX != TextureWidth)
+// 	{
+// 		return;
+// 	}
+//
+// #pragma region FormatVolidate
+// 	bool bTextureValidateResult = true;
+// 	// EPixelFormat PixelFormat = OccluderRT->GetPixelFormatEnum();
+// 	EPixelFormat PixelFormat = OccluderRT->TextureReference.TextureReferenceRHI->GetFormat();
+// 	bTextureValidateResult &= (EPixelFormat::PF_A32B32G32R32F == PixelFormat);
+// 	int32 BlockBytes = GPixelFormats[PixelFormat].BlockBytes;
+// 	check(BlockBytes == sizeof(FVector4));
+// 	
+// 	bTextureValidateResult &= OccluderTexture->NeverStream == true;
+// 	bTextureValidateResult &= OccluderTexture->SRGB == 0;
+// 	bTextureValidateResult &= OccluderTexture->LODGroup == TextureGroup::TEXTUREGROUP_Pixels2D;
+// 	check(bTextureValidateResult);
+// #pragma endregion
+// 	
+// 	TArray<FBoxOccluderInfo> BoxOccluderInfos ;
+// 	int32 OccluderNum = 0;
+// 	CollectOccluderInfos(BoxOccluderInfos, OccluderNum);
+//
+//
+// #pragma region ConvertInfoDataToFColorArray
+// 	TArray<FLinearColor> ColorData;
+// 	#pragma endregion
+// 	ColorData.AddUninitialized(width * height);
+// 	for (int32 i = 0; i < width * height; ++i)
+// 	{
+// 		float test = FMath::RandRange(20, 90);
+// 		ColorData[i] = FLinearColor(i, test, i, 1);
+// 	}
+//
+// 	UTextureRenderTarget2D* LoalOccluderTexture = OccluderRT;
+// 	// UWorld* world = GetWorld();
+// 	// ERHIFeatureLevel::Type featureLevel = world->Scene->GetFeatureLevel();
+// 	
+// 	ENQUEUE_RENDER_COMMAND(UpdateOccluderTexture)(
+// 		[LoalOccluderTexture, OccluderNum, TmpOccluderInfo = MoveTemp(BoxOccluderInfos)](FRHICommandListImmediate& RHICmdList)
+// 		{
+// 			UpdateOccluderTexture_RenderThread(RHICmdList, LoalOccluderTexture, OccluderNum, TmpOccluderInfo);
+// 		}
+// 	);
 }
+
+
 
 void UQxMultiOccluder::CreateTexture()
 {
@@ -182,5 +274,14 @@ void UQxMultiOccluder::CreateTexture()
 		ColorData.Num() * sizeof(FLinearColor));
 	MipMap.BulkData.Unlock();
 	OccluderTexture->UpdateResource();
+}
+
+void UQxMultiOccluder::ReformatOccluderTexture()
+{
+	if (!OccluderTexture)
+	{
+		return;
+	}
+	UQxRenderBPLib::SetTextureForamt(OccluderTexture, OccluderTexture->GetSizeX(), OccluderTexture->GetSizeY());
 }
 
