@@ -336,9 +336,60 @@ void UQxRenderBPLib::TextureWriting2(UTexture2D* TextureToWrite, AActor* selfref
 		);
 }
 
+void UQxRenderBPLib::SetTextureForamt(UTexture2D* InTexture, int32 InSizeX, int32 InSizeY)
+{
+	check(IsInGameThread());
+	if (InTexture == nullptr || InSizeX == 0 || InSizeY == 0)
+	{
+		return;
+	}
+	// FName InName
+	// UTexture2D* NewTexture = NULL;
+	EPixelFormat InFormat = EPixelFormat::PF_A32B32G32R32F;
+	if (InSizeX > 0 && InSizeY > 0 &&
+		(InSizeX % GPixelFormats[InFormat].BlockSizeX) == 0 &&
+		(InSizeY % GPixelFormats[InFormat].BlockSizeY) == 0)
+	{
+		// NewTexture = NewObject<UTexture2D>(
+		// 	GetTransientPackage(),
+		// 	InName,
+		// 	RF_Transient
+		// 	);
+
+		// InTexture->PlatformData = new FTexturePlatformData();
+		InTexture->PlatformData->SizeX = InSizeX;
+		InTexture->PlatformData->SizeY = InSizeY;
+		InTexture->PlatformData->PixelFormat = InFormat;
+		InTexture->NeverStream = true;
+		InTexture->SRGB = 0;
+		InTexture->LODGroup = TextureGroup::TEXTUREGROUP_Pixels2D;
+		
+		//Allocate first mipmap.
+		int32 NumBlocksX = InSizeX / GPixelFormats[InFormat].BlockSizeX;
+		int32 NumBlocksY = InSizeY / GPixelFormats[InFormat].BlockSizeY;
+		// FTexture2DMipMap* Mip = new FTexture2DMipMap();
+		// InTexture->PlatformData->Mips.Empty();
+		// InTexture->PlatformData->Mips.Add(Mip);
+		FTexture2DMipMap& Mip = InTexture->PlatformData->Mips[0];
+		Mip.SizeX = InSizeX;
+		Mip.SizeY = InSizeY;
+		Mip.BulkData.Lock(LOCK_READ_WRITE);
+		Mip.BulkData.Realloc(NumBlocksX * NumBlocksY * GPixelFormats[InFormat].BlockBytes);
+		Mip.BulkData.Unlock();
+
+		InTexture->UpdateResource();
+
+		if (InTexture->MarkPackageDirty() == false)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Modify Texture failed"));
+		}
+		
+	}
+}
+
 void DrawCheckBoard_RenderThread(FRHICommandListImmediate& RHICmdList, 
-	FTextureRenderTargetResource* InTextureRTResource,
-	ERHIFeatureLevel::Type InFeatureLevel)
+                                 FTextureRenderTargetResource* InTextureRTResource,
+                                 ERHIFeatureLevel::Type InFeatureLevel)
 {
 	check(IsInRenderingThread());
 

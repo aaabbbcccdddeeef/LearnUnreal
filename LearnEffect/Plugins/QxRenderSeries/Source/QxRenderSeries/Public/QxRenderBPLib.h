@@ -32,6 +32,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "QxRender", meta = (WorldContext = "WorldContextObject"))
 	static void TextureWriting2(UTexture2D* TextureToWrite, AActor* selfref);
 
+	UFUNCTION(BlueprintCallable, Category = "QxRender")
+	static void SetTextureForamt(UTexture2D* InTexture, int32 InSizeX, int32 InSizeY);
+	
 	UFUNCTION(BlueprintCallable, Category = "QxRender", meta = (WorldContext = "WorldContextObject"))
 	static void DrawCheckBoard(const UObject* WorldContextObject,
 		UTextureRenderTarget2D* OutRenderTarget);

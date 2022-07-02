@@ -10,7 +10,7 @@
 	"DocsURL": "",
 	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/42f50ebeb59c478db54c7f348c0c0233",
 	"SupportURL": "",
-	"EngineVersion": "4.26.0",
+	"EngineVersion": "4.27.0",
 	"CanContainContent": true,
 	"Installed": true,
 	"Modules": [
