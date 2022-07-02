@@ -14,15 +14,15 @@ struct MultiOccluder
         SampleTimes = InSampleTimes;
     }
 
-    float2 Test()
+    float2 GetInvTexSize()
     {
         uint2 texSize;
         SceneTex.GetDimensions(texSize.x, texSize.y);
 
         float2 offset = float2(1.f/texSize.x, 1.f/texSize.y);
         // float2 offset = float2(texSize.x, texSize.y);
-        float2 uv = offset * float2(1, 1);
-        float3 res = SceneTex.SampleLevel(SceneTexSampler, uv, 0).rgb;
+        // float2 uv = offset * float2(1, 1);
+        // float3 res = SceneTex.SampleLevel(SceneTexSampler, uv, 0).rgb;
         return offset;
     }
 
@@ -36,6 +36,44 @@ struct MultiOccluder
         float2 uv = offset * float2(1, 1);
         float3 res = SceneTex.SampleLevel(SceneTexSampler, uv, 0).rgb;
         return res;
+    }
+
+    float OccluderWithBox(float3 InBoxOccluderCenter,
+        float3 InBoxOccluderExtent,
+        float3 InBoxOccluderForward,
+        float3 InBoxOccluderUp)
+    {
+
+        
+    }
+
+    // 返回0-1 被occlude 是0
+    float MultiOccluderMask()
+    {
+        float3 boxOccluderCenter = float3(0, 0, 0);
+        float3 boxOccluderExtent = float3(0, 0, 0);
+        float3 boxOccluderForward = float3(1, 0, 0);
+        float3 boxOccluderUp = float3(0, 0, 1);
+        float2 invTexSize = GetInvTexSize();
+
+        float occludeResult = 1;
+        for(int i = 0; i < SampleTimes; i++)
+        {
+            float2 uv0 = invTexSize * float2(0, i);
+            boxOccluderCenter = SceneTex.SampleLevel(SceneTexSampler, uv0, 0).rgb;
+
+            float2 uv1 = invTexSize * float2(1, i);
+            boxOccluderExtent = SceneTex.SampleLevel(SceneTexSampler, uv1, 0).rgb;
+
+            float2 uv2 = invTexSize * float2(2, i);
+            boxOccluderForward = SceneTex.SampleLevel(SceneTexSampler, uv1, 0).rgb;
+
+            float2 uv3 = invTexSize * float2(3, i);
+            boxOccluderUp = SceneTex.SampleLevel(SceneTexSampler, uv1, 0).rgb;
+
+            occludeResult *= OccluderWithBox(boxOccluderCenter, boxOccluderExtent, boxOccluderForward, boxOccluderUp);
+        }
+        return occludeResult;
     }
 };
 
