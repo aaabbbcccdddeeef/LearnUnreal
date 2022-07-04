@@ -343,6 +343,11 @@ void UMaterialExpressionShaderReader::UpdateInputs(const TArray<FString>& InVari
 
 bool UMaterialExpressionShaderReader::ContainExpression()
 {
+	if (!Material)
+	{
+		return false;
+	}
+	
 	for (auto& e : Material->Expressions)
 	{
 		if (e == this)

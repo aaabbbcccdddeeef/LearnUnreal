@@ -1,0 +1,22 @@
+#include "/Shaders/QxMaskCommon.usf"
+float3 InVector;
+float3 InCenter;
+float3 InExtent;
+float3 InBasisX;
+float3 InBasisY;
+
+
+float3 worldPosition = GetWorldPosition(Parameters);
+// return QxBoxMask(InputA, InputB, Bounds, EdgeFalloff);
+return QxBoxMaskWithRotation(
+    InVector,
+    InCenter, 
+    InExtent,
+    InBasisX,
+    InBasisY);
+// return 3.f;
+// float3 InputA;
+// float3 InputB;
+// float3 Bounds;
+// float3 EdgeFalloff;
+// float3 InBasisZ;

@@ -4,6 +4,9 @@
 
 #include "ShaderReaderFileScanner.h"
 
+#include "ShaderReaderPro.h"
+#include "Async/Async.h"
+
 FShaderReaderFileScanner::FShaderReaderFileScanner(FOnShaderFileUpdated InOnFileUpdated)
 {
 	OnFileUpdated = InOnFileUpdated;

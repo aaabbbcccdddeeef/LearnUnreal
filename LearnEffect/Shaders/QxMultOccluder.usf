@@ -14,17 +14,6 @@ struct MultiOccluder
         SampleTimes = InSampleTimes;
     }
 
-    float2 GetInvTexSize()
-    {
-        uint2 texSize;
-        SceneTex.GetDimensions(texSize.x, texSize.y);
-
-        float2 offset = float2(1.f/texSize.x, 1.f/texSize.y);
-        // float2 offset = float2(texSize.x, texSize.y);
-        // float2 uv = offset * float2(1, 1);
-        // float3 res = SceneTex.SampleLevel(SceneTexSampler, uv, 0).rgb;
-        return offset;
-    }
 
      float3 Test2()
     {
@@ -43,7 +32,7 @@ struct MultiOccluder
         float3 InBoxOccluderForward,
         float3 InBoxOccluderUp)
     {
-
+        
         
     }
 

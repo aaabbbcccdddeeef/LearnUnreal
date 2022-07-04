@@ -1,0 +1,119 @@
+#include "/Engine/Private/Common.ush"
+float TestFunc(float InTest)
+{
+    return InTest * 3.f;
+}
+
+// 基本就是UE4 BoxMask的翻译， 不考虑旋转
+float QxBoxMask(float3 InputA, float3 InputB, 
+    float3 Extends, float FallOff)
+{
+    float3 a =  abs(InputA - InputB) - Extends;
+    a = max(0, a);
+    float offsetLength = length(a);
+    offsetLength /= FallOff;
+    offsetLength = saturate(offsetLength);
+    float res = 1 - offsetLength;
+    return res;
+}
+
+float3 QxInverseTransform(float3 InVector, 
+    float3 InBasisX,
+    float3 InBasisY,
+    float3 InBasisZ)
+{
+    float3 res = float3(
+        dot(InVector, InBasisX),
+        dot(InVector, InBasisY),
+        dot(InVector, InBasisZ)
+    );
+    return res;
+}
+
+float3 QxInverseTransformWithXY(
+    float3 InVector, 
+    float3 InBasisX,
+    float3 InBasisY)
+{
+    // 推导basisX
+    float3 basisX = normalize(InBasisX);
+    float3 basisY = normalize(InBasisY);
+    float3 basisZ = normalize(cross(basisX, basisY));
+
+    return QxInverseTransform(InVector, basisX, basisY, basisZ);
+}
+
+float QxBoxMaskWithRotation(
+    float3 InWorldPostion,
+    float3 InBoxOccluderCenter,
+    float3 InBoxOccluderExtent,
+    float3 InBoxOccluderBasisX,
+    float3 InBoxOccluderBasisY)
+{
+    float3 reletivePosition = InWorldPostion - InBoxOccluderCenter;
+    float3 localPosition = QxInverseTransformWithXY(reletivePosition, InBoxOccluderBasisX, InBoxOccluderBasisY);
+
+    float maskRes = QxBoxMask(localPosition, float3(0, 0, 0), InBoxOccluderExtent, 1);
+    return maskRes;
+}
+
+float2 GetInvTexSize(Texture2D SceneTex)
+{
+    uint2 texSize;
+    SceneTex.GetDimensions(texSize.x, texSize.y);
+
+    float2 offset = float2(1.f/texSize.x, 1.f/texSize.y);
+    return offset;
+}
+
+float3 TestSample(Texture2D InTex, SamplerState InTexSampler, float2 UVOffset)
+{
+    float2 offset = GetInvTexSize(InTex);
+    // float2 offset = float2(texSize.x, texSize.y);
+    float2 uv = offset * UVOffset;
+    float3 res = InTex.SampleLevel(InTexSampler, uv, 0).rgb;
+    return res;
+}
+
+
+// 返回0-1 被occlude 是0
+float MultiOccluderMask(
+    float3 WorldPostion,
+    Texture2D BoxOccluderTex,
+    SamplerState BoxOccluderTexSampler,
+    float SampleTimes)
+{
+    float3 boxOccluderCenter = float3(0, 0, 0);
+    float3 boxOccluderExtent = float3(1, 1, 1);
+    float3 basisX = float3(1, 0, 0);
+    float3 basisY = float3(0, 0, 1);
+    float2 invTexSize = GetInvTexSize(BoxOccluderTex);
+
+    float multiBoxMask = 0;
+    for(int i = 0; i < 128; i++)
+    {
+        float2 uv0 = invTexSize * float2(0, i);
+        boxOccluderCenter = BoxOccluderTex.SampleLevel(BoxOccluderTexSampler, uv0, 0).rgb;
+
+        float2 uv1 = invTexSize * float2(1, i);
+        boxOccluderExtent = BoxOccluderTex.SampleLevel(BoxOccluderTexSampler, uv1, 0).rgb;
+
+        float2 uv2 = invTexSize * float2(2, i);
+        basisX = BoxOccluderTex.SampleLevel(BoxOccluderTexSampler, uv2, 0).rgb;
+
+        float2 uv3 = invTexSize * float2(3, i);
+        basisY = BoxOccluderTex.SampleLevel(BoxOccluderTexSampler, uv3, 0).rgb;
+
+        multiBoxMask += QxBoxMaskWithRotation(
+            WorldPostion,            
+            boxOccluderCenter,
+            boxOccluderExtent,
+            basisX,
+            basisY);
+    }
+    multiBoxMask = 1 - saturate(multiBoxMask);
+    return multiBoxMask;
+}
+
+
+

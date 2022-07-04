@@ -1,0 +1,24 @@
+#include "/Engine/Private/Common.ush"
+#include "/Shaders/QxMaskCommon.usf"
+Texture2D BoxOccluderTex;
+float SampleTimes;
+
+float3 worldPosition = GetWorldPosition(Parameters);
+return GetInvTexSize(BoxOccluderTex);
+// return MultiOccluderMask(
+// 	worldPosition,
+// 	BoxOccluderTex,
+// 	BoxOccluderTexSampler,
+// 	SampleTimes
+// 	);
+// return MultiOccluderMask(
+// 		worldPosition,
+// 		BoxOccluderTex,
+// 		BoxOccluderTexSampler,
+// 		SampleTimes
+// 	);
+// return 1.0f;
+// float2 UVOffset;
+
+
+

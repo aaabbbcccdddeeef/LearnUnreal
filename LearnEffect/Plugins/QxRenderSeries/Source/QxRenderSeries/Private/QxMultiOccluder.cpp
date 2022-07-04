@@ -157,16 +157,22 @@ void UQxMultiOccluder::CollectOccluderAndUpdateTexture()
 	// }
 #pragma endregion
 	ColorData.AddUninitialized(width * height);
-	check(width * height == BoxOccluderInfos.Num() * 4);
-	for (int32 i = 0; i < BoxOccluderInfos.Num(); ++i)
+	// check(height == BoxOccluderInfos.Num());
+	if (height != BoxOccluderInfos.Num())
+	{
+		UE_LOG(LogTemp, Error, TEXT("BocOccluder size not equal to occulder texture height please check"));
+		return;
+	}
+	for (int32 i = 0; i < BoxOccluderInfos.Num(); i++)
 	{
 		// float test = FMath::RandRange(20, 90);
 		// ColorData[i] = FLinearColor(i, test, i, 1);
+		const int32 baseIndex = i * width;
 		const FBoxOccluderInfo& OccluderInfo = BoxOccluderInfos[i];
-		ColorData[i] = FLinearColor(OccluderInfo.Center);
-		ColorData[i + 1] = FLinearColor(OccluderInfo.BoxExtent);
-		ColorData[i + 2] = FLinearColor(OccluderInfo.ForwardVector);
-		ColorData[i + 3] = FLinearColor(OccluderInfo.UpVector);
+		ColorData[baseIndex] = FLinearColor(OccluderInfo.Center);
+		ColorData[baseIndex + 1] = FLinearColor(OccluderInfo.BoxExtent);
+		ColorData[baseIndex + 2] = FLinearColor(OccluderInfo.ForwardVector);
+		ColorData[baseIndex + 3] = FLinearColor(OccluderInfo.UpVector);
 	}
 	
 	// 第一种实现，游戏线程中更新，后续交给UE4
