@@ -6,6 +6,8 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 
+
+
 void UQxTestAssetLoad::TestLoadAssets()
 {
 	TArray<FSoftObjectPath> ToStream;
@@ -29,3 +31,4 @@ void UQxTestAssetLoad::OnAssetLoad()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Test asset load callback is invoked"));
 }
+

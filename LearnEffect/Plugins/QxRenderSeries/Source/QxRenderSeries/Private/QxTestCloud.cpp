@@ -47,7 +47,7 @@ public:
 		FUnorderedAccessViewRHIRef& OutputSurfaceUAV,
 		FUnorderedAccessViewRHIRef& TestStructureUAV)
 	{
-		// ÉèÖÃuavs
+		// è®¾ç½®uavs
 		//GetComputeShader();
 		FRHIComputeShader* computeShaderRHI = RHICmdList.GetBoundComputeShader();
 
@@ -164,7 +164,7 @@ void AQxTestCloud::RenderCloud_RenderThread(
 	FVector testEle(1.f, 1.f, 1.f);
 	data.Add(testEle);
 
-	// ×¢Òâ£º´ÓGPU¶Á»ØÄÚÈİÏàµ±ÓÚ1¸öpass£¬¶øÇÒ¿ÉÄÜÔì³ÉÍ¬²½µ¼ÖÂĞ§ÂÊ½ÏµÍ 
+	// æ³¨æ„ï¼šä»GPUè¯»å›å†…å®¹ç›¸å½“äº1ä¸ªpassï¼Œè€Œä¸”å¯èƒ½é€ æˆåŒæ­¥å¯¼è‡´æ•ˆç‡è¾ƒä½ 
 	FVector* srcptr = (FVector*)RHILockStructuredBuffer(TestStructureBuff.GetReference(),
 		0, sizeof(FVector), EResourceLockMode::RLM_ReadOnly);
 	FMemory::Memcpy(data.GetData(), srcptr, sizeof(TestStruct));
