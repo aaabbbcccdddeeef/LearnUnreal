@@ -9,7 +9,7 @@
 /**
  * 测试UE4 资源加载
  */
-UCLASS()
+UCLASS(BlueprintType)
 class LEARNUI_API UQxTestAssetLoad : public UDataAsset
 {
 	GENERATED_BODY()
