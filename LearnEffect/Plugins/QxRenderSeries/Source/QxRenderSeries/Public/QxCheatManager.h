@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "QxPlayerConroller.h"
 #include "GameFramework/CheatManager.h"
 #include "UObject/Object.h"
 #include "QxCheatManager.generated.h"
@@ -10,11 +11,10 @@
 /**
  * 
  */
-UCLASS(Within=QxPlayerController)
+UCLASS( Within = QxPlayerConroller)
 class QXRENDERSERIES_API UQxCheatManager : public UCheatManager
 {
 	GENERATED_BODY()
-
 public:
 	UFUNCTION(Exec)
 	void BuyCakes(int32 NumCakes, int32 Diameter = 1);
@@ -22,5 +22,11 @@ public:
 	UFUNCTION(Exec)
 	void SetCakeName(FString NewName);
 
-	
+
+	// general purpose functions
+	UFUNCTION(Exec)
+	void ForceCrash();
+
+	UFUNCTION(Exec)
+	void ForceGarbageCollection();
 };

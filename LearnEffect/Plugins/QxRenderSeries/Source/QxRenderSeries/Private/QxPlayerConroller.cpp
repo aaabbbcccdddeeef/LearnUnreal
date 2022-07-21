@@ -2,3 +2,13 @@
 
 
 #include "QxPlayerConroller.h"
+
+#include <stdexcept>
+
+#include "QxCheatManager.h"
+
+AQxPlayerConroller::AQxPlayerConroller(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	CheatClass = UQxCheatManager::StaticClass();
+}
