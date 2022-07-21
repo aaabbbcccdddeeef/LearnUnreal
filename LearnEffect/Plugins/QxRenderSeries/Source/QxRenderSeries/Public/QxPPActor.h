@@ -13,13 +13,17 @@ class QXRENDERSERIES_API AQxPPActor : public AActor
 
 public:
 	// Sets default values for this actor's properties
-	AQxPPActor();
+	AQxPPActor(const FObjectInitializer& Initializer);
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 	virtual void BeginDestroy() override;
+
+	virtual void PostInitProperties() override;
+
+	virtual void PostLoad() override;
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

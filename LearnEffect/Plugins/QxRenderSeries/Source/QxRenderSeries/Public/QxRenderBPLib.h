@@ -45,6 +45,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "QxRender")
 	static void SetUseD3D12InGame(bool InUseD3D12);
 
+	UFUNCTION(BlueprintCallable, Category = "QxRender")
+	static void TestAccessEngineGlobals(float& OutAverageFPS, float& OutAverageMS);
+	
+	static void TestAccessSubsystem(UObject* WorldContextObject);
 	
 	/**
 	 * @brief 测试用 RDG实现的Compute Shader处理Inrender target

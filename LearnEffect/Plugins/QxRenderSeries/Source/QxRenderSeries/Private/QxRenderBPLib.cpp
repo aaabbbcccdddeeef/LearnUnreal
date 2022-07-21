@@ -12,10 +12,16 @@
 
 #include "QxCSShader_RDG.h"
 #include "QxRenderUtils.h"
+#include "QxSubsystem.h"
 #include "RenderTargetPool.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine.h"
 //#include <Templates/UnrealTemplate.h>
 
 #define LOCTEXT_NAMESPACE "QxRenderBPLib"
+
+extern ENGINE_API float GAverageFPS;
+extern ENGINE_API float GAverageMS;
 
 TRefCountPtr<IPooledRenderTarget> UQxRenderBPLib::PooledRenderTarget;
 
@@ -462,6 +468,19 @@ void UQxRenderBPLib::SetUseD3D12InGame(bool InUseD3D12)
 	//SaveConfig(CPF_Config, *GGameUserSettingsIni);
 	UGameUserSettings::GetGameUserSettings()->SaveSettings();
 	UE_LOG(LogTemp, Warning, TEXT("content from function "));
+}
+
+void UQxRenderBPLib::TestAccessEngineGlobals(float& OutAverageFPS, float& OutAverageMS)
+{
+	OutAverageFPS = GAverageFPS;
+	OutAverageMS = GAverageMS;
+}
+
+void UQxRenderBPLib::TestAccessSubsystem(UObject* WorldContextObject)
+{
+	UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(WorldContextObject);
+	UQxSubsystem* QxSubsystem = GameInstance->GetSubsystem<UQxSubsystem>();
+	QxSubsystem->AddScore(10);
 }
 
 void UQxRenderBPLib::RenderTexture_WithCSRDG(UTextureRenderTarget2D* InRenderTarget, TArray<FVector> InVertexPositions)
