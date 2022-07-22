@@ -27,6 +27,11 @@
 			"AdditionalDependencies": [
 				"UnrealEd"
 			]
+		},
+		{
+			"Name": "QxDeform",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
 		}
 	]
 }
