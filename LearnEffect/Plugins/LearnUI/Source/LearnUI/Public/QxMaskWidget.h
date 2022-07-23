@@ -21,7 +21,7 @@ class LEARNUI_API UQxMaskWidget : public UWidget
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="QxUI")
-	FQxMaskWidgetStyle2 WidgetStyle;
+	FQxMaskWidgetStyle2 QxWidgetStyle;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="QxUI")
 	FLinearColor BgColorAndOpacity;
@@ -38,7 +38,7 @@ public:
 	void SetBgOpacity(float InOpacity);
 
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetImage(UTexture2D* Tex, bool bMatchSize = false);
+	void SetBgImage(UTexture2D* Tex, bool bMatchSize = false);
 
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	void SetBrushTintColor(FSlateColor TintColor);
@@ -71,7 +71,7 @@ public:
 	bool RemoveMaskClip(const int32& ClipIndex);
 
 public:
-	
+	// Rebuild Widget会调用这个
 	virtual void SynchronizeProperties() override;
 
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
@@ -85,5 +85,6 @@ protected:
 
 	TSharedPtr<SQxMaskWidget> QxMask;
 
-	
+	// 实现property binding 组件之一
+	PROPERTY_BINDING_IMPLEMENTATION(FSlateColor, BgColorAndOpacity);
 };

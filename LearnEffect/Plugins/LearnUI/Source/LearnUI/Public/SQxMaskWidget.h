@@ -41,9 +41,21 @@ public:
 
 	virtual FReply OnTouchGesture(const FGeometry& MyGeometry, const FPointerEvent& GestureEvent) override;
 
+	void SetStyle(const FQxMaskWidgetStyle2* InStyle);
+
+	void SetBgColorAndOpacity(FLinearColor InBgColorAndOpacity);
+
+	// 参照Simage 的实现
+	void SetBgColorAndOpacity(const TAttribute<FSlateColor>& InColorAndOpacity);
+	void ReIndexClip();
+
 	
 public:
 	bool bIsMaskeUpdated = true;
+
+private:
+	const FSlateBrush* GetBackgroundImage() const;
+	const FSlateBrush* GetMaskBrush() const;
 	
 protected:
 	FQxMaskOnClicked OnClicked;
