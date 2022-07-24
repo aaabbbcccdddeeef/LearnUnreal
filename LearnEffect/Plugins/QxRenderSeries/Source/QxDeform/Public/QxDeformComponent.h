@@ -69,22 +69,32 @@ public:
 	void FinishTransformsUpdate();
 	void CreateMeshSection(int SectionIndex, UStaticMesh* InMesh, const FTransform& Transform);
 
+	void SetDeformSection(int32 SectinoIndex, const FDeformMeshSection& Section);
+	
 	// 创建这个component 对应的渲染线程proxy
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 
 	// mesh component这个返回0，需要override
-	virtual int32 GetNumMaterials() const override
-	{
-		// return
-		return DeformMeshSections.Num();
-	}
+	virtual int32 GetNumMaterials() const override;
 
-	
+
 	//calcBounds定义在SceneComponent中，涉及到物理，渲染等多部分，一般也需要override
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 
+
+	void ClearMeshSection(int32 SectionIndex);
+
+	void ClearAllMeshSections();
+
+	bool IsMeshSectionVisible(int32 SectionIndex) const;
+
+	void SetMeshSectionVisible(int32 SectionIndex, bool bNewVisibility);
+
+	int32 GetNumSections() const;
+
+	FDeformMeshSection* GetDeformMeshSection(int32 SectionIndex);
 private:
-	void UpateLocalBounds();
+	void UpdateLocalBounds();
 	
 private:
 	UPROPERTY()
