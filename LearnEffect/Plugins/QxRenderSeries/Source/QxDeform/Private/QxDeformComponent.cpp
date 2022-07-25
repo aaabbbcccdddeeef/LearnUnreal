@@ -39,7 +39,7 @@ public:
 		return false;
 	}
 
-	static bool ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters,
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters,
 		FShaderCompilerEnvironment& OutEnvironment)
 	{
 		const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
@@ -87,7 +87,7 @@ public:
 				));
 			}
 
-			for (int32 CoordIndex = 0; CoordIndex < MAX_STATIC_TEXCOORDS / 2; ++CoordIndex)
+			for (int32 CoordIndex = Data.TextureCoordinates.Num(); CoordIndex < MAX_STATIC_TEXCOORDS / 2; ++CoordIndex)
 			{
 				Elements.Add(
 						AccessStreamComponent(
@@ -189,56 +189,6 @@ static void InitVertexFactoryData(FQxDeformMeshVertexFactory* QxVertexFactory, F
 }
 
 
-// 自定义vertex shader parameters
-class FQxDeformVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
-{
-	DECLARE_TYPE_LAYOUT(FQxDeformVertexFactoryShaderParameters, NonVirtual);
-public:
-	void Bind(const FShaderParameterMap& ParameterMap)
-	{
-		TransformIndex.Bind(ParameterMap, TEXT("QxDFTransformIndex"), SPF_Optional);
-		TransformIndex.Bind(ParameterMap, TEXT("QxDFTransforms"), SPF_Optional);
-	}
-
-	void GetElementShaderBindings(
-		const FSceneInterface* Scene,
-		const FSceneView* SceneView,
-		const FMeshMaterialShader* Shader,
-		const EVertexInputStreamType InputStreamType,
-		ERHIFeatureLevel::Type FeatureLevel,
-		const FVertexFactory* VertexFactory,
-		const FMeshBatchElement& BatchElement,
-		FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams
-		) const
-	{
-		if (BatchElement.bUserDataIsColorVertexBuffer)
-		{
-			const auto* LocalVertexFactory = static_cast<const FLocalVertexFactory*>(VertexFactory);
-			FColorVertexBuffer* OverrideColorVertexBuffer = (FColorVertexBuffer*)(BatchElement.UserData);
-
-			check(OverrideColorVertexBuffer);
-
-			if (!LocalVertexFactory->SupportsManualVertexFetch(FeatureLevel))
-			{
-				LocalVertexFactory->GetColorOverrideStream(OverrideColorVertexBuffer, VertexStreams);
-			}
-		}
-
-		const FQxDeformMeshVertexFactory* DeformMeshVertexFactory = (FQxDeformMeshVertexFactory*)(VertexFactory);
-
-		const int32 Index = DeformMeshVertexFactory->TransformIndex;
-
-		ShaderBindings.Add(TransformIndex, Index);
-		FQxDeformMeshProxy* tmp = DeformMeshVertexFactory->QxDeformProxy;
-		ShaderBindings.Add(TransformsSRV, DeformMeshVertexFactory->QxDeformProxy->GetDeformTransofmSRV());
-	}
-
-private:
-	LAYOUT_FIELD(FShaderParameter, TransformIndex);
-	LAYOUT_FIELD(FShaderResourceParameter, TransformsSRV);
-};
-
 /**
  * @brief 封装deform component的渲染部分
  */
@@ -250,7 +200,6 @@ public:
 		static size_t UniquePointer;
 		return reinterpret_cast<size_t>(&UniquePointer);
 	}
-	
 
 	FQxDeformMeshProxy(UQxDeformComponent* Component)
 		: FPrimitiveSceneProxy(Component)
@@ -259,19 +208,18 @@ public:
 		const uint16 NumSections = Component->DeformMeshSections.Num();
 
 		// 用sections 数据初始化section proxy
-		DeformTransforms.AddZeroed(NumSections);
+		DeformTransforms_Proxy.AddZeroed(NumSections);
 		Sections.AddZeroed(NumSections);
 
 		for (uint16 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 		{
-			
 			const FDeformMeshSection& SrcSection = Component->DeformMeshSections[SectionIndex];
 			{
 				// 创建section proxy
 				FQxDeformMeshSectionProxy* NewSection = new FQxDeformMeshSectionProxy(GetScene().GetFeatureLevel());
 
 				// 从static mesh获取需要的数据
-				auto& LODResource = SrcSection.StaticMesh->RenderData->LODResources[0];
+				auto& LODResource = SrcSection.StaticMesh->GetRenderData()->LODResources[0];
 
 				FQxDeformMeshVertexFactory* VertexFactory = &NewSection->VertexFactory;
 
@@ -290,7 +238,7 @@ public:
 					BeginInitResource(&NewSection->IndexBuffer);
 				}
 
-				DeformTransforms[SectionIndex] = SrcSection.DeformTransformMat;
+				DeformTransforms_Proxy[SectionIndex] = SrcSection.DeformTransformMat;
 
 				NewSection->MaxVertexIndex = LODResource.VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
 
@@ -313,21 +261,30 @@ public:
 		{
 			TResourceArray<FMatrix>* ResourceArray = new TResourceArray<FMatrix>(true);
 			FRHIResourceCreateInfo RHIResourceCI;
-			ResourceArray->Append(DeformTransforms);
+			ResourceArray->Append(DeformTransforms_Proxy);
 
 			RHIResourceCI.ResourceArray = ResourceArray;
 			// 这里设置的名字会在Renderdoc 中显示
 			RHIResourceCI.DebugName = TEXT("QxDeformMesh_TransformsSB");
 
+			if (DeformTransformsSB.IsValid())
+			{
+				DeformTransformsSB.SafeRelease();
+			}
+			if (DeformTransformsSRV.IsValid())
+			{
+				DeformTransformsSRV.SafeRelease();
+			}
 			DeformTransformsSB = RHICreateStructuredBuffer(
 				sizeof(FMatrix),
 				NumSections * sizeof(FMatrix),
-				BUF_ShaderResource,
+				BUF_ShaderResource ,
 				RHIResourceCI
 				);
 
 			bDeformTransformDirty = false;
 
+			FString test = FString(DeformTransformsSB->GetDebugName());
 			// 创建structed buffer的srv以便绑定到vertex factory
 			DeformTransformsSRV = RHICreateShaderResourceView(DeformTransformsSB);
 		}
@@ -345,14 +302,10 @@ public:
 			}
 		}
 
-		DeformTransformsSB.SafeRelease();
-		DeformTransformsSRV.SafeRelease();
+		// DeformTransformsSB.SafeRelease();
+		// DeformTransformsSRV.SafeRelease();
 	}
 public:
-	inline FShaderResourceViewRHIRef& GetDeformTransofmSRV()
-	{
-		return DeformTransformsSRV;
-	}
 	
 	void UpdataDeformTransformSB_RenderThread()
 	{
@@ -363,12 +316,15 @@ public:
 			void* DeformTranformSB_Data = RHILockStructuredBuffer(
 				DeformTransformsSB,
 				0,
-				DeformTransforms.Num() * sizeof(FMatrix),
-				RLM_ReadOnly
+				DeformTransforms_Proxy.Num() * sizeof(FMatrix),
+				RLM_WriteOnly
 				);
-			FMemory::Memcpy(DeformTranformSB_Data, DeformTransforms.GetData(),
-				DeformTransforms.Num() * sizeof(FMatrix));
+			TArray<FMatrix> tmpArray = DeformTransforms_Proxy;
+			FMemory::Memcpy(DeformTranformSB_Data, DeformTransforms_Proxy.GetData(),
+				DeformTransforms_Proxy.Num() * sizeof(FMatrix));
 			RHIUnlockStructuredBuffer(DeformTransformsSB);
+			uint32 test = DeformTransformsSB->GetSize();
+			uint32 testStride = DeformTransformsSB->GetStride();
 			bDeformTransformDirty = false;
 		}
 	};
@@ -380,7 +336,7 @@ public:
 		if (SectionIndex < Sections.Num() &&
 			Sections[SectionIndex] != nullptr)
 		{
-			DeformTransforms[SectionIndex] = Transform;
+			DeformTransforms_Proxy[SectionIndex] = Transform;
 			// mark transform diry
 			bDeformTransformDirty = true;
 		}
@@ -400,7 +356,7 @@ public:
 		return !MaterialRelevance.bDisableDepthTest; //#TODO
 	};
 
-	inline FShaderResourceViewRHIRef& GetDeformTransofrmsSRV()
+	FShaderResourceViewRHIRef& GetDeformTransofrmsSRV()
 	{
 		return DeformTransformsSRV;
 	}
@@ -448,6 +404,7 @@ public:
 						BatchElement.IndexBuffer = &SectionProxy->IndexBuffer;
 						MeshBatch.bWireframe = bWireFrame;
 						MeshBatch.VertexFactory = &SectionProxy->VertexFactory;
+						MeshBatch.MaterialRenderProxy = CurMaterialProxy;
 
 						// 设置local vertex factory中的uniform buffer的参数信息
 						bool bHasProcomputedVolumetricLightmap;
@@ -528,7 +485,7 @@ private:
 	TArray<FQxDeformMeshSectionProxy*> Sections;
 
 	// 所有section 的deform transform
-	TArray<FMatrix> DeformTransforms;
+	TArray<FMatrix> DeformTransforms_Proxy;
 
 	// 这个structed buffer 包括所有section 的deform transform
 	FStructuredBufferRHIRef DeformTransformsSB;
@@ -539,6 +496,64 @@ private:
 	bool bDeformTransformDirty;
 };
 
+
+
+// 自定义vertex shader parameters
+class FQxDeformVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
+{
+	DECLARE_TYPE_LAYOUT(FQxDeformVertexFactoryShaderParameters, NonVirtual);
+public:
+	void Bind(const FShaderParameterMap& ParameterMap)
+	{
+		TransformIndex.Bind(ParameterMap, TEXT("QxDFTransformIndex"), SPF_Optional);
+		TransformsSRV.Bind(ParameterMap, TEXT("QxDFTransforms"), SPF_Optional);
+	}
+
+	void GetElementShaderBindings(
+		const FSceneInterface* Scene,
+		const FSceneView* SceneView,
+		const FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams
+		) const
+	{
+		if (BatchElement.bUserDataIsColorVertexBuffer)
+		{
+			const auto* LocalVertexFactory = static_cast<const FLocalVertexFactory*>(VertexFactory);
+			FColorVertexBuffer* OverrideColorVertexBuffer = (FColorVertexBuffer*)(BatchElement.UserData);
+
+			check(OverrideColorVertexBuffer);
+
+			if (!LocalVertexFactory->SupportsManualVertexFetch(FeatureLevel))
+			{
+				LocalVertexFactory->GetColorOverrideStream(OverrideColorVertexBuffer, VertexStreams);
+			}
+		}
+
+		const FQxDeformMeshVertexFactory* DeformMeshVertexFactory = (FQxDeformMeshVertexFactory*)(VertexFactory);
+
+		const int32 Index = DeformMeshVertexFactory->TransformIndex;
+
+		ShaderBindings.Add(TransformIndex, Index);
+		ShaderBindings.Add(TransformsSRV, DeformMeshVertexFactory->QxDeformProxy->GetDeformTransofrmsSRV());
+	}
+
+private:
+	LAYOUT_FIELD(FShaderParameter, TransformIndex);
+	LAYOUT_FIELD(FShaderResourceParameter, TransformsSRV);
+};
+
+IMPLEMENT_TYPE_LAYOUT(FQxDeformVertexFactoryShaderParameters);
+
+
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FQxDeformMeshVertexFactory, SF_Vertex, FQxDeformVertexFactoryShaderParameters);
+
+IMPLEMENT_VERTEX_FACTORY_TYPE(FQxDeformMeshVertexFactory, "/QxShaders/QxLocalVertexFactory.ush",
+	true, true, true, true, true);
 
 // Sets default values for this component's properties
 UQxDeformComponent::UQxDeformComponent()
@@ -572,37 +587,39 @@ void UQxDeformComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 
 void UQxDeformComponent::UpdateMeshSectionTransform(int SectionIndex, const FTransform& Transform)
 {
-	if (SectionIndex > DeformMeshSections.Num())
+	if (SectionIndex < DeformMeshSections.Num())
 	{
-		return;
+		
+		const FMatrix TransformMatrix = Transform.ToMatrixWithScale().GetTransposed();
+		DeformMeshSections[SectionIndex].DeformTransformMat = TransformMatrix;
+
+		DeformMeshSections[SectionIndex].SectionLocalBox +=
+			DeformMeshSections[SectionIndex].StaticMesh->GetBoundingBox().TransformBy(Transform);
+
+		if (SceneProxy)
+		{
+			// 注意UE4默认编译没有RTTI，dynamic cast不能用
+			// FQxDeformMeshProxy* DeformMeshProxy = dynamic_cast<FQxDeformMeshProxy*>(SceneProxy);
+			FQxDeformMeshProxy* DeformMeshProxy = (FQxDeformMeshProxy*)(SceneProxy);
+			ENQUEUE_RENDER_COMMAND(FDeformTransformUpdate)(
+				[DeformMeshProxy, SectionIndex, TransformMatrix](FRHICommandListImmediate& RHICmdList)
+				{
+					DeformMeshProxy->UpdateDeformTransform_RenderThread(SectionIndex, TransformMatrix);
+				}
+				);
+		}
+
+		UpdateLocalBounds();
+		MarkRenderTransformDirty();
 	}
 
-	const FMatrix TransformMatrix = Transform.ToMatrixWithScale().GetTransposed();
-	DeformMeshSections[SectionIndex].DeformTransformMat = TransformMatrix;
-
-	DeformMeshSections[SectionIndex].SectionLocalBox +=
-		DeformMeshSections[SectionIndex].StaticMesh->GetBoundingBox().TransformBy(Transform);
-
-	if (SceneProxy)
-	{
-		FQxDeformMeshProxy* DeformMeshProxy = dynamic_cast<FQxDeformMeshProxy*>(SceneProxy);
-		ENQUEUE_RENDER_COMMAND(FDeformTransformUpdate)(
-			[DeformMeshProxy, SectionIndex, TransformMatrix](FRHICommandListImmediate& RHICmdList)
-			{
-				DeformMeshProxy->UpdateDeformTransform_RenderThread(SectionIndex, TransformMatrix);
-			}
-			);
-	}
-
-	UpdateLocalBounds();
-	MarkRenderTransformDirty();
 }
 
 void UQxDeformComponent::FinishTransformsUpdate()
 {
 	if (SceneProxy)
 	{
-		FQxDeformMeshProxy* DeformMeshProxy = dynamic_cast<FQxDeformMeshProxy*>(SceneProxy);
+		FQxDeformMeshProxy* DeformMeshProxy = (FQxDeformMeshProxy*)(SceneProxy);
 		ENQUEUE_RENDER_COMMAND(FDeformMeshAllTransformSBData)(
 			[DeformMeshProxy](FRHICommandListImmediate& RHICmdList)
 			{
@@ -653,6 +670,7 @@ void UQxDeformComponent::SetDeformSection(int32 SectinoIndex, const FDeformMeshS
 
 FPrimitiveSceneProxy* UQxDeformComponent::CreateSceneProxy()
 {
+	return new FQxDeformMeshProxy(this);
 	// 这里不创建新的proxy 会不会有问题 #TODO
 	if (!SceneProxy)
 	{

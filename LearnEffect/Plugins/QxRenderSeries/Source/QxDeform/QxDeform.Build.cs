@@ -38,6 +38,9 @@ public class QxDeform : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+				"Renderer",
+				"RenderCore",
+				"RHI"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
@@ -49,5 +52,7 @@ public class QxDeform : ModuleRules
 				// ... add any modules that your module loads dynamically here ...
 			}
 			);
+
+		OptimizeCode = CodeOptimization.Never;
 	}
 }

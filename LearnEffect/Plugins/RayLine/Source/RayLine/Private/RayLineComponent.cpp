@@ -77,7 +77,7 @@ public:
 		//We add all the available texcoords to the default element list, that's all what we'll need for unlit shading
 		if (Data.TextureCoordinates.Num())
 		{
-			const int32 BaseTexCoordAttribute = 4; //ÕâÀïÎªÉ¶²»ÊÇ´Ó0¿ªÊ¼ #Unkown
+			const int32 BaseTexCoordAttribute = 4; //è¿™é‡Œä¸ºå•¥ä¸æ˜¯ä»0å¼€å§‹ #Unkown
 			for (int32 CoordinateIndex = 0; CoordinateIndex < Data.TextureCoordinates.Num(); CoordinateIndex++)
 			{
 				Elements.Add(AccessStreamComponent(

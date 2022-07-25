@@ -21,7 +21,7 @@ public:
 
 	//  用来进行扭曲的额外矩阵
 	UPROPERTY()
-	FMatrix DeformTransformMat;
+	FMatrix DeformTransformMat = FMatrix::Identity;
 
 	// local bounding box of section, 主要用来辅助proxy计算bounds
 	UPROPERTY()
