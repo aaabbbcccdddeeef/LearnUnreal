@@ -32,7 +32,8 @@ public class QxRenderSeries : ModuleRules
                 "RHI",
                 "Projects",
                 "Slate",
-                "UMG"
+                "UMG",
+                "RHI"
             }
 
             );

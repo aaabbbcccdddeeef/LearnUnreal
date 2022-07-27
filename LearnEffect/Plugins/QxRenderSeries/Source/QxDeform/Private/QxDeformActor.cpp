@@ -33,5 +33,6 @@ void AQxDeformActor::Tick(float DeltaTime)
 	const FTransform& DeformTrans = DeformController->GetTransform();
 	DeformComponent->UpdateMeshSectionTransform(0, DeformTrans);
 	DeformComponent->FinishTransformsUpdate();
+	DeformComponent->MarkRenderStateDirty();
 }
 
