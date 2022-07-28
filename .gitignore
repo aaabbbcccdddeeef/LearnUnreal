@@ -25,3 +25,8 @@ LearnEditorEx/Content/TestGame/DataprepTest/
 LearnEffect/Content/ExtraFeature/PlayVideo/
 LearnEffect/Content/01_Function_Tool/
 LearnEffect/Content/MasteringMaterials/
+LearnCPPAdvance/.idea/
+*.tlog
+*.idb
+*.obj
+*.pdb
