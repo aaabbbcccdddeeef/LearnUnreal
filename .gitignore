@@ -30,3 +30,7 @@ LearnCPPAdvance/.idea/
 *.idb
 *.obj
 *.pdb
+LearnCPPAdvance/LearnCPPAdvance/.idea/
+*.exe
+*.recipe
+*.ilk

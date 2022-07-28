@@ -5,26 +5,31 @@
 #include <iostream>
 #include <stdlib.h>
 // #include <unistd.h>
+#include <set>
 #include <thread>
 #include <vector>
 #include "MyAllocator.h"
 
-int main()
-{
-    std::cout << "Hello World!\n";
+class MaObjectDisplay1;
+using namespace std;
 
-    std::vector<int, MyAllocator<int>> v(0);
-
-    for (size_t i = 0; i < 30; ++i)
-    {
-        // _sleep(1);
-        // std::this_thread::sleep_for(1);
-        v.push_back(i);
-
-        std::cout << "当前容器占用: " << v.get_allocator().get_allocations() << std::endl; 
-    }
-
-}
+//int main()
+//{
+//    std::cout << "Hello World!\n";
+//
+//    std::vector<int, MyAllocator<int>> v(0);
+//    std::vector<int, std::allocator<int>> test(0);
+//
+//    for (size_t i = 0; i < 30; ++i)
+//    {
+//        // _sleep(1);
+//        // std::this_thread::sleep_for(1);
+//        v.push_back(i);
+//
+//        std::cout << "当前容器占用: " << v.get_allocator().get_allocations() << std::endl; 
+//    }
+//
+//}
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
 // Debug program: F5 or Debug > Start Debugging menu

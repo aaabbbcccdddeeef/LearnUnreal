@@ -4,7 +4,7 @@
 #include <utility>
 
 template<class T>
-class MyAllocator
+class MyAllocator : public std::allocator<T>
 {
 public:
 	using value_type = T;
@@ -14,13 +14,29 @@ public:
 	using size_type = size_t;
 	using different_type = std::ptrdiff_t;
 
-	MyAllocator() = default;
-	~MyAllocator() = default;
+	MyAllocator() throw()
+	{
+	}
+
+	MyAllocator(const T& other) throw()
+		: std::allocator<T>(other)
+	{
+
+	}
+
+	~MyAllocator() throw()
+	{
+
+	}
+
+	template<typename _Tp1>
+	MyAllocator(const MyAllocator<_Tp1>&) throw()
+	{}
 
 	pointer allocate(size_type numObjs)
 	{
 		allocCount += numObjs;
-		std::cout << "MyAllocator::allocate, 内存分配:" << numObjs << std::endl;
+		std::cout << "MyAllocator::allocate, memory allocate:" << numObjs << std::endl;
 		return static_cast<pointer>(operator new(sizeof(T) * numObjs));
 	}
 
@@ -31,7 +47,7 @@ public:
 
 	void deallocate(pointer p, size_type numObjs)
 	{
-		std::cout << "MyAllocator::deallocate, 内存释放:" << numObjs << std::endl;
+		std::cout << "MyAllocator::deallocate, release memory:" << numObjs << std::endl;
 		allocCount -= numObjs;
 		operator delete(p);
 	}
@@ -64,7 +80,10 @@ public:
 		using other = MyAllocator<U>;
 	};
 
+
 private:
 	size_type allocCount;
 };
 
+//template<typename T>
+//MyAllocator<T>::size_type allocCount = 0;
