@@ -34,3 +34,6 @@ LearnCPPAdvance/LearnCPPAdvance/.idea/
 *.exe
 *.recipe
 *.ilk
+LearnCPPAdvance/LearnCPPAdvance/x64/
+LearnCPPAdvance/LearnCPPAdvance/Debug/
+LearnCPPAdvance/QxRayTracer/x64/

@@ -100,6 +100,7 @@ void Test1()
 
     MaObjectDisplay1 a("asdf");
     myset.insert(a);
+    Test2();
 }
 
 int main()
