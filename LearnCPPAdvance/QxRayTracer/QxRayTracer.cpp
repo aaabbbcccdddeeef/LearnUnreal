@@ -68,12 +68,19 @@ Color RayColor(const Ray& InRay)
         t * Color(0.5, 0.7, 1.0);   
 }
 
-Color RayColor(const Ray& inRay, const Hittable& world)
+Color RayColor(const Ray& inRay, const Hittable& world, int depth)
 {
+    if (depth <= 0)
+    {
+        return Color(0, 0, 0);
+    }
+    
     HitResult hitRes;
     if (world.Hit(inRay, 0, Infinity, hitRes))
     {
-        return  0.5 * (hitRes.Normal + Vec3(1, 1, 1));
+        Point3 target = hitRes.hitPoint + hitRes.Normal +  Vec3::RandomInUnitSphere();
+        // return  0.5 * (hitRes.Normal + Vec3(1, 1, 1));
+        return 0.5 * RayColor(Ray(hitRes.hitPoint, target - hitRes.hitPoint), world, depth - 1);
     }
     Vec3 unitDir = Unit_Vector(inRay.Dir);
     double t = 0.5 *(unitDir.y() + 1.0);
@@ -87,6 +94,7 @@ int main()
     const int image_width = 400;
     const int image_height = static_cast<int>(image_width / aspectRatio);
     const int SamplersPerPixel = 100;
+    const int maxDepth = 50;
 
     // World
     HittableList world;
@@ -113,7 +121,8 @@ int main()
                 // double v = (double)(j ) / (image_height - 1);
 
                 Ray r = cam.GetRay(u, v);
-                pixelColor += RayColor(r, world);
+                // pixelColor += RayColor(r, world);
+                pixelColor += RayColor(r, world, maxDepth);
             }
             // Ray r(origin, lowerLeftCorner + u * horizontal + v * vertical - origin);
 

@@ -2,6 +2,7 @@
 #include <cmath>
 #include <iostream>
 
+
 using std::sqrt;
 
 class Vec3
@@ -65,6 +66,12 @@ public:
     {
         return sqrt(LengthSquared());
     }
+
+    static Vec3 Random();
+
+    static Vec3 Random(double min, double max);
+
+    static Vec3 RandomInUnitSphere();
 
 public:
     double e[3];
