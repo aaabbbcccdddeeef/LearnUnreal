@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Hittables.cpp" />
+    <ClCompile Include="Material.cpp" />
     <ClCompile Include="QxRayTracer.cpp" />
     <ClCompile Include="QxTracerUtils.cpp" />
     <ClCompile Include="Ray.cpp" />
@@ -149,6 +150,7 @@
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Hittables.h" />
+    <ClInclude Include="Material.h" />
     <ClInclude Include="QxTracerUtils.h" />
     <ClInclude Include="Ray.h" />
     <ClInclude Include="Vec3.h" />

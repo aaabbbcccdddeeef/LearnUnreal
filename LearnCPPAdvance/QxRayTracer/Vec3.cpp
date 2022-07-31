@@ -26,3 +26,8 @@ Vec3 Vec3::RandomInUnitSphere()
         return p;
     }
 }
+
+Vec3 Vec3::RandomUnitVector()
+{
+    return Unit_Vector(RandomInUnitSphere());
+}

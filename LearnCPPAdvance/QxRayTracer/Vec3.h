@@ -67,11 +67,19 @@ public:
         return sqrt(LengthSquared());
     }
 
+    bool IsNearZero() const
+    {
+        const auto s = 1e-8;
+        return (fabs(e[0]) < s) && (fabs(e[1]) < s) && (fabs(e[2]) < s);
+    }
+
     static Vec3 Random();
 
     static Vec3 Random(double min, double max);
 
     static Vec3 RandomInUnitSphere();
+
+    static Vec3 RandomUnitVector();
 
 public:
     double e[3];

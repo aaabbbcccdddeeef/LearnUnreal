@@ -65,13 +65,13 @@ struct type_traits<double>
 template<typename T>
 void decodeTest(const T& data, const char* buf)
 {
-    if (typeid(type_traits<T>::TestType) == typeid(typename TestEnum::TestType))
+  /*  if (typeid(type_traits<T>::TestType) == typeid(typename TestEnum::TestType))
     {
         std::cout << "decode type1 " << std::endl;
     } else if (typeid(type_traits<T>::TestType) == typeid(typename TestEnum3::TestType))
     {
 		std::cout << "decode type2 " << std::endl;
-    }
+    }*/
 }
 
 

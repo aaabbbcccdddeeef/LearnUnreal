@@ -15,9 +15,11 @@ void WriteColor(std::ostream& out, const Color& pixelColor, int SamplesPerPixel)
     double b = pixelColor.z();
 
     double scale = 1.0 / SamplesPerPixel;
-    r *= scale;
-    g *= scale;
-    b *= scale;
+
+    // 这里的sqrt相当于pow(1/2)，进行gamma correction
+    r = sqrt(scale * r);
+    g = sqrt(scale * g);
+    b = sqrt(scale * b);
 
     out << static_cast<int>(255.999 * r) << ' '
         << static_cast<int>(255.999 * g) << ' '

@@ -3,18 +3,22 @@
 #include "Vec3.h"
 #include <vector>
 
+class Material;
+
 struct HitResult
 {
     Point3 hitPoint;
     Vec3 Normal;
     double t; // t表示在ray 的表达式中的t
 
-    bool front_face; // 逆时针为front face
+    bool bFrontFace; // 逆时针为front face
+
+    std::shared_ptr<Material> MatPtr;
 
     inline void SetFaceNormal(const Ray& inRay, const Vec3& outwardNormal)
     {
-        front_face = dot(inRay.GetDirection(), outwardNormal) < 0;
-        Normal = front_face ? outwardNormal : -outwardNormal;
+        bFrontFace = dot(inRay.GetDirection(), outwardNormal) < 0;
+        Normal = bFrontFace ? outwardNormal : -outwardNormal;
     }
 };
 
@@ -34,15 +38,19 @@ public:
     {
     }
 
-    Sphere(const Point3& InCenter, double InRadius)
-        : Center(InCenter), Radius(InRadius)
+    Sphere(const Point3& InCenter, double InRadius,
+        std::shared_ptr<Material> InMaterial)
+        : Center(InCenter), Radius(InRadius), MatPtr(InMaterial)
     {
     }
 
     bool Hit(const Ray& InRay, double tMin, double tMax, HitResult& OutHitRes) const override;
 
+public:
     Point3 Center;
     double Radius;
+
+    std::shared_ptr<Material> MatPtr;
 };
 
 

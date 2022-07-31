@@ -52,3 +52,8 @@ inline double clamp(double x, double min, double max)
     }
     return x;
 }
+
+inline Vec3 Reflect(const Vec3& v, const Vec3& n)
+{
+    return v - 2 * dot(v, n) * n;
+}

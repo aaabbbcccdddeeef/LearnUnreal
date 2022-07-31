@@ -5,9 +5,23 @@
 
 #include "Camera.h"
 #include "Hittables.h"
+#include "Material.h"
 #include "QxTracerUtils.h"
 #include "Ray.h"
 #include "Vec3.h"
+
+Vec3 RandomInHemiSphere(const Vec3& normal)
+{
+    Vec3 randomVec = Vec3::RandomInUnitSphere();
+    if (dot(randomVec, normal) > 0.0)
+    {
+        return randomVec;
+    }
+    else
+    {
+        return -randomVec;
+    }
+}
 
 // simple fied version
 double HitSphere(const Point3& center, double radius, const Ray& ray)
@@ -76,11 +90,24 @@ Color RayColor(const Ray& inRay, const Hittable& world, int depth)
     }
     
     HitResult hitRes;
-    if (world.Hit(inRay, 0, Infinity, hitRes))
+    if (world.Hit(inRay, 0.001, Infinity, hitRes))
     {
-        Point3 target = hitRes.hitPoint + hitRes.Normal +  Vec3::RandomInUnitSphere();
+        //#TODO 这里两个unit vector选择上的区别？？？？？？？
+        // 这里target 位置的选择已知
+        // 1. RnadomInUnitSphere 2. RandomUnitVector
+        // 3. RandomInHemiSphere
+        //Point3 target = hitRes.hitPoint + hitRes.Normal + Vec3::RandomUnitVector(); //Vec3::RandomInUnitSphere();
+        Ray rayScattered;
+        Color attenuation;
+        if (hitRes.MatPtr->Scatter(
+            inRay, hitRes, attenuation, rayScattered))
+        {
+            return  attenuation * RayColor(rayScattered, world, depth - 1);       
+        }
+        return  Color(0, 0, 0);
+        // Point3 target = hitRes.hitPoint + RandomInHemiSphere(hitRes.Normal);
         // return  0.5 * (hitRes.Normal + Vec3(1, 1, 1));
-        return 0.5 * RayColor(Ray(hitRes.hitPoint, target - hitRes.hitPoint), world, depth - 1);
+        // return 0.5 * RayColor(Ray(hitRes.hitPoint, target - hitRes.hitPoint), world, depth - 1);
     }
     Vec3 unitDir = Unit_Vector(inRay.Dir);
     double t = 0.5 *(unitDir.y() + 1.0);
@@ -98,8 +125,19 @@ int main()
 
     // World
     HittableList world;
-    world.Add(make_shared<Sphere>(Point3(0, 0, -1), 0.5));
-    world.Add(make_shared<Sphere>(Point3(0, -100.5, -1), 100));
+    // world.Add(make_shared<Sphere>(Point3(0, 0, -1), 0.5));
+    // world.Add(make_shared<Sphere>(Point3(0, -100.5, -1), 100));
+    auto materialGround = std::make_shared<Lambertian>(Color(0.8, 0.8, 0.0));
+    auto materialCenter = std::make_shared<Lambertian>(Color(0.7, 0.3, 0.3));
+    auto materialLeft = std::make_shared<Metal>(Color(0.8, 0.8, 0.8));
+    auto materialRight = std::make_shared<Metal>(Color(0.8, 0.6, 0.2));
+
+    world.Add(make_shared<Sphere>(Point3(0.0, 100.5, -1.0), 100.0, materialGround));
+    world.Add(make_shared<Sphere>(Point3(0.0, 0.0, -1.0), 0.5, materialCenter));
+    world.Add(make_shared<Sphere>(Point3(-1.0, 0.0, -1.0), 100.0, materialLeft));
+    world.Add(make_shared<Sphere>(Point3(1.0, 0.0, -1.0), 100.0, materialRight));
+
+    
     
     // Camera
     Camera cam;

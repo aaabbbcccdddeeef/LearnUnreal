@@ -29,6 +29,7 @@ bool Sphere::Hit(const Ray& InRay, double tMin, double tMax, HitResult& OutHitRe
     Vec3 outwardNorml = (OutHitRes.hitPoint - Center) / Radius;
     OutHitRes.SetFaceNormal(InRay, outwardNorml);
     // OutHitRes.Normal = (OutHitRes.hitPoint - Center) / Radius;
+    OutHitRes.MatPtr = MatPtr;
     return  true;
 }
 
