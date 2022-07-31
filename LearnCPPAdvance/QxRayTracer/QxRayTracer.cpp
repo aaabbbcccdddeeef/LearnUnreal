@@ -4,15 +4,33 @@
 #include <iostream>
 
 #include "QxTracerUtils.h"
+#include "Ray.h"
 #include "Vec3.h"
 
-
+Color RayColor(const Ray& InRay)
+{
+    Vec3 unitDir = Unit_Vector(InRay.GeDirection());
+    double t = 0.5 * (unitDir.y() + 1.0 );
+    return (1.0 - t) * Color(1.0, 1.0, 1.0) +
+        t * Color(0.5, 0.7, 1.0);   
+}
 
 int main()
 {
     // image
-    const int image_width = 256;
-    const int image_height = 256;
+    const double aspectRatio = 16.0 / 9.0;
+    const int image_width = 400;
+    const int image_height = static_cast<int>(image_width / aspectRatio);
+
+    // Camera
+    double viewportHeight = 2.0;
+    double viewportWidth = aspectRatio * viewportHeight;
+    double focalLength = 1.0;
+
+    const Vec3 origin = Vec3(0, 0, 0);
+    const Vec3 horizontal = Vec3(viewportWidth, 0, 0);
+    const Vec3 vertical = Vec3(0, viewportHeight, 0);
+    const Vec3 lowerLeftCorner = origin - horizontal / 2 - vertical / 2 - Vec3(0, 0, focalLength);
 
     // Render
     std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
@@ -22,18 +40,14 @@ int main()
         std::cerr << "\rScanlines remaining" << j << ' ' << std::flush;
         for (int i = 0; i < image_width; ++i)
         {
-            // double r = double(i) / (image_width -1);
-            // double g = double(j) / (image_height - 1);
-            // double b = 0.25;
-            //
-            // int ir = static_cast<int>(255.999 * r);
-            // int ig = static_cast<int>(255.999 * g);
-            // int ib = static_cast<int>(255.999 * b);
-            //
-            // std::cout << ir << ' ' << ig << ' ' << ib << '\n';
+            double u = double(i) / (image_width - 1);
+            double v = double(j) / (image_height - 1);
 
-            Color pixelColor(double(i) / (image_width - 1),
-                double(j) /( image_height - 1), 0.25);
+            Ray r(origin, lowerLeftCorner + u * horizontal + v * vertical - origin);
+
+            Color pixelColor = RayColor(r);
+            // Color pixelColor(double(i) / (image_width - 1),
+                // double(j) /( image_height - 1), 0.25);
             WriteColor(std::cout, pixelColor);
         }
     }
