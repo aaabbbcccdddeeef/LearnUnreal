@@ -3,6 +3,7 @@
 
 #include <iostream>
 
+#include "Camera.h"
 #include "Hittables.h"
 #include "QxTracerUtils.h"
 #include "Ray.h"
@@ -85,6 +86,7 @@ int main()
     const double aspectRatio = 16.0 / 9.0;
     const int image_width = 400;
     const int image_height = static_cast<int>(image_width / aspectRatio);
+    const int SamplersPerPixel = 100;
 
     // World
     HittableList world;
@@ -92,14 +94,7 @@ int main()
     world.Add(make_shared<Sphere>(Point3(0, -100.5, -1), 100));
     
     // Camera
-    double viewportHeight = 2.0;
-    double viewportWidth = aspectRatio * viewportHeight;
-    double focalLength = 1.0;
-
-    const Vec3 origin = Vec3(0, 0, 0);
-    const Vec3 horizontal = Vec3(viewportWidth, 0, 0);
-    const Vec3 vertical = Vec3(0, viewportHeight, 0);
-    const Vec3 lowerLeftCorner = origin - horizontal / 2 - vertical / 2 - Vec3(0, 0, focalLength);
+    Camera cam;
 
     // Render
     std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
@@ -109,16 +104,25 @@ int main()
         std::cerr << "\rScanlines remaining" << j << ' ' << std::flush;
         for (int i = 0; i < image_width; ++i)
         {
-            double u = double(i) / (image_width - 1);
-            double v = double(j) / (image_height - 1);
+            Color pixelColor(0, 0, 0);            
+            for (int s = 0; s < SamplersPerPixel; ++s)
+            {
+                double u = (i + RandomDouble()) / (image_width - 1);
+                double v = (j + RandomDouble()) / (image_height - 1);
+                // double u = (double)(i ) / (image_width - 1);
+                // double v = (double)(j ) / (image_height - 1);
 
-            Ray r(origin, lowerLeftCorner + u * horizontal + v * vertical - origin);
+                Ray r = cam.GetRay(u, v);
+                pixelColor += RayColor(r, world);
+            }
+            // Ray r(origin, lowerLeftCorner + u * horizontal + v * vertical - origin);
 
             // Color pixelColor = RayColor(r);
             // Color pixelColor(double(i) / (image_width - 1),
                 // double(j) /( image_height - 1), 0.25);
-            Color pixelColor = RayColor(r, world);
-            WriteColor(std::cout, pixelColor);
+            // Color pixelColor = RayColor(r, world);
+            
+            WriteColor(std::cout, pixelColor, SamplersPerPixel);
         }
     }
 
