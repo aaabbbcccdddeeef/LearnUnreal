@@ -74,6 +74,7 @@ public:
 	// 	p->~U();
 	// }
 
+	// 这个的目的是将all
 	template<class U>
 	struct rebind
 	{
