@@ -139,12 +139,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Hittables.cpp" />
     <ClCompile Include="QxRayTracer.cpp" />
     <ClCompile Include="QxTracerUtils.cpp" />
     <ClCompile Include="Ray.cpp" />
     <ClCompile Include="Vec3.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Hittables.h" />
     <ClInclude Include="QxTracerUtils.h" />
     <ClInclude Include="Ray.h" />
     <ClInclude Include="Vec3.h" />

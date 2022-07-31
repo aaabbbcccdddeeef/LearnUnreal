@@ -17,7 +17,7 @@ public:
         return Origin;
     }
 
-    Vec3 GeDirection() const
+    Vec3 GetDirection() const
     {
         return Dir;    
     }
