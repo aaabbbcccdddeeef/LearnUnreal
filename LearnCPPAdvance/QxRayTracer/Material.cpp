@@ -21,7 +21,7 @@ bool Lambertian::Scatter(const Ray& inRay, const HitResult& hitResult, Color& at
 bool Metal::Scatter(const Ray& inRay, const HitResult& hitResult, Color& attenuation, Ray& scattered) const
 {
     Vec3 reflected = Reflect(Unit_Vector(inRay.GetDirection()), hitResult.Normal);
-    scattered = Ray(hitResult.hitPoint, reflected);
+    scattered = Ray(hitResult.hitPoint, reflected + Fuzz * Vec3::RandomInUnitSphere()); //这里+随机向量是为了造成一定的反射方向上的模糊
     attenuation = Albedo;
     return (dot(scattered.GetDirection(), hitResult.Normal) > 0);
 }

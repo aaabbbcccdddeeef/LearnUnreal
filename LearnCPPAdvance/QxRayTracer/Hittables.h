@@ -73,3 +73,5 @@ public:
 public:
     std::vector<std::shared_ptr<Hittable>> objects;
 };
+
+

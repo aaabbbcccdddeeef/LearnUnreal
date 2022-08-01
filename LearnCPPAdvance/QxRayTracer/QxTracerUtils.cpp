@@ -21,7 +21,11 @@ void WriteColor(std::ostream& out, const Color& pixelColor, int SamplesPerPixel)
     g = sqrt(scale * g);
     b = sqrt(scale * b);
 
-    out << static_cast<int>(255.999 * r) << ' '
-        << static_cast<int>(255.999 * g) << ' '
-        << static_cast<int>(255.999 * b) << '\n';
+    double tmp1 = 255.999 * r;
+    double tmp2 = 255.999 * g;
+    double tmp3 = 255.999 * b;
+
+    out << static_cast<int>(tmp1) << ' '
+        << static_cast<int>(tmp2) << ' '
+        << static_cast<int>(tmp3) << '\n';
 }

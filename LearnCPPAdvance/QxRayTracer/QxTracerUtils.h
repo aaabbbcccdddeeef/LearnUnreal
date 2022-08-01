@@ -57,3 +57,12 @@ inline Vec3 Reflect(const Vec3& v, const Vec3& n)
 {
     return v - 2 * dot(v, n) * n;
 }
+
+// 这段的由来参考文档
+inline Vec3 Refract(const Vec3& incidentVec, const Vec3& normal, double etai_over_etat)
+{
+    auto cosTheta = fmin(dot(-incidentVec, normal), 1.0);
+    Vec3 r_out_perp = etai_over_etat * (incidentVec + cosTheta * normal);
+    Vec3 r_out_parallel = -sqrt(fabs(1.0 - r_out_perp.LengthSquared())) * normal;
+    return r_out_perp + r_out_parallel;
+}

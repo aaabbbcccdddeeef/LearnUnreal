@@ -41,12 +41,13 @@ bool HittableList::Hit(const Ray& InRay, double tMin, double tMax, HitResult& Ou
 
     for (const auto& object : objects)
     {
-        if (object->Hit(InRay, tMin, tMax, tmpRes))
+        // 注意hit之后更新max上限
+        if (object->Hit(InRay, tMin, closeToFar, tmpRes))
         {
             hitAnything = true;
             closeToFar = tmpRes.t;
             OutHitRes = tmpRes;
-            break;
+            // break;
         }
     }
 
