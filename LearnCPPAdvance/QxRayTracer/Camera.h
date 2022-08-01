@@ -10,7 +10,10 @@ public:
         Point3 lookAt,
         Vec3 vUp,
         double vFOV,
-        double aspectRatio)
+        double aspectRatio,
+        double Aperture,
+        double focusDist
+        )
     {
         // double aspectRatio = 16.0 / 9.0;
         double theta = DegreesToRadians(vFOV);
@@ -20,21 +23,30 @@ public:
         double focalLength = 1.0;
 
         // 注意：当前使用的坐标系是z指向屏幕外面,yup的右手系,相机看向-z,所以下面这样算
-        Vec3 w = Unit_Vector(inPosition - lookAt);
-        Vec3 u = Unit_Vector(cross(vUp, w));
-        Vec3 v = cross(w, u);
+        w = Unit_Vector(inPosition - lookAt);
+         u = Unit_Vector(cross(vUp, w));
+         v = cross(w, u);
         
         Origin = inPosition;
-        Horizontal =viewportWidth * u;
-        Vertical = viewportHeight * v;
-        LowerLeftCorner = Origin - Horizontal / 2 - Vertical / 2 - w;
+        Horizontal =focusDist * viewportWidth * u;
+        Vertical = focusDist *  viewportHeight * v;
+        LowerLeftCorner = Origin - Horizontal / 2 - Vertical / 2 - focusDist * w;
+
+        LensRadius = Aperture / 2;
     }
 
     // 根据传入的uv构造相机原点指向该uv的ray
-    Ray GetRay(double u, double v) const
+    Ray GetRay(double s,double t) const
     {
         // return Ray(Origin,  LowerLeftCorner + u*Horizontal + v*Vertical - Origin);
-        return Ray(Origin, LowerLeftCorner + u * Horizontal + v * Vertical - Origin);
+        // return Ray(Origin, LowerLeftCorner + u * Horizontal + v * Vertical - Origin);
+        Vec3 rd = LensRadius * RandomInUnitDisk();
+        Vec3 offset = u * rd.x() + v * rd.y();
+
+        return Ray(
+                Origin + offset,
+                LowerLeftCorner + s * Horizontal + t * Vertical - Origin - offset
+            );
     }
     
 private:
@@ -42,4 +54,7 @@ private:
     Point3 LowerLeftCorner;
     Vec3 Horizontal;
     Vec3 Vertical;
+
+    Vec3 u,v,w;
+    double LensRadius;
 };

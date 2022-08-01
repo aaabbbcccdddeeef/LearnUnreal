@@ -66,3 +66,16 @@ inline Vec3 Refract(const Vec3& incidentVec, const Vec3& normal, double etai_ove
     Vec3 r_out_parallel = -sqrt(fabs(1.0 - r_out_perp.LengthSquared())) * normal;
     return r_out_perp + r_out_parallel;
 }
+
+inline Vec3 RandomInUnitDisk()
+{
+    while (true)
+    {
+        auto p = Vec3(RandomDouble(-1, 1), RandomDouble(-1, 1), 0);
+        if (p.LengthSquared() >= 1)
+        {
+            continue;
+        }
+        return  p;
+    }
+}

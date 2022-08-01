@@ -173,7 +173,14 @@ int main()
     //     Point3(0, 0, -1),
     //     Vec3(0, 1, 0),
     //     90.0, aspectRatio);
-    Camera cam(Point3(-2,2,1), Point3(0,0,-1), Vec3(0,1,0), 20, aspectRatio);
+    // Camera cam(Point3(-2,2,1), Point3(0,0,-1), Vec3(0,1,0), 20, aspectRatio);
+    Point3 lookfrom(3,3,2);
+    Point3 lookat(0,0,-1);
+    Vec3 vup(0,1,0);
+    auto dist_to_focus = (lookfrom-lookat).Length();
+    auto aperture = 2.0;
+
+    Camera cam(lookfrom, lookat, vup, 20, aspectRatio, aperture, dist_to_focus);
 
     // Render
     std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
