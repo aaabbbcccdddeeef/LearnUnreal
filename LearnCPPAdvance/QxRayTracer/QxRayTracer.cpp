@@ -120,7 +120,7 @@ int main()
     const double aspectRatio = 16.0 / 9.0;
     const int image_width = 400;
     const int image_height = static_cast<int>(image_width / aspectRatio);
-    const int SamplersPerPixel = 50;
+    const int SamplersPerPixel = 100;
     const int maxDepth = 50;
 
     // World
@@ -128,15 +128,16 @@ int main()
     // world.Add(make_shared<Sphere>(Point3(0, 0, -1), 0.5));
     // world.Add(make_shared<Sphere>(Point3(0, -100.5, -1), 100));
     auto materialGround = std::make_shared<Lambertian>(Color(0.8, 0.8, 0.0));
-    // auto materialCenter = std::make_shared<Lambertian>(Color(0.7, 0.3, 0.3));
-    auto materialCenter = std::make_shared<Dielectric>(1.5);
+    auto materialCenter = std::make_shared<Lambertian>(Color(0.1, 0.2, 0.5));
+    // auto materialCenter = std::make_shared<Dielectric>(1.5);
     auto materialLeft = std::make_shared<Dielectric>(1.5);
     // auto materialLeft = std::make_shared<Metal>(Color(0.8, 0.8, 0.8), 0.3);
-    auto materialRight = std::make_shared<Metal>(Color(0.8, 0.6, 0.2), 1.0);
+    auto materialRight = std::make_shared<Metal>(Color(0.8, 0.6, 0.2), 0.0);
 
     world.Add(make_shared<Sphere>(Point3(0.0, -100.5, -1.0), 100.0, materialGround));
     world.Add(make_shared<Sphere>(Point3(0.0, 0.0, -1.0), 0.5, materialCenter));
     world.Add(make_shared<Sphere>(Point3(-1.0, 0.0, -1.0), 0.5, materialLeft));
+    // world.Add(make_shared<Sphere>(Point3(-1.0, 0.0, 1.0), -0.4, materialLeft));
     world.Add(make_shared<Sphere>(Point3(1.0, 0.0, -1.0), 0.5, materialRight));
 
     
