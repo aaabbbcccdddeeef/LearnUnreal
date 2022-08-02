@@ -53,3 +53,13 @@ bool HittableList::Hit(const Ray& InRay, double tMin, double tMax, HitResult& Ou
 
     return  hitAnything;
 }
+
+bool MovingSphere::Hit(const Ray& InRay, double tMin, double tMax, HitResult& OutHitRes) const
+{
+}
+
+Point3 MovingSphere::Center(double inTime) const
+{
+    return Center0 + (inTime - Time0) / (Time1 - Time0) * (Center1 - Center0);
+}
+

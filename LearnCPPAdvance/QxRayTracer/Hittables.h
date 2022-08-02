@@ -75,3 +75,30 @@ public:
 };
 
 
+class MovingSphere : public Hittable
+{
+public:
+    MovingSphere() {  }
+    MovingSphere(Point3 inCenter0, Point3 inCenter1,
+        double inTime0, double inTime1,
+        double inRadius, std::shared_ptr<Material> inMaterial)
+            : Center0(inCenter0), Center1(inCenter1),
+            Time0(inTime0), Time1(inTime1), Radius(inRadius), MatPtr(inMaterial)
+    {
+        
+    }
+    
+    bool Hit(const Ray& InRay, double tMin, double tMax, HitResult& OutHitRes) const override;
+
+    Point3 Center(double time) const;
+public:
+    Point3 Center0;
+    Point3 Center1;
+
+    double Time0;
+    double Time1;
+    double Radius;
+    std::shared_ptr<Material> MatPtr;
+};
+
+

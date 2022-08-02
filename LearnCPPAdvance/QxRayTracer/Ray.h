@@ -7,8 +7,9 @@ public:
     Ray() {  }
 
     Ray(const Point3& origin,
-        const Vec3& direction)
-            : Origin(origin), Dir(direction)
+        const Vec3& direction,
+        double  time=0.0)
+            : Origin(origin), Dir(direction), tm(time)
     {
     }
 
@@ -22,6 +23,11 @@ public:
         return Dir;    
     }
 
+    double GetTime() const
+    {
+        return tm;
+    }
+
     Point3 At(double t) const
     {
         return Origin + t * Dir;
@@ -29,5 +35,6 @@ public:
 public:
     Point3 Origin;
     Vec3 Dir;
+    double tm;
 };
 

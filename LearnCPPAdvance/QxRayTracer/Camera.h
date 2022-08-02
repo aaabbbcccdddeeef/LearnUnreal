@@ -12,7 +12,9 @@ public:
         double vFOV,
         double aspectRatio,
         double Aperture,
-        double focusDist
+        double focusDist,
+        double inTime0,
+        double intTime1
         )
     {
         // double aspectRatio = 16.0 / 9.0;
@@ -33,6 +35,9 @@ public:
         LowerLeftCorner = Origin - Horizontal / 2 - Vertical / 2 - focusDist * w;
 
         LensRadius = Aperture / 2;
+
+        Time0 = inTime0;
+        Time1 = intTime1;
     }
 
     // 根据传入的uv构造相机原点指向该uv的ray
@@ -45,7 +50,8 @@ public:
 
         return Ray(
                 Origin + offset,
-                LowerLeftCorner + s * Horizontal + t * Vertical - Origin - offset
+                LowerLeftCorner + s * Horizontal + t * Vertical - Origin - offset,
+                RandomDouble(Time0, Time1);
             );
     }
     
@@ -56,5 +62,8 @@ private:
     Vec3 Vertical;
 
     Vec3 u,v,w;
-    double LensRadius;
+    double LensRadius = 1.0;
+
+    double Time0 = 0.;
+    double Time1 = 1.;
 };
