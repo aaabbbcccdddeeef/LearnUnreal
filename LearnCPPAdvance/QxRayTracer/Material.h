@@ -76,7 +76,7 @@ public:
         
         // Vec3 refracted = Refract(unitDir, hitResult.Normal, refractRatio);
 
-        scattered = Ray(hitResult.hitPoint, direction);
+        scattered = Ray(hitResult.hitPoint, direction, inRay.GetTime());
         return true;
     };
 

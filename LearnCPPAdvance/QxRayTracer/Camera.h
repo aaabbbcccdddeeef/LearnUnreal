@@ -51,7 +51,7 @@ public:
         return Ray(
                 Origin + offset,
                 LowerLeftCorner + s * Horizontal + t * Vertical - Origin - offset,
-                RandomDouble(Time0, Time1);
+                RandomDouble(Time0, Time1)
             );
     }
     
