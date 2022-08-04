@@ -34,10 +34,18 @@ inline  double RandomDouble()
     return tmp;
 }
 
+
+
 // 返回[min, max)的随机数
 inline double RandomDouble(double min, double max)
 {
     return min + RandomDouble() * (max - min);
+}
+
+// 返回 [tMin, tMax]的随机整数
+inline int RandomInt(int tMin, int tMax)
+{
+    return static_cast<int>(RandomDouble(tMin, tMax + 1));
 }
 
 inline double clamp(double x, double min, double max)

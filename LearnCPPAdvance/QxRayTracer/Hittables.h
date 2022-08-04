@@ -3,6 +3,8 @@
 #include "Vec3.h"
 #include <vector>
 
+#include "AABB.h"
+
 class Material;
 
 struct HitResult
@@ -29,6 +31,8 @@ public:
         double tMin,
         double tMax,
         HitResult& OutHitRes) const = 0;
+
+    virtual bool GetBoundingBox(double inTime0, double inTime1, AABB& outAABB) = 0;
 };
 
 class Sphere : public Hittable
@@ -45,8 +49,8 @@ public:
     }
 
     bool Hit(const Ray& InRay, double tMin, double tMax, HitResult& OutHitRes) const override;
+    bool GetBoundingBox(double inTime0, double inTime1, AABB& outAABB) override;
 
-public:
     Point3 Center;
     double Radius;
 
@@ -63,6 +67,7 @@ public:
         Add(object);
     }
     bool Hit(const Ray& InRay, double tMin, double tMax, HitResult& OutHitRes) const override;
+    bool GetBoundingBox(double inTime0, double inTime1, AABB& outAABB) override;
 
 
     void Clear() {objects.clear();}
@@ -70,7 +75,7 @@ public:
     {
         objects.push_back(object);
     }
-public:
+
     std::vector<std::shared_ptr<Hittable>> objects;
 };
 
@@ -89,9 +94,9 @@ public:
     }
     
     bool Hit(const Ray& InRay, double tMin, double tMax, HitResult& OutHitRes) const override;
+    bool GetBoundingBox(double inTime0, double inTime1, AABB& outAABB) override;
 
     Point3 Center(double time) const;
-public:
     Point3 Center0;
     Point3 Center1;
 

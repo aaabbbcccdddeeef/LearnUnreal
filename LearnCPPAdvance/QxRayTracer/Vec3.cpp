@@ -2,6 +2,8 @@
 
 #include "QxTracerUtils.h"
 
+// Vec3::White = Vec3(1., 1., 1.);
+
 Vec3 Vec3::Random()
 {
     return Vec3(RandomDouble(), RandomDouble(), RandomDouble());

@@ -33,6 +33,13 @@ bool Sphere::Hit(const Ray& InRay, double tMin, double tMax, HitResult& OutHitRe
     return  true;
 }
 
+bool Sphere::GetBoundingBox(double inTime0, double inTime1, AABB& outAABB)
+{
+    outAABB = AABB(Center - Vec3(Radius, Radius, Radius),
+        Center + Vec3(Radius, Radius, Radius));
+    return true;
+}
+
 bool HittableList::Hit(const Ray& InRay, double tMin, double tMax, HitResult& OutHitRes) const
 {
     HitResult tmpRes;
@@ -52,6 +59,27 @@ bool HittableList::Hit(const Ray& InRay, double tMin, double tMax, HitResult& Ou
     }
 
     return  hitAnything;
+}
+
+bool HittableList::GetBoundingBox(double inTime0, double inTime1, AABB& outAABB)
+{
+    if (objects.empty())
+    {
+        return false;
+    }
+
+    AABB tmpBox;
+    bool firstBox = false;
+    for (const auto& object : objects)
+    {
+        if (!object->GetBoundingBox(inTime0, inTime1, tmpBox))
+        {
+            return false;
+        }
+        outAABB = firstBox ? tmpBox : AABB::SurroundingBox(outAABB, tmpBox);
+        firstBox = false;
+    }
+    return true;
 }
 
 bool MovingSphere::Hit(const Ray& InRay, double tMin, double tMax, HitResult& OutHitRes) const
@@ -87,8 +115,20 @@ bool MovingSphere::Hit(const Ray& InRay, double tMin, double tMax, HitResult& Ou
     return  true;
 }
 
+bool MovingSphere::GetBoundingBox(double inTime0, double inTime1, AABB& outAABB)
+{
+    AABB box0( Center(inTime0) - Vec3(Radius, Radius, Radius),
+        Center(inTime0) + Vec3(Radius, Radius, Radius));
+    AABB box1( Center(inTime1) - Vec3(Radius, Radius, Radius),
+        Center(inTime1) + Vec3(Radius, Radius, Radius));
+
+    outAABB = AABB::SurroundingBox(box0, box1);
+    return true;
+}
+
 Point3 MovingSphere::Center(double inTime) const
 {
     return Center0 + (inTime - Time0) / (Time1 - Time0) * (Center1 - Center0);
 }
+
 

@@ -81,12 +81,15 @@ public:
 
     static Vec3 RandomUnitVector();
 
+    const static  Vec3 White ;
 public:
     double e[3];
 };
 
 using Point3 = Vec3;
 using Color = Vec3;
+
+
 
 
 // vec3 Utility Functions
