@@ -445,7 +445,8 @@ public:
 	{
 		FPrimitiveViewRelevance Result;
 		Result.bDrawRelevance = IsShown(View);
-		Result.bShadowRelevance = IsShadowCast(View);
+		// Result.bShadowRelevance = IsShadowCast(View);
+		Result.bShadowRelevance = false;
 		Result.bDynamicRelevance = true;
 		MaterialRelevance.SetPrimitiveViewRelevance(Result);
 		return Result;

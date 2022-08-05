@@ -139,20 +139,26 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AABB.cpp" />
+    <ClCompile Include="BVH.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Hittables.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="QxRayTracer.cpp" />
     <ClCompile Include="QxTracerUtils.cpp" />
     <ClCompile Include="Ray.cpp" />
+    <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Vec3.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AABB.h" />
+    <ClInclude Include="BVH.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Hittables.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="QxTracerUtils.h" />
     <ClInclude Include="Ray.h" />
+    <ClInclude Include="Texture.h" />
     <ClInclude Include="Vec3.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

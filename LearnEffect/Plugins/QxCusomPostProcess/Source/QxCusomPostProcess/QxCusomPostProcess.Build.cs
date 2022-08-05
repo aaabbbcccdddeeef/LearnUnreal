@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class QxRenderSeries : ModuleRules
+public class QxCusomPostProcess : ModuleRules
 {
-	public QxRenderSeries(ReadOnlyTargetRules Target) : base(Target)
+	public QxCusomPostProcess(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
@@ -23,20 +23,13 @@ public class QxRenderSeries : ModuleRules
 			
 		
 		PublicDependencyModuleNames.AddRange(
-            new string[]
-            {
-                "Core",
+			new string[]
+			{
 				// ... add other public dependencies that you statically link with here ...
-				"Renderer",
-                "RenderCore",
-                "RHI",
-                "Projects",
-                "Slate",
-                "UMG",
-                "RHI"
-            }
-
-            );
+				"Core", "CoreUObject", "Engine",
+				"RHI", "Renderer", "RenderCore", "Projects"
+			}
+			);
 			
 		
 		PrivateDependencyModuleNames.AddRange(
@@ -57,6 +50,13 @@ public class QxRenderSeries : ModuleRules
 				// ... add any modules that your module loads dynamically here ...
 			}
 			);
+		
+		PrivateIncludePaths.AddRange(new string[] {"QxCusomPostProcess/Private"});
+		
+		PrivateIncludePaths.AddRange(new string[]
+		{
+			EngineDirectory + "/Source/Runtime/Renderer/Private"		
+		});
 		
 		OptimizeCode = CodeOptimization.Never;
 	}
