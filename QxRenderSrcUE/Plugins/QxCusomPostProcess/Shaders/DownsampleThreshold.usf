@@ -1,0 +1,52 @@
+#include "Shared.ush"
+
+float2 InputSize;
+float ThresholdLevel;
+float ThresholdRange;
+
+void DownsampleThresholdPS(
+    in noperspective float4 UVAndScreenPos : TEXCOORD0,
+    out float3 OutColor : SV_TARGET0
+    )
+{
+    float2 InPixelSize = 1.f / InputSize;
+    float2 UV = UVAndScreenPos.xy;
+    float3 Color = float3(0.f, 0.f, 0.f);
+
+    // 4 central samples
+    float2 pixelOffset[4] = {
+		float2(-1.0f, 1.0f),
+        float2(1.0f, 1.0f),
+        float2(-1.0f, -1.0f),
+        float2(1.0f, -1.0f)
+	};
+    for(int i = 0; i < 4; i++)
+    {
+        Color += Texture2DSample(InputTexture,
+             InputTextureSampler, pixelOffset[i]  * InPixelSize ).rgb;
+    }
+    OutColor.rgb = (Color / 4.f) * 0.5f;
+
+    Color = float3( 0.0f, 0.0f ,0.0f );
+
+    // 3 row samples
+    float2 pixelOffset2[9] = {
+		float2(-2.0f, 2.0f),
+        float2( 0.0f, 2.0f),
+        float2( 2.0f, 2.0f),
+        float2(-2.0f, 0.0f),    
+        float2( 0.0f, 0.0f),
+        float2( 2.0f, 0.0f),
+        float2(-2.0f,-2.0f),
+        float2( 0.0f,-2.0f),
+        float2( 2.0f,-2.0f)
+	};
+
+    OutColor.rgb += (Color / 9.0f) * 0.5f;
+
+    // Threshold
+    float Luminance = dot(OutColor.rgb, 1);
+    float ThresholdScale = saturate((Luminance - ThresholdLevel) / ThresholdRange);
+
+    OutColor.rgb *= ThresholdScale;
+}

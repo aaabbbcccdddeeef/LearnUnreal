@@ -54,27 +54,6 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/ScreenPass.usf", "QxScreenPassVS", SF_Vertex);
 
-#if WITH_EDITOR
-// Rescale shader
-class FlensFlareRescalePS : public FGlobalShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FlensFlareRescalePS);
-	SHADER_USE_PARAMETER_STRUCT(FlensFlareRescalePS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FQxLensFlarePassParameters, Pass)
-		SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
-		SHADER_PARAMETER(FVector2D, InputViewportSize)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters&)
-	{
-		return true;
-	}
-};
-IMPLEMENT_GLOBAL_SHADER(FlensFlareRescalePS, "/QxPPShaders/Rescale.usf", "RescalePS", SF_Pixel);
-#endif
 
 
 // 这里声明匿名空间是防止和global 空间冲突
@@ -148,8 +127,50 @@ namespace
 	// TODO SHADER SCREENPASS
 
 	// TODO SHADER RESCALE
-	
+	#if WITH_EDITOR
+	// Rescale shader
+	class FlensFlareRescalePS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FlensFlareRescalePS);
+		SHADER_USE_PARAMETER_STRUCT(FlensFlareRescalePS, FGlobalShader);
 
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxLensFlarePassParameters, Pass)
+			SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
+			SHADER_PARAMETER(FVector2D, InputViewportSize)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters&)
+		{
+			return true;
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FlensFlareRescalePS, "/QxPPShaders/Rescale.usf", "RescalePS", SF_Pixel);
+#endif
+
+	// TODO SHADER DOWNSAMPLE
+	class FDownsamplePS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FDownsamplePS);
+		SHADER_USE_PARAMETER_STRUCT(FDownsamplePS, FGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxLensFlarePassParameters, Pass)
+			SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
+			SHADER_PARAMETER(FVector2D, InputSize)
+			SHADER_PARAMETER(float, ThresholdLevel)
+			SHADER_PARAMETER(float, ThresholdRange)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FDownsamplePS, "/QxPPShaders/DownsampleThreshold.usf", "DownsampleThresholdPS", SF_Pixel);
+	
 	// TODO SHADER KAWASE
 
 	// TODO SHADER CHROMA
@@ -254,7 +275,44 @@ void UQxPostprocessSubsystem::RenderLensFlare(FRDGBuilder& GraphBuilder, const F
 	// TODO RESCALE
 #pragma region Rescale
 #if WITH_EDITOR
-	
+	if ((SceneColorViewport.Rect.Width() != SceneColorViewport.Extent.X )
+		|| (SceneColorViewport.Rect.Height() != SceneColorViewport.Extent.Y))
+	{
+		const FString PassName("LensFlareRescale");
+
+		// Build target buffer;
+		FRDGTextureDesc Desc = Inputs.HalfScreenColor.Texture->Desc;
+		Desc.Reset();
+		Desc.Extent = SceneColorViewport.Rect.Size();
+		Desc.ClearValue = FClearValueBinding(FLinearColor::Transparent);
+		FRDGTextureRef RescaleTexture = GraphBuilder.CreateTexture(Desc, *PassName);
+
+		// Setup shaders
+		TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FlensFlareRescalePS> PixelShader(View.ShaderMap);
+
+		// Setup Shader parameters
+		FlensFlareRescalePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FlensFlareRescalePS::FParameters>();
+
+		PassParameters->Pass.InputTexture = Inputs.HalfScreenColor.Texture;
+		PassParameters->Pass.RenderTargets[0] = FRenderTargetBinding(RescaleTexture, ERenderTargetLoadAction::ENoAction);
+		PassParameters->InputTextureSampler = BilinearClampSampler;
+		PassParameters->InputViewportSize = SceneColorViewportSize;
+
+		// Render Shader Into buffer;
+		DrawShaderpass(
+			GraphBuilder,
+			PassName,
+			PassParameters,
+			VertexShader,
+			PixelShader,
+			ClearBlendState,
+			SceneColorViewport.Rect
+			);
+
+		// Assign result before end of scope
+		InputTexture = RescaleTexture;
+	}
 #endif
 #pragma endregion
 
