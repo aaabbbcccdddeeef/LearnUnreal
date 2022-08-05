@@ -40,3 +40,5 @@ LearnCPPAdvance/QxRayTracer/x64/
 LearnCPPAdvance/QxRayTracer/Debug/
 LearnCPPAdvance/Debug/
 *.ppm
+QxRenderSrcUE/.idea/
+QxRenderSrcUE/Content/StarterContent/

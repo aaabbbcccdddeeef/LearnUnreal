@@ -1,0 +1,13 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "{0AE5964F-435A-645B-196C-2F8762655E98}",
+	"Category": "",
+	"Description": "",
+	"Modules": [
+		{
+			"Name": "QxRenderSrcUE",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
