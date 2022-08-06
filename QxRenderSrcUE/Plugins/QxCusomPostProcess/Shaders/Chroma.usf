@@ -1,0 +1,19 @@
+#include "Shared.ush"
+
+float ChromaShift;
+
+void ChromaPS(
+    in noperspective float4 UVAndScreenPos : TEXCOORD0,
+    out float3 OutColor : SV_TARGET0
+    )
+{
+    float2 UV = UVAndScreenPos.xy;
+    const float2 CenterPoint = float2(0.5f, 0.5f);
+    float2 UVr = (UV - CenterPoint) * (1.0f + ChromaShift) + CenterPoint;
+    float2 UVb = (UV - CenterPoint) * (1.0f - ChromaShitf) + CenterPoint;
+
+    OutColor.r = Texture2DSample(InputTexture, InputTextureSampler, UVr).r;
+    OutColor.g = Texture2DSample(InputTexture, InputTextureSampler, UV).g;
+    OutColor.b = Texture2DSample(InputTexture, InputTextureSampler, UVb).b;
+    // OutColor.a = 0.f;
+}

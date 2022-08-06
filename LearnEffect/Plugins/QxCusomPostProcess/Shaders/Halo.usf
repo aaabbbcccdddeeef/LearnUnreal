@@ -1,0 +1,62 @@
+#include "Shared.ush"
+
+// 参考 https://www.shadertoy.com/view/tstBDl
+float2 FisheyeUV(float2 UV, float Compression, float Zoom)
+{
+	float2 NegPosUV = (2.0f * UV - 1.0f);
+
+	float Scale = Compression * atan(1.0f / Compression);
+	float RadiusDistance = length(NegPosUV) * Scale;
+	float RadiusDirection = Compression * tan(RadiusDistance / Compression) * Zoom;
+	float Phi = atan2(NegPosUV.y, NegPosUV.x);
+
+	float2 NewUV = float2(RadiusDirection * cos(Phi) + 1.0,
+					RadiusDirection * cos(Phi) + 1.0);
+
+	NewUV = NewUV / 2.0f;
+	return NewUV;
+}
+
+float Width;
+float Mask;
+float Compression;
+float Intensity;
+float ChromaShift;
+
+void HaloPS(
+	int noperspective float4 UVAndScreenPos : TEXCOORD0,
+	out float3 OutColor : SV_TARGET0
+	)
+{
+	const float2 CenterPoint = float2(0.5f, 0.5f);
+
+	// UVs
+	float2 UV = UVAndScreenPos.xy;
+	float2 FishUV = FisheyeUV(UV, Compression, 1.0f);
+
+	// Distortion vector
+	float2 HaloVector = normalize(CenterPoint - UV) * Width;
+	
+	// Halo mask
+	float HaloMask = distance(UV, CenterPoint);
+	HaloMask = saturate(HaloMask * 2.0f);
+	HaloMask = smoothstep(Mask, 1.0f, HaloMask);
+	
+	// screen border mask
+	float2 ScreenPos = UVAndScreenPos.zw;
+	float ScreenBorderMask = DiscMask(ScreenPos);
+	ScreenBorderMask *= DiscMask(ScreenPos * 0.8f);
+	ScreenBorderMask = ScreenBorderMask * 0.95 + 0.05; // scale range
+
+	// chroma offset
+	float2 UVr = (FishUV - CenterPoint) * (1.0f + ChromaShift) + CenterPoint + HaloVector;
+	float2 UVg = FishUV + HaloVector;
+	float2 UVb = (FishUV - CenterPoint) * (1.0f - ChromaShift) + CenterPoint + HaloVector;
+
+	// sampling
+	OutColor.r = Texture2DSample(InputTexture, InputTextureSampler, UVr);
+	OutColor.g = Texture2DSample(InputTexture, InputTextureSampler, UVg);
+	OutColor.b = Texture2DSample(InputTexture, InputTextureSampler, UVb);
+
+	OutColor.rgb *= ScreenBorderMask * HaloMask * Intensity;
+}

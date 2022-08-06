@@ -1,0 +1,62 @@
+#include "Shared.ush"
+
+uint2 TileCount;
+float GlareIntensity;
+float GlareScales[3];
+float4 GlareTint;
+float2 BufferSize;
+float4 PixelSize;
+float2 BufferRatio;
+float GlareDivider;
+SamplerState GlareTextureSampler;
+Texture2D GlareTexture;
+
+struct FVertexToGeometry
+{
+	float4 Position : SV_POSITION;
+	float3 Color : TEXCOORD0;
+	float Luminace : TEXCOORD1;
+	uint ID : TEXCOORD2;
+};
+
+void GlareVS(
+	uint VId : SV_VertexID,
+	uint IId : SV_InstanceID,
+	out FVertexToGeometry VSOut
+	)
+{
+	// TilePos 根据id 算出来
+	float2 TilePos = float2(IId % TileCount.x, IId % TileCount.x);
+	float2 UV = TilePos / BufferSize * 2.0f;
+
+	// Coords and Weights are local positions and intensities for 
+	// the pixels we are gonna sample. Since we have one point 
+	// for four pixels (two by two) we want to sample multiple 
+	// times the buffer to avoid missing information which 
+	// would create holes or artifacts.
+	// This pattern doesn't sample exactly the 4 pixels in a block
+	// but instead sample in the middle and at the corners to take
+	// advantage of bilinear sampling to average more values.
+	const float2 Coords[5] = {
+		float2( -1.0f,  1.0f ),
+	   float2(  1.0f,  1.0f ),
+
+	   float2(  0.0f,  0.0f ),
+
+	   float2( -1.0f, -1.0f ),
+	   float2(  1.0f, -1.0f )
+	};
+
+	const float Widghts[5] = {
+		0.175, 0.175,
+		   0.3,
+	   0.175, 0.175
+	};
+
+	// UV 2x2块的右上的中心，offset 这个来得到2x2的中心
+	float2 CenterUV = UV + PixelSize.xy * float2(-0.5f, -0.5f);
+
+	float3 Color = float3(0.f, 0.f, 0.f);
+
+	 
+}

@@ -1,0 +1,73 @@
+#include "Shared.ush"
+
+// 当前文件内的2个Pixel shader的算法都是和人名相关的，具体参照相应的文档
+
+float2 BufferSize;
+
+void KawaseBlurDownsamplerPS(
+    in noperspective float4 UVAndScreenPos : TEXCOORD0,
+    out float4 OutColor : SV_TARGET0
+    )
+{
+    float2 UV = UVAndScreenPos.xy;
+    float2 HalfPixel = (1.0f / BufferSize) * 0.5f;
+
+    float2 PixelOffset[4] = {
+		float2(-1.0, 1.0),
+        float2(1.0, 1.0),
+        float2(1.0, -1.0),
+        float2(-1.0, -1.0),
+	};
+
+    float3 Color = Texture2DSample(InputTexture, InputTextureSampler, UV).rgb * 4.0f;
+
+    UNROLL
+    for(int i = 0; i < 4; i++)
+    {
+        Color += Texture2DSample(InputTexture, InputTextureSampler, HalfPixel * PixelOffset[i]).rgb;
+    }
+
+    OutColor.rgb = Color / 8.0f;
+    OutColor.a = 0.0f;
+}
+
+void KawaseBlurUpsamplePS(
+    in noperspective float4 UVAndScreenPos : TEXCOORD0,
+    out float4 OutColor : SV_TARGET0
+)
+{
+    float2 UV = UVAndScreenPos.xy;
+    float2 HalfPixel = (1.0 / BufferSize) * 0.5f;
+
+    // 左上、左下、右上、右下 4个角落的位置
+    float2 PixelOffset[4] = {
+		float2(-1.0, 1.0),
+        float2(1.0, 1.0),
+        float2(1.0, -1.0),
+        float2(-1.0, -1.0),
+	};
+
+    float3 Color = float3(0.0f, 0.0f, 0.0f);
+
+    UNROLL
+    for(int i = 0; i < 4; i++)
+    {
+        Color += Texture2DSample(InputTexture, InputTextureSampler, HalfPixel * PixelOffset[i]).rgb;
+    }
+
+    float2 PixelOffsetAxis[4] = {
+		float2(-1.0, 0.0),
+        float2(1.0, 0.0),
+        float2(0.0, 1.0),
+        float2(0.0, -1.0),
+	};
+
+    UNROLL
+    for(int i = 0; i < 4; i++)
+    {
+        Color += Texture2DSample(InputTexture, InputTextureSampler, HalfPixel * PixelOffsetAxis[i]).rgb * 2.0;
+    }
+
+    OutColor.rgb = Color / 12.0f;
+    OutColor.a = 0.0f;
+}

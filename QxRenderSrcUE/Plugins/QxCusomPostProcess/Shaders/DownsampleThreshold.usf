@@ -14,7 +14,7 @@ void DownsampleThresholdPS(
     float3 Color = float3(0.f, 0.f, 0.f);
 
     // 4 central samples
-    float2 pixelOffset[4] = {
+    const float2 pixelOffset[4] = {
 		float2(-1.0f, 1.0f),
         float2(1.0f, 1.0f),
         float2(-1.0f, -1.0f),
@@ -30,7 +30,7 @@ void DownsampleThresholdPS(
     Color = float3( 0.0f, 0.0f ,0.0f );
 
     // 3 row samples
-    float2 pixelOffset2[9] = {
+    const float2 pixelOffset2[9] = {
 		float2(-2.0f, 2.0f),
         float2( 0.0f, 2.0f),
         float2( 2.0f, 2.0f),

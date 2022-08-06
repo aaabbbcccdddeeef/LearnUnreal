@@ -3,6 +3,8 @@
 
 #include "QxPostprocessSubsystem.h"
 
+#include "QxLensFlareAsset.h"
+
 TAutoConsoleVariable<int32> CVarLensFlareRenderBloom(
 	TEXT("r.QxLensFlare.RenderBloom"),
 	1,
@@ -170,17 +172,173 @@ namespace
 		}
 	};
 	IMPLEMENT_GLOBAL_SHADER(FDownsamplePS, "/QxPPShaders/DownsampleThreshold.usf", "DownsampleThresholdPS", SF_Pixel);
-	
+
+#pragma region BlurShaders
 	// TODO SHADER KAWASE
+	// Blur shader use Kawase method
+	class FKawaseBlurDownPS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FKawaseBlurDownPS);
+		SHADER_USE_PARAMETER_STRUCT(FKawaseBlurDownPS, FGlobalShader);
 
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxLensFlarePassParameters, Pass)
+			SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
+			SHADER_PARAMETER(FVector2D, BufferSize)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return  IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+	};
+
+	class FKawaseBlurUpPS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FKawaseBlurUpPS);
+		SHADER_USE_PARAMETER_STRUCT(FKawaseBlurUpPS, FGlobalShader)
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxLensFlarePassParameters, Pass)
+			SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
+			SHADER_PARAMETER(FVector2D, BufferSize)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FKawaseBlurDownPS, "/QxPPShaders/DualKawaseBlur.usf", "KawaseBlurDownsamplerPS", SF_Pixel);
+	IMPLEMENT_GLOBAL_SHADER(FKawaseBlurUpPS,   "/QxPPShaders/DualKawaseBlur.usf", "KawaseBlurUpsamplePS", SF_Pixel);
+
+#pragma endregion
+	
 	// TODO SHADER CHROMA
+	class FLensFlareChromaPS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FLensFlareChromaPS);
+		SHADER_USE_PARAMETER_STRUCT(FLensFlareChromaPS, FGlobalShader)
 
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxLensFlarePassParameters, Pass)
+			SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
+			SHADER_PARAMETER(float, ChromaShift)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FLensFlareChromaPS, "/QxPPShaders/Chroma.usf", "ChromaPS", SF_Pixel);
+	
 	// TODO SHADER GHOSTS
+	class FLensFlareGhostPS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FLensFlareGhostPS);
+		SHADER_USE_PARAMETER_STRUCT(FLensFlareGhostPS, FGlobalShader);
 
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxLensFlarePassParameters, Pass)
+			SHADER_PARAMETER_SAMPLER(SampleState, InputTextureSampler)
+			SHADER_PARAMETER_ARRAY(FVector4, GhostColors, [8])
+			SHADER_PARAMETER_ARRAY(float, GhostScales, [8])
+			SHADER_PARAMETER(float, Instensity)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		// static bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);	
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FLensFlareGhostPS, "/QxPPShaders/Ghosts.usf", "GhostPS", SF_Pixel);
+	
 	// TODO SHADER HALO
+	class FLensFlaresHaloPS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FLensFlaresHaloPS);
+		SHADER_USE_PARAMETER_STRUCT(FLensFlaresHaloPS, FGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxLensFlarePassParameters, Pass)
+			SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
+			SHADER_PARAMETER(float, Width)
+			SHADER_PARAMETER(float, Mask)
+			SHADER_PARAMETER(float, Compression)
+			SHADER_PARAMETER(float, Intensity)
+			SHADER_PARAMETER(float, ChromaShift)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);	
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FLensFlaresHaloPS, "/QxPPShaders/Halo.usf", "HaloPS", SF_Pixel);
 
 	// TODO SHADER GLARE
+#pragma region GlareShaders
+	class FLensFlareGlareVS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FLensFlareGlareVS);
+		SHADER_USE_PARAMETER_STRUCT(FLensFlareGlareVS, FGlobalShader);
 
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxLensFlarePassParameters, Pass)
+			SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
+			SHADER_PARAMETER(FIntPoint, TileCount)
+			SHADER_PARAMETER(FVector4, PixelSize)
+			SHADER_PARAMETER(FVector2D, BufferSize)
+		END_SHADER_PARAMETER_STRUCT()
+
+	};
+	IMPLEMENT_GLOBAL_SHADER(FLensFlareGlareVS, "/QxPPShaders/Glare.usf", "GlareVS", SF_Vertex);
+
+	class FLensFlareGlareGS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FLensFlareGlareGS);
+		SHADER_USE_PARAMETER_STRUCT(FLensFlareGlareGS, FGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER(FVector4, PixelSize)
+			SHADER_PARAMETER(FVector2D, BufferSize)
+			SHADER_PARAMETER(FVector2D, BufferRatio)
+			SHADER_PARAMETER(float, GlareIntensity)
+			SHADER_PARAMETER(float, GlareDivider)
+			SHADER_PARAMETER(FVector4, GlareTint)
+			SHADER_PARAMETER_ARRAY(float, GlareScales, [3])
+		END_SHADER_PARAMETER_STRUCT()
+	};
+	IMPLEMENT_GLOBAL_SHADER(FLensFlareGlareGS, "/QxPPShaders/Glare.usf", "GlareGS", SF_Geometry);
+
+	class FLensFlareGlarePS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FLensFlareGlarePS);
+		SHADER_USE_PARAMETER_STRUCT(FLensFlareGlarePS, FGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_SAMPLER(SamplerState, GlareTextureSampler)
+			SHADER_PARAMETER_TEXTURE(Texture2D, GlareTexture)
+		END_SHADER_PARAMETER_STRUCT()
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);	
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FLensFlareGlarePS, "/QxPPShaders/Glare.usf", "GlarePS", SF_Pixel);
+#pragma endregion
+
+	
 	// TODO SHADER MIX
 }
 
@@ -359,19 +517,431 @@ void UQxPostprocessSubsystem::RenderLensFlare(FRDGBuilder& GraphBuilder, const F
 FRDGTextureRef UQxPostprocessSubsystem::RenderThreshold(FRDGBuilder& GraphBuilder, FRDGTextureRef InputTexture,
 	FIntRect& InputRect, const FViewInfo& View)
 {
+	RDG_EVENT_SCOPE(GraphBuilder, "Threshold pass");
+
+	FRDGTextureRef OutputTexture = nullptr;
+	FIntRect Viewport = View.ViewRect;
+	FIntRect Viewport2 = FIntRect(0, 0,
+		View.ViewRect.Width() / 2,
+		View.ViewRect.Height() / 2);
+	FIntRect Viewport4 = FIntRect(0, 0,
+		View.ViewRect.Width() / 4,
+		View.ViewRect.Height() / 4);
+	// Threshold
+	{
+		const FString PassName("LensFlareDownsample");
+
+		// Build Texture
+		FRDGTextureDesc Description = InputTexture->Desc;
+		Description.Reset();
+		Description.Extent = Viewport4.Size();
+		Description.Format = PF_FloatRGB;
+		Description.ClearValue = FClearValueBinding(FLinearColor::Black);
+		FRDGTextureRef Texture = GraphBuilder.CreateTexture(Description, *PassName);
+
+		// Render shader
+		TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FDownsamplePS> PixelShader(View.ShaderMap);
+
+		FDownsamplePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDownsamplePS::FParameters>();
+		PassParameters->Pass.InputTexture = InputTexture;
+		PassParameters->Pass.RenderTargets[0] = FRenderTargetBinding(Texture, ERenderTargetLoadAction::ENoAction);
+		PassParameters->InputSize = FVector2D(Viewport2.Size());
+		PassParameters->ThresholdLevel = PostprocessAsset->ThresholdLevel;
+		PassParameters->ThresholdRange = PostprocessAsset->ThresholdRange;
+
+		DrawShaderpass(
+			GraphBuilder,
+			PassName,
+			PassParameters,
+			VertexShader,
+			PixelShader,
+			ClearBlendState,
+			Viewport4
+			);
+		OutputTexture = Texture;
+	}
+	
+	
+	// Threshold blur
+	{
+		OutputTexture = RenderBlur(
+			GraphBuilder,
+			OutputTexture,
+			View,
+			Viewport2,
+			1
+			);
+	}
+	return OutputTexture;
 }
 
 FRDGTextureRef UQxPostprocessSubsystem::RenderFlare(FRDGBuilder& GraphBuilder, FRDGTextureRef InputTexture,
                                                     FIntRect& InputRect, const FViewInfo& View)
 {
+	RDG_EVENT_SCOPE(GraphBuilder, "QxFlarePass");
+#pragma region SetupVaribles
+	FRDGTextureRef OutputTexture = nullptr;
+
+	FIntRect Viewport = View.ViewRect;
+	FIntRect Viewport2 = FIntRect(
+		0, 0,
+		View.ViewRect.Width() / 2,
+		View.ViewRect.Height() / 2
+		);
+	FIntRect Viewport4 = FIntRect(
+		0, 0,
+		View.ViewRect.Width() / 4,
+		View.ViewRect.Height() / 4
+		);
+
+#pragma endregion
+
+#pragma region Flare Chroma
+	FRDGTextureRef ChromaTexture = nullptr;
+
+	{
+		const FString PassName("LensFlareChromaGhost");
+
+		// build buffer
+		FRDGTextureDesc Description = InputTexture->Desc;
+		Description.Reset();
+		Description.Extent = Viewport2.Size();
+		Description.Format = PF_FloatRGB;
+		Description.ClearValue = FClearValueBinding(FLinearColor::Black);
+		ChromaTexture = GraphBuilder.CreateTexture(Description, *PassName);
+
+		// setup shader parameters
+		TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FLensFlareChromaPS> PixelShader(View.ShaderMap);
+
+		FLensFlareChromaPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLensFlareChromaPS::FParameters>();
+		PassParameters->Pass.InputTexture = InputTexture;
+		PassParameters->Pass.RenderTargets[0] = FRenderTargetBinding(ChromaTexture, ERenderTargetLoadAction::ENoAction);
+		PassParameters->InputTextureSampler = BilinearBorderSampler;
+		PassParameters->ChromaShift = PostprocessAsset->GhostChromaShift;
+		
+		// Render
+		DrawShaderpass(
+			GraphBuilder,
+			PassName,
+			PassParameters,
+			VertexShader,
+			PixelShader,
+			ClearBlendState,
+			Viewport2
+			);
+	}
+
+#pragma endregion
+
+	// Flare Ghosts
+	{
+		const FString PassName("LensFlareGhosts");
+
+		// Build Buffer
+		FRDGTextureDesc Description = InputTexture->Desc;
+		Description.Reset();
+		Description.Extent = Viewport2.Size();
+		Description.Format = PF_FloatRGB;
+		Description.ClearValue = FClearValueBinding(FLinearColor::Transparent);
+		FRDGTextureRef Texture = GraphBuilder.CreateTexture(Description, *PassName);
+
+		// setup shader parameter
+		TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FLensFlareGhostPS> PixelShader(View.ShaderMap);
+
+		FLensFlareGhostPS::FParameters* ShaderParams = GraphBuilder.AllocParameters<FLensFlareGhostPS::FParameters>();
+		ShaderParams->Instensity = PostprocessAsset->GhostIntensity;
+		ShaderParams->Pass.InputTexture = ChromaTexture;
+		ShaderParams->Pass.RenderTargets[0] = FRenderTargetBinding(Texture, ERenderTargetLoadAction::ENoAction);
+		ShaderParams->InputTextureSampler = BilinearBorderSampler;
+		// 设置ghost color 数组和scale 数组,从asset 获取
+		{
+			ShaderParams->GhostColors[0] = PostprocessAsset->Ghost1.Color;
+			ShaderParams->GhostColors[1] = PostprocessAsset->Ghost2.Color;
+			ShaderParams->GhostColors[2] = PostprocessAsset->Ghost3.Color;
+			ShaderParams->GhostColors[3] = PostprocessAsset->Ghost4.Color;
+			ShaderParams->GhostColors[4] = PostprocessAsset->Ghost5.Color;
+			ShaderParams->GhostColors[5] = PostprocessAsset->Ghost6.Color;
+			ShaderParams->GhostColors[6] = PostprocessAsset->Ghost7.Color;
+			ShaderParams->GhostColors[7] = PostprocessAsset->Ghost8.Color;
+
+			ShaderParams->GhostScales[0] = PostprocessAsset->Ghost1.Scale;
+			ShaderParams->GhostScales[1] = PostprocessAsset->Ghost2.Scale;
+			ShaderParams->GhostScales[2] = PostprocessAsset->Ghost3.Scale;
+			ShaderParams->GhostScales[3] = PostprocessAsset->Ghost4.Scale;
+			ShaderParams->GhostScales[4] = PostprocessAsset->Ghost5.Scale;
+			ShaderParams->GhostScales[5] = PostprocessAsset->Ghost6.Scale;
+			ShaderParams->GhostScales[6] = PostprocessAsset->Ghost7.Scale;
+			ShaderParams->GhostScales[7] = PostprocessAsset->Ghost8.Scale;
+		}
+		
+		// Render Shader
+		DrawShaderpass(
+			GraphBuilder,
+			PassName,
+			ShaderParams,
+			VertexShader,
+			PixelShader,
+			ClearBlendState,
+			Viewport2
+			);
+		OutputTexture = Texture;
+	}
+
+	// Flare Halo
+	{
+		const FString PassName("LensFlareHalo");
+
+		TShaderMapRef<FQxScreenPassVS> VertexShder(View.ShaderMap);
+		TShaderMapRef<FLensFlaresHaloPS> PixelShader(View.ShaderMap);
+
+		FLensFlaresHaloPS::FParameters* ShaderParams = GraphBuilder.AllocParameters<FLensFlaresHaloPS::FParameters>();
+		ShaderParams->Compression = PostprocessAsset->HaloCompression;
+		ShaderParams->Intensity = PostprocessAsset->HaloIntensity;
+		ShaderParams->Mask = PostprocessAsset->HaloMask;
+		ShaderParams->Width = PostprocessAsset->HaloWidth;
+		ShaderParams->ChromaShift = PostprocessAsset->HaloChromaShift;
+		ShaderParams->InputTextureSampler = BilinearBorderSampler;
+		ShaderParams->Pass.InputTexture = InputTexture;
+		ShaderParams->Pass.RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
+
+		DrawShaderpass(
+			GraphBuilder,
+			PassName,
+			ShaderParams,
+			VertexShder,
+			PixelShader,
+			AdditiveBlendState,
+			Viewport2
+			);
+	}
+
+	{
+		OutputTexture = RenderBlur(
+			GraphBuilder,
+			OutputTexture,
+			View,
+			Viewport2,
+			1
+			);
+	}
+
+	return OutputTexture;
 }
 
 FRDGTextureRef UQxPostprocessSubsystem::RenderGlare(FRDGBuilder& GraphBuilder, FRDGTextureRef InputTexture,
                                                     FIntRect& InputRect, const FViewInfo& View)
 {
+	RDG_EVENT_SCOPE(GraphBuilder, "QxGlarePass");
+
+#pragma region PrepareVariables
+	FRDGTextureRef OutputTexture = nullptr;
+
+	FIntRect Viewport4 = FIntRect(
+		0, 0,
+		View.ViewRect.Width() / 4,
+		View.ViewRect.Height() / 4
+		);
+#pragma endregion
+	// 不接近0 才渲染glare
+	if (PostprocessAsset->GlareIntensity > SMALL_NUMBER)
+	{
+		const FString PassName("LensFlareGlare");
+
+		// 这里计算 需要绘制的 point 数量
+		// 由于我们需要 2x2对应于1个point ，所以分辨率/2
+		FIntPoint TileCount = Viewport4.Size();
+		TileCount.X = TileCount.X / 2;
+		TileCount.Y = TileCount.Y / 2;
+		int32 Amount = TileCount.X * TileCount.Y;
+
+		// 计算宽高比以 调整 quad的缩放， 假设宽大于高
+		FVector2D BufferRatio = FVector2D(
+			float(Viewport4.Height()) / float(Viewport4.Width()),
+			1.f
+			);
+
+		// build the buffer
+		FRDGTextureDesc Description = InputTexture->Desc;
+		Description.Reset();
+		Description.Extent = Viewport4.Size();
+		Description.Format = PF_FloatRGB;
+		Description.ClearValue = FClearValueBinding(FLinearColor::Transparent);
+		FRDGTextureRef GlareTexture = GraphBuilder.CreateTexture(Description, *PassName);
+
+		// 设置shader 需要的其他参数
+		FVector4 PixelSize = FVector4(0.f, 0.f, 0.f, 0.f);
+		PixelSize.X = 1.0f / float(Viewport4.Width());
+		PixelSize.Y = 1.0f / float(Viewport4.Height());
+		PixelSize.Z = PixelSize.X;
+		PixelSize.W = PixelSize.Y * -1.0f;
+
+		FVector2D BufferSize = FVector2D(Description.Extent);
+
+#pragma region SetupShader
+		// Setup Shader
+		FQxLensFlarePassParameters* PassParameters = GraphBuilder.AllocParameters<FQxLensFlarePassParameters>();
+		PassParameters->InputTexture = InputTexture;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(GlareTexture, ERenderTargetLoadAction::EClear);
+
+		// Vertex Shader
+		FLensFlareGlareVS::FParameters VertexParameters;
+		VertexParameters.Pass = *PassParameters;
+		VertexParameters.InputTextureSampler = BilinearBorderSampler;
+		VertexParameters.TileCount = TileCount;
+		VertexParameters.PixelSize = PixelSize;
+		VertexParameters.BufferSize = BufferSize;
+
+		// Geometry shader
+		FLensFlareGlareGS::FParameters GeometryParameters;
+		GeometryParameters.BufferSize = BufferSize;
+		GeometryParameters.BufferRatio = BufferRatio;
+		GeometryParameters.PixelSize = PixelSize;
+		GeometryParameters.GlareIntensity = PostprocessAsset->GlareIntensity;
+		GeometryParameters.GlareTint = FVector4(PostprocessAsset->GlareTint);
+		GeometryParameters.GlareScales[0] = PostprocessAsset->GlareScale.X;
+		GeometryParameters.GlareScales[1] = PostprocessAsset->GlareScale.Y;
+		GeometryParameters.GlareScales[2] = PostprocessAsset->GlareScale.Z;
+		GeometryParameters.GlareDivider = FMath::Max(PostprocessAsset->GlareDivider, 0.01f);
+
+		// Pixel Shader
+		FLensFlareGlarePS::FParameters PixelParameters;
+		PixelParameters.GlareTexture = GWhiteTexture->TextureRHI;
+		PixelParameters.GlareTextureSampler = BilinearClampSampler;
+
+		if (nullptr != PostprocessAsset->GlareLineMask)
+		{
+			const FTextureRHIRef TextureRHI = PostprocessAsset->GlareLineMask->Resource->TextureRHI;
+			PixelParameters.GlareTexture = TextureRHI;
+		}
+
+		TShaderMapRef<FLensFlareGlareVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FLensFlareGlareGS> GeometryShader(View.ShaderMap);
+		TShaderMapRef<FLensFlareGlarePS> PixelShader(View.ShaderMap);
+#pragma endregion
+
+#pragma region NAME
+		FRHIBlendState* BlendState = this->AdditiveBlendState;
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("%s", *PassName),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[
+				VertexShader,VertexParameters,
+				GeometryShader, GeometryParameters,
+				PixelShader, PixelParameters,
+				BlendState, Viewport4, Amount
+				](FRHICommandListImmediate& RHICmdList)
+			{
+				RHICmdList.SetViewport(Viewport4.Min.X, Viewport4.Min.Y, 0.0f,
+					Viewport4.Max.X, Viewport4.Max.Y, 1.0f);
+
+				FGraphicsPipelineStateInitializer GraphicPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicPSOInit); //#TODO 具体分析这句话的作用
+				GraphicPSOInit.BlendState = BlendState;
+				GraphicPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+				GraphicPSOInit.DepthStencilState TStaticDepthStencilState<false, CF_Always>::GetRHI();
+				GraphicPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+				GraphicPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
+				GraphicPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				GraphicPSOInit.PrimitiveType = PT_PointList;
+				SetGraphicsPipelineState(RHICmdList, GraphicPSOInit);
+
+				SetShaderParameters(RHICmdList, VertexShader,
+					VertexShader.GetVertexShader(), VertexParameters);
+				SetShaderParameters(RHICmdList, GeometryShader,
+					GeometryShader.GetGeometryShader(), GeometryParameters);
+				SetShaderParameters(RHICmdList, PixelShader,
+					PixelShader.GetPixelShader(), PixelParameters);
+
+				RHICmdList.SetStreamSource(0, nullptr, 0);
+				RHICmdList.DrawPrimitive(0, 1, Amount);
+			}
+			);
+#pragma endregion
+
+		OutputTexture = GlareTexture;
+	}
+
+	return OutputTexture;
 }
 
 FRDGTextureRef UQxPostprocessSubsystem::RenderBlur(FRDGBuilder& GraphBuilder, FRDGTextureRef InputTexture,
                                                    const FViewInfo& View, const FIntRect& Viewport, int BlurSteps)
 {
+	// Shader setup
+	TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FKawaseBlurDownPS> PixelShaderDown(View.ShaderMap);
+	TShaderMapRef<FKawaseBlurUpPS> PixelShaderUp(View.ShaderMap);
+
+	// Data setup
+	FRDGTextureRef PreviousBuffer = InputTexture;
+	const FRDGTextureDesc& InputDesc = InputTexture->Desc;
+
+	const FString PassDownName = TEXT("Down");
+	const FString PassUpName = TEXT("Up");
+	const int32 ArraySize = BlurSteps * 2;
+
+	// viewport resolutions
+	int32 Divider = 2;
+	TArray<FIntRect> Viewports;
+	for (int32 i = 0; i < ArraySize; ++i)
+	{
+		FIntRect NewRect = FIntRect(
+			0,
+			0,
+			Viewport.Width() / Divider,
+			Viewport.Height() / Divider
+			);
+
+		Viewports.Add(NewRect);
+		// 这里的判断和blur step的意思是blurstep以下是downsample， 以上是upsample
+		if (i < (BlurSteps - 1))
+		{
+			Divider *= 2;
+		}
+		else
+		{
+			Divider -= 2;
+		}
+	}
+
+	// Render
+	for (int32 i = 0; i < ArraySize; ++i)
+	{
+		FRDGTextureDesc BlurDesc = InputDesc;
+		BlurDesc.Reset();
+		BlurDesc.Extent = Viewports[i].Size();
+		BlurDesc.Format = PF_FloatRGB;
+		BlurDesc.NumMips = 1;
+		BlurDesc.ClearValue = FClearValueBinding(FLinearColor::Transparent);
+
+		FVector2D ViewportResolution = FVector2D(
+			Viewports[i].Width(),
+			Viewports[i].Height()
+			);
+
+		const FString PassName =
+			FString("KawaseBlur")
+			+ FString::Printf(TEXT("_%i_"), i)
+			+ ( (i < BlurSteps) ? PassDownName : PassUpName)
+			+ FString::Printf( TEXT("_%ix%i"), Viewports[i].Width(), Viewports[i].Height());
+
+		FRDGTextureRef Buffer = GraphBuilder.CreateTexture(BlurDesc, *PassName);
+
+		// Render Shader
+		if (i < BlurSteps)
+		{
+			FKawaseBlurDownPS::
+		}
+		else
+		{
+			
+		}
+	}
+	
 }
