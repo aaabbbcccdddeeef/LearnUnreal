@@ -26,7 +26,7 @@ void GlareVS(
 	)
 {
 	// TilePos 根据id 算出来
-	float2 TilePos = float2(IId % TileCount.x, IId % TileCount.x);
+	float2 TilePos = float2(IId % TileCount.x, IId / TileCount.x);
 	float2 UV = TilePos / BufferSize * 2.0f;
 
 	// Coords and Weights are local positions and intensities for 
@@ -73,7 +73,7 @@ void GlareVS(
 
 struct FGeometryToPixel
 {
-	float4 Position : SV_PISITION;
+	float4 Position : SV_POSITION;
 	float2 UV : TEXCOORD0;
 	float3 Color : TEXCOORD1;
 };
@@ -85,7 +85,7 @@ struct FGeometryToPixel
 // position of the final vertex.
 float4 ComputePosition(float2 TilePos, float2 UV, float2 Scale, float Angle)
 {
-	/ Compute the position of the quad based on the ID
+	// Compute the position of the quad based on the ID
 	// Some multiply/divide by two magic to get the proper coordinates
 	float2 BufferPosition = (TilePos - float2(0.25f, 0.25f)) / BufferSize;
 	BufferPosition = 4.0f * BufferPosition - 1.0f;
@@ -119,6 +119,7 @@ float4 ComputePosition(float2 TilePos, float2 UV, float2 Scale, float Angle)
 // This is the main function and maxvertexcount is a required keyword 
 // to indicate how many vertices the Geometry shader will produce.
 // (12 vertices = 3 quads, 4 vertices per quad)
+[maxvertexcount(12)]
 void GlareGS(
 	point FVertexToGeometry Inputs[1],
 	inout TriangleStream<FGeometryToPixel> OutStream
@@ -134,7 +135,7 @@ void GlareGS(
 		// Final quad color
 		float3 Color = Input.Color * GlareTint.rgb * GlareTint.a * GlareIntensity;
 
-		float LuminaceScale = saturate(Input.Luminace / GlrareDiver);
+		float LuminaceScale = saturate(Input.Luminace / GlareDivider);
 
 		// screen mask to  make the glare shrink at screen boarders
 		float Mask = distance(PointUV - 0.5f, float2(0.f, 0.f));

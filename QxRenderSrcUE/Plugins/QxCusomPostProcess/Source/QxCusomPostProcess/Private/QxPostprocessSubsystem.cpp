@@ -395,7 +395,7 @@ void UQxPostprocessSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	// data asset loading
 	// #TODO 这里先朝下，一会改
-	FString Path = "PostProcessLensFlareAsset'/CustomPostProcess/DefaultLensFlare.DefaultLensFlare'";
+	FString Path = "QxLensFlareAsset'/Game/QxLensFlare/DefaultLensFlare.DefaultLensFlare'";
 
 	PostprocessAsset = LoadObject<UQxLensFlareAsset>(nullptr, *Path);
 	check(PostprocessAsset);
@@ -668,7 +668,10 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderThreshold(FRDGBuilder& GraphBuilde
 		PassParameters->InputSize = FVector2D(Viewport2.Size());
 		PassParameters->ThresholdLevel = PostprocessAsset->ThresholdLevel;
 		PassParameters->ThresholdRange = PostprocessAsset->ThresholdRange;
+		PassParameters->InputTextureSampler = BilinearClampSampler;
 
+		ValidateShaderParameters(PixelShader, *PassParameters);
+		
 		DrawShaderpass(
 			GraphBuilder,
 			PassName,
@@ -1025,7 +1028,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderBlur(FRDGBuilder& GraphBuilder, FR
 		}
 		else
 		{
-			Divider -= 2;
+			Divider /= 2;
 		}
 	}
 

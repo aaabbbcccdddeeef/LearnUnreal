@@ -10,7 +10,7 @@ void FQxCusomPostProcessModule::StartupModule()
 {
 	UE_LOG(LogTemp, Warning, TEXT("QxCusomPostProcess module has been loaded"));
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
-	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("QxRenderSeries"))->GetBaseDir(), TEXT("Shaders"));
+	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("QxCusomPostProcess"))->GetBaseDir(), TEXT("Shaders"));
 	// PluginShaderDir = FPaths::Combine(PluginShaderDir, TEXT("CustomPostProcess"));
 	AddShaderSourceDirectoryMapping(TEXT("/QxPPShaders"), PluginShaderDir);
 	

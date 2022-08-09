@@ -12,7 +12,7 @@ float2 PixelSize;
 int3 MixPass;
 
 void MixPS(
-	int noperspective float4 UVAndScreenPos : TEXCOORD0,
+	in noperspective float4 UVAndScreenPos : TEXCOORD0,
 	out float4 OutColor : SV_Target0
 	)
 {
