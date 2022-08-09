@@ -47,7 +47,7 @@ void GlareVS(
 	   float2(  1.0f, -1.0f )
 	};
 
-	const float Widghts[5] = {
+	const float Weights[5] = {
 		0.175, 0.175,
 		   0.3,
 	   0.175, 0.175
@@ -58,5 +58,170 @@ void GlareVS(
 
 	float3 Color = float3(0.f, 0.f, 0.f);
 
-	 
+	UNROLL
+	for (int i = 0; i < 5; ++i)
+	{
+		float2 CurrentUV = CenterUV + Coords[i] * PixelSize.xy * 1.5f;
+		Color += Weights[i] * Texture2DSampleLevel(InputTexture, InputTextureSampler, CurrentUV, 0).rgb;
+	}
+
+	VSOut.Luminace = dot(Color.rgb, 1.0f);
+	VSOut.ID = IId;
+	VSOut.Color = Color;
+	VSOut.Position = float4(TilePos.x, TilePos.y, 0.0f, 1.0f);
+}
+
+struct FGeometryToPixel
+{
+	float4 Position : SV_PISITION;
+	float2 UV : TEXCOORD0;
+	float3 Color : TEXCOORD1;
+};
+
+// This function goal is to figure out the actual position
+// (in range 0-1) of a given vertex based on the original
+// point position. This function also take into account
+// the angle and scale of the quad to compute the target
+// position of the final vertex.
+float4 ComputePosition(float2 TilePos, float2 UV, float2 Scale, float Angle)
+{
+	/ Compute the position of the quad based on the ID
+	// Some multiply/divide by two magic to get the proper coordinates
+	float2 BufferPosition = (TilePos - float2(0.25f, 0.25f)) / BufferSize;
+	BufferPosition = 4.0f * BufferPosition - 1.0f;
+
+	// Center the quad in the middle of the screen
+	float2 NewPosition = 2.0f * (UV - 0.5f);
+
+	// Scale the quad
+	NewPosition *= Scale;
+
+	// Rotate th equad
+	float Sinus         = sin( Angle );
+	float Cosinus       = cos( Angle );
+	float2 RotatedPosition = float2(
+		(NewPosition.x * Cosinus) - (NewPosition.y * Sinus),
+		(NewPosition.x * Sinus)   + (NewPosition.y * Cosinus)
+	);
+
+	// Scale quad to compensate the buffer ratio
+	RotatedPosition *= BufferRatio;
+
+	// Position quad where pixel is in the buffer
+	RotatedPosition += BufferPosition * float2(1.0f, -1.0f);
+
+	// Build final vertex position
+	float4 OutPosition = float4( RotatedPosition.x, RotatedPosition.y,0,1);
+
+	return OutPosition;
+}
+
+// This is the main function and maxvertexcount is a required keyword 
+// to indicate how many vertices the Geometry shader will produce.
+// (12 vertices = 3 quads, 4 vertices per quad)
+void GlareGS(
+	point FVertexToGeometry Inputs[1],
+	inout TriangleStream<FGeometryToPixel> OutStream
+	)
+{
+	FVertexToGeometry Input = Inputs[0];
+
+	if (Input.Luminace > 0.1f)
+	{
+		float2 PointUV = Input.Position.xy / BufferSize * 2.0f;
+		float MaxSize = max(BufferSize.x, BufferSize.y);
+
+		// Final quad color
+		float3 Color = Input.Color * GlareTint.rgb * GlareTint.a * GlareIntensity;
+
+		float LuminaceScale = saturate(Input.Luminace / GlrareDiver);
+
+		// screen mask to  make the glare shrink at screen boarders
+		float Mask = distance(PointUV - 0.5f, float2(0.f, 0.f));
+		Mask = 1.0f  - saturate(Mask * 2.0f);
+		Mask = Mask * 0.6f + 0.4f;
+
+		float2 Scale = float2(
+				LuminaceScale * Mask,
+				(1.0f / min(BufferSize.x, BufferSize.y) ) * 4.0f
+				);
+
+		// setup rotation angle
+		const float Angle30 = 0.523599f;
+		const float Angle60 = 1.047197f;
+		const float Angle90 = 1.570796f;
+		const float Angle150 = 2.617994f;
+
+		float AngleOffset = (PointUV.x * 2.0f - 1.0f) * Angle30;
+
+		float AngleBase[3] = {
+			AngleOffset + Angle90,
+			AngleOffset + Angle30, // 90 -60
+			AngleOffset + Angle150 // 90 + 60
+		};
+
+		// Quad UV coordinates of each vertex
+		// Used as well to know which vertex of the quad is
+		// being computed by its position
+		// the order is important to ensure the triangles
+		// will be front facing and therefore visible
+		const float2 QuaCoords[4] = {
+			float2(0.0f, 0.0f),
+			float2(1.0f, 0.0f),
+			float2(1.0f, 1.0f),
+			float2(0.0f, 1.0f),
+		};
+
+		// 生成3个quads
+		for (int i = 0; i < 3; ++i)
+		{
+			// emit a quad by producing 4 vertices
+			if (GlareScales[i] > 0.0001f)
+			{
+				float2 QuadScale = Scale * GlareScales[i];
+				float QuadAngle = AngleBase[i];
+
+				FGeometryToPixel Vertex0;
+				FGeometryToPixel Vertex1;
+				FGeometryToPixel Vertex2;
+				FGeometryToPixel Vertex3;
+
+				Vertex0.UV = QuaCoords[0];
+				Vertex1.UV = QuaCoords[1];
+				Vertex2.UV = QuaCoords[2];
+				Vertex3.UV = QuaCoords[3];
+
+				Vertex0.Color = Color;
+				Vertex1.Color = Color;
+				Vertex2.Color = Color;
+				Vertex3.Color = Color;
+
+				Vertex0.Position = ComputePosition( Input.Position.xy, Vertex0.UV, QuadScale, QuadAngle );
+				Vertex1.Position = ComputePosition( Input.Position.xy, Vertex1.UV, QuadScale, QuadAngle );
+				Vertex2.Position = ComputePosition( Input.Position.xy, Vertex2.UV, QuadScale, QuadAngle );
+				Vertex3.Position = ComputePosition( Input.Position.xy, Vertex3.UV, QuadScale, QuadAngle );
+
+				// Produce a strip of Polygon. A triangle is
+				// just 3 vertex produced in a row which end-up
+				// connected, the last vertex re-use two previous
+				// ones to build the second triangle.
+				// This is why Vertex3 is not the last one, to ensure
+				// the triangle is built with the right points.
+				OutStream.Append(Vertex0);
+				OutStream.Append(Vertex1);
+				OutStream.Append(Vertex3);
+				OutStream.Append(Vertex2);
+
+				// Finish the strip and end the primitive generation
+				OutStream.RestartStrip();
+			}
+		}
+	}
+}
+
+void GlarePS(FGeometryToPixel Input,
+	out float3 OutColor : SV_Target0)
+{
+	float3 Mask = Texture2DSampleLevel(GlareTexture, GlareTextureSampler, Input.UV, 0).rgb;
+	OutColor.rgb = Mask * Input.Color.rgb;
 }
