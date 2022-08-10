@@ -2,6 +2,7 @@
 
 
 #include "QxPostprocessSubsystem.h"
+#include "QxBloomSubsystem.h"
 
 #include "QxLensFlareAsset.h"
 
@@ -30,37 +31,35 @@ TAutoConsoleVariable<int32> CVarLensFlareRenderGlarePass(
 	);
 DECLARE_GPU_STAT(QxLensFlare)
 
-// 所有pass都要用到的rdg buffer input
-BEGIN_SHADER_PARAMETER_STRUCT(FQxLensFlarePassParameters,)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
-		RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
 
-// the vertext shader to draw a rectange
-class FQxScreenPassVS : public FGlobalShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FQxScreenPassVS);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters&)
-	{
-		return true;
-	}
 
-	FQxScreenPassVS() = default;
-	FQxScreenPassVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/ScreenPass.usf", "QxScreenPassVS", SF_Vertex);
 
 
 
 // 这里声明匿名空间是防止和global 空间冲突
 namespace 
 {
+	// the vertext shader to draw a rectange
+	class FQxScreenPassVS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FQxScreenPassVS);
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters&)
+		{
+			return true;
+		}
+
+		FQxScreenPassVS() = default;
+		FQxScreenPassVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+			: FGlobalShader(Initializer)
+		{
+		}
+	};
+
+	IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/ScreenPass.usf", "QxScreenPassVS", SF_Vertex);
+	
 #pragma region UtilFunctions
 	// 主要用来计算 subregion size
 	FVector2D GetInputViewortSize(const FIntRect& Input, const FIntPoint& Extent)
@@ -149,7 +148,7 @@ namespace
 		}
 	};
 	IMPLEMENT_GLOBAL_SHADER(FlensFlareRescalePS, "/QxPPShaders/Rescale.usf", "RescalePS", SF_Pixel);
-#endif
+	#endif
 
 	// TODO SHADER DOWNSAMPLE
 	class FDownsamplePS : public FGlobalShader
