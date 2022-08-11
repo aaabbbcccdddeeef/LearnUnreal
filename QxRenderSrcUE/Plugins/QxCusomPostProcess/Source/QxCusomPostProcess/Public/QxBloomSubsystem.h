@@ -47,8 +47,8 @@ private:
 	void Render(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 		const FScreenPassTexture& SceneColor, FScreenPassTexture& Output);
 	
-	TArray<FScreenPassTexture> MipmapsDownSample;
-	TArray<FScreenPassTexture> MipMapUpSampler;
+	TArray<FScreenPassTexture> MipmapsDownSamples;
+	TArray<FScreenPassTexture> MipMapUpSamples;
 
 	// Bloom
 	FScreenPassTexture RenderBloom(

@@ -1,0 +1,78 @@
+#include "../Shared.ush"
+
+// Common
+int3 MixPass;
+
+// Bloom
+Texture2D BloomTexture;
+float BloomIntensity;
+
+// Glare
+Texture2D GlareTexture;
+float2 GlarePixelSize;
+
+// Flare
+float FlareIntensity;
+float4 FlareTint;
+Texture2D FlareGradientTexture;
+SamplerState FlareGradientTextureSampler;
+
+void MixPS(
+	in noperspective float4 UVAndScreenPos : TEXCOORD0,
+	out float4 OutColor : SV_TARGET0
+	)
+{
+	float2 UV = UVAndScreenPos.xy;
+	OutColor = float4(0.f, 0.f, 0.f, 0.f);
+
+	// Add Bloom
+	if (MixPass.x)
+	{
+		OutColor.rgb += Texture2DSample(BloomTexture, InputTextureSampler, UV).rgb * BloomIntensity;
+	}
+
+	// Add Flares, Glare mixed with Tint / Gradient
+	float3 Flares = float3(0.f, 0.f, 0.f);
+
+	// Flares
+	if (MixPass.y)
+	{
+		Flares = Texture2DSample(InputTexture, InputTextureSampler, UV).rgb;
+	}
+
+	// Glares
+	if (MixPass.z)
+	{
+		const float2 Coords[4] = {
+			float2(-1.0f, 1.0f),
+			float2( 1.0f, 1.0f),
+			float2(-1.0f,-1.0f),
+			float2( 1.0f,-1.0f)
+		};
+
+		float3 GlareColor = float3(0.f, 0.f, 0.f);
+
+		UNROLL
+		for (int i = 0; i < 4; ++i)
+		{
+			float2 OffsetUV = UV + GlarePixelSize * Coords[i];
+			GlareColor.rgb += 0.25f * Texture2DSample(GlareTexture, InputTextureSampler, OffsetUV).rgb;
+		}
+
+		Flares += GlareColor;
+	}
+
+	// Colored gradient
+	const float2 Center = float2(0.5f, 0.5f);
+	float2 GradientUV = float2(
+		saturate( distance(UV, Center) * 2.0f),
+		0.f
+		);
+
+	float3 Gradient = Texture2DSample(FlareGradientTexture, FlareGradientTextureSampler, GradientUV).rgb;
+
+	Flares *= Gradient * FlareTint.rgb * FlareIntensity;
+
+	// add Glare and flare to final mix
+	OutColor.rgb += Flares;
+}

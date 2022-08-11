@@ -5,13 +5,14 @@
 
 #include <stdexcept>
 
+#include "QxLensFlareAsset.h"
 #include "Interfaces/IPluginManager.h"
 
 #include "RenderGraph.h"
 #include "ScreenPass.h"
 #include "SystemTextures.h"
 
-extern  TGlobalResource<FSystemTextures> GSystemTextures;
+//extern  TGlobalResource<FSystemTextures> GSystemTextures;
 
 TAutoConsoleVariable<int32> CVarBloomPassAmount(
 	TEXT("r.QxRender.BloomPassAmount"),
@@ -50,7 +51,7 @@ namespace
 	IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/ScreenPass.usf", "QxScreenPassVS", SF_Vertex);
 	
 	// Bloom down sample
-	class FDownSamplePS : FGlobalShader
+	class FDownSamplePS : public FGlobalShader
 	{
 	public:
 		DECLARE_GLOBAL_SHADER(FDownSamplePS);
@@ -103,14 +104,15 @@ namespace
 			SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
 			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BloomTexture)
 			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GlareTexture)
-			SHADER_PARAMETER_TEXTURE(Texture2D, GradientTexture)
-			SHADER_PARAMETER_SAMPLER(SamplerState, GradientTextureSampler)
-			SHADER_PARAMETER(FVector4, Tint)
+			SHADER_PARAMETER_TEXTURE(Texture2D, FlareGradientTexture)
+			SHADER_PARAMETER_SAMPLER(SamplerState, FlareGradientTextureSampler)
+			SHADER_PARAMETER(FVector4, FlareTint)
 			SHADER_PARAMETER(FVector2D, InputViewportSize)
 			SHADER_PARAMETER(FVector2D, BufferSize)
-			SHADER_PARAMETER(FVector2D, PixelSize)
+			SHADER_PARAMETER(FVector2D, GlarePixelSize)
 			SHADER_PARAMETER(FIntVector, MixPass)
-			SHADER_PARAMETER(float, Intensity)
+			SHADER_PARAMETER(float, BloomIntensity)
+			SHADER_PARAMETER(float, FlareIntensity)
 		END_SHADER_PARAMETER_STRUCT()
 		
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -119,7 +121,7 @@ namespace
 		}
 	};
 
-	IMPLEMENT_GLOBAL_SHADER(FMixPS, "/QxPPShaders/Mix.usf", "MixPS", SF_Pixel);
+	IMPLEMENT_GLOBAL_SHADER(FMixPS, "/QxPPShaders/Bloom/BloomMix.usf", "MixPS", SF_Pixel);
 
 #if WITH_EDITOR
 	// Rescale shader
@@ -368,7 +370,7 @@ void UQxBloomSubsystem::Render(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 		);
 
 	{
-		RDG_EVENT_SCOPE(GraphBuilder, "MiaxPass");
+		RDG_EVENT_SCOPE(GraphBuilder, "MixPass");
 
 		const FString PassName("Mix");
 
@@ -409,15 +411,239 @@ void UQxBloomSubsystem::Render(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 
 		// Bloom
 		PassParams->BloomTexture = BlackDummy.Texture;
-		PassParams->Intensity = BloomIntensity;
+		PassParams->BloomIntensity = BloomIntensity;
 
 		// Glare
 		PassParams->GlareTexture = BlackDummy.Texture;
-		PassParams->PixelSize = FVector2D(1.f, 1.f) / BufferSize;
+		PassParams->GlarePixelSize = FVector2D(1.f, 1.f) / BufferSize;
 
 		// Flare
+		PassParams->Pass.InputTexture  = BlackDummy.Texture;
+		PassParams->FlareIntensity = PostprocessAsset->FlareIntensity;
+		PassParams->FlareTint = FVector4(PostprocessAsset->FlareTint);
+		PassParams->FlareGradientTexture = GWhiteTexture->TextureRHI;
+		PassParams->FlareGradientTextureSampler = BilinearClampSampler;
+
+		if (PostprocessAsset->FlareGradient)
+		{
+			const FTextureRHIRef TextureRHI = PostprocessAsset->FlareGradient->Resource->TextureRHI;
+			PassParams->FlareGradientTexture = TextureRHI;
+		}
+
+		if (BufferValidity.X)
+		{
+			PassParams->BloomTexture = BloomTexture.Texture;
+		}
+
+		if (BufferValidity.Y)
+		{
+			PassParams->Pass.InputTexture = FlareTexture.Texture;
+		}
+
+		if (BufferValidity.Z)
+		{
+			PassParams->GlareTexture = GlareTexture.Texture;
+		}
+
+		// Render
+		DrawShaderpass(
+			GraphBuilder,
+			PassName,
+			PassParams,
+			VertexShader,
+			PixelShader,
+			ClearBlendState,
+			MixViewport
+			);
+
+		MipmapsDownSamples.Empty();
+		MipMapUpSamples.Empty();
 	}
+	// Reset Texture lists
+	Output.Texture = MixTexture;
+	Output.ViewRect = MixViewport;
 }
+
+FScreenPassTexture UQxBloomSubsystem::RenderBloom(FRDGBuilder& GraphBuilder, const FViewInfo& View,
+	const FScreenPassTexture& SceneColor, int32 PassAmount)
+{
+	check(SceneColor.IsValid());
+
+	/// PassAmount <= 1 后面的upsample 等逻辑不适用
+	if (PassAmount <= 1)
+	{
+		return FScreenPassTexture();
+	}
+
+	RDG_EVENT_SCOPE(GraphBuilder, "BloomPass");
+
+#pragma region DownSample
+	// Downsample
+	int32 Width = View.ViewRect.Width();
+	int32 Height = View.ViewRect.Height();
+	int32 Divider = 2;
+	FRDGTextureRef PreviousTexture = SceneColor.Texture;
+
+	for (int32 i = 0; i < PassAmount; ++i)
+	{
+		FIntRect Size(
+			0, 0,
+			FMath::Max(Width / Divider,1),
+			FMath::Max(Height / Divider, 1)
+			);
+
+		const FString PassName = "Downsample"
+								+ FString::FromInt(i)
+								+ "_(1/"
+								+ FString::FromInt( Divider )
+								+ ")_"
+								+ FString::FromInt( Size.Width() )
+								+ "x"
+								+ FString::FromInt( Size.Height() );
+
+		FRDGTextureRef Texture = nullptr;
+
+		// SceneColor Input 是引擎已经做过down sampleddd的，直接用
+		if (i == 0)
+		{
+			Texture = PreviousTexture;
+		}
+		else
+		{
+			Texture = RenderDownSample(
+				GraphBuilder,
+				PassName,
+				View,
+				PreviousTexture,
+				Size
+				);
+
+			FScreenPassTexture DownsampleTexture(Texture, Size);
+
+			MipmapsDownSamples.Add(DownsampleTexture);
+			PreviousTexture = Texture;
+			
+			Divider *= 2;
+		}
+	}
+#pragma endregion
+
+#pragma region UpSample
+	float Radius = CVarBloomRadius.GetValueOnRenderThread();
+
+	// downsamples 的结果拷贝到upsamples中以备后续访问
+	MipMapUpSamples.Append(MipmapsDownSamples);
+
+	// Stars at -2 since we need the last buffer
+	// as the previous input (-2) and the one just
+	// before as the current input (-1).
+	// We also go from end to start of array to
+	// go from small to big texture (going back up the mips)
+	for (int i = PassAmount - 2; i >= 0; --i)
+	{
+		FIntRect CurrentSize = MipMapUpSamples[i].ViewRect;
+
+		const FString PassName  = "UpsampleCombine_"
+								+ FString::FromInt( i )
+								+ "_"
+								+ FString::FromInt( CurrentSize.Width() )
+								+ "x"
+								+ FString::FromInt( CurrentSize.Height() );
+
+		FRDGTextureRef ResultTexture = RenderUpsampleCombine(
+			GraphBuilder,
+			PassName,
+			View,
+			MipmapsDownSamples[i], // Current Texture
+			MipmapsDownSamples[i + 1], // Previous Texture
+			Radius
+			);
+
+		FScreenPassTexture NewTexture(ResultTexture, CurrentSize);
+		MipMapUpSamples[i] = NewTexture;
+	}
+#pragma endregion
+
+	return MipMapUpSamples[0];
+}
+
+FRDGTextureRef UQxBloomSubsystem::RenderDownSample(FRDGBuilder& GraphBuilder, const FString& PassName,
+	const FViewInfo& View, FRDGTextureRef InputTexture, const FIntRect& Viewport)
+{
+	// Build Texture
+	FRDGTextureDesc Desc = InputTexture->Desc;
+	Desc.Reset();
+	Desc.Extent = Viewport.Size();
+	Desc.Format = PF_FloatRGB;
+	Desc.ClearValue = FClearValueBinding(FLinearColor::Black);
+	FRDGTextureRef TargetTexture = GraphBuilder.CreateTexture(Desc,
+		*PassName);
+
+	// Render Shader
+	TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FDownSamplePS> PixelShader(View.ShaderMap);
+
+	FDownSamplePS::FParameters* PassParams = GraphBuilder.AllocParameters<FDownSamplePS::FParameters>();
+	PassParams->Pass.InputTexture = InputTexture;
+	PassParams->Pass.RenderTargets[0] = FRenderTargetBinding(
+		TargetTexture,
+		ERenderTargetLoadAction::ENoAction
+		);
+	PassParams->InputTextureSampler = BilinearBorderSampler;
+	PassParams->InputSize = FVector2D(Viewport.Size());
+
+	DrawShaderpass(
+		GraphBuilder,
+		PassName,
+		PassParams,
+		VertexShader,
+		PixelShader,
+		ClearBlendState,
+		Viewport
+		);
+
+	return TargetTexture;
+}
+
+FRDGTextureRef UQxBloomSubsystem::RenderUpsampleCombine(FRDGBuilder& GraphBuilder, const FString& PassName,
+	const FViewInfo& View, const FScreenPassTexture& InputTexture, const FScreenPassTexture& PreviousTexture,
+	float Radius)
+{
+	// Build texture
+	FRDGTextureDesc Desc = InputTexture.Texture->Desc;
+	Desc.Reset();
+	Desc.Extent = InputTexture.ViewRect.Size();
+	Desc.Format = PF_FloatRGB;
+	Desc.ClearValue = FClearValueBinding(FLinearColor::Black);
+	FRDGTextureRef TargetTexture = GraphBuilder.CreateTexture(Desc, *PassName);
+
+	// setup shader params
+	TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FUpsampleCombinePS> PixelShader(View.ShaderMap);
+
+	FUpsampleCombinePS::FParameters* PassParams = GraphBuilder.AllocParameters<FUpsampleCombinePS::FParameters>();
+	PassParams->Pass.InputTexture = InputTexture.Texture;
+	PassParams->Pass.RenderTargets[0] = FRenderTargetBinding(TargetTexture, ERenderTargetLoadAction::ENoAction);
+	PassParams->Radius = Radius;
+	PassParams->InputTextureSampler = BilinearClampSampler;
+	PassParams->InputSize = FVector2D(PreviousTexture.ViewRect.Size());
+	PassParams->PreviousTexture = PreviousTexture.Texture;
+
+	// render shader
+	DrawShaderpass(
+		GraphBuilder,
+		PassName,
+		PassParams,
+		VertexShader,
+		PixelShader,
+		ClearBlendState,
+		InputTexture.ViewRect
+		);
+
+	return  TargetTexture;
+}
+
+
 
 
 

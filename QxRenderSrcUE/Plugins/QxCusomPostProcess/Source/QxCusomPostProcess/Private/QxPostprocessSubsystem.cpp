@@ -567,12 +567,12 @@ void UQxPostprocessSubsystem::RenderLensFlare(FRDGBuilder& GraphBuilder, const F
 		PassParams->BufferSize = BufferSize;
 		PassParams->PixelSize = FVector2D(1.f, 1.f) / BufferSize;
 		PassParams->InputViewportSize = BloomInputViewportSize;
-		PassParams->Tint = FVector4(PostprocessAsset->Tint);
-		PassParams->Intensity = PostprocessAsset->Intensity;
+		PassParams->Tint = FVector4(PostprocessAsset->FlareTint);
+		PassParams->Intensity = PostprocessAsset->FlareIntensity;
 
-		if (PostprocessAsset->Gradient != nullptr)
+		if (PostprocessAsset->FlareGradient != nullptr)
 		{
-			const FTextureRHIRef TextureRHI = PostprocessAsset->Gradient->Resource->TextureRHI;
+			const FTextureRHIRef TextureRHI = PostprocessAsset->FlareGradient->Resource->TextureRHI;
 			PassParams->GradientTexture = TextureRHI;
 		}
 
