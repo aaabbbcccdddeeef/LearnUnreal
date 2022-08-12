@@ -41,28 +41,28 @@ DECLARE_GPU_STAT(QxLensFlare)
 namespace 
 {
 	// the vertext shader to draw a rectange
-	class FQxScreenPassVS : public FGlobalShader
+	class FQxScreenPassVS1 : public FGlobalShader
 	{
 	public:
-		DECLARE_GLOBAL_SHADER(FQxScreenPassVS);
+		DECLARE_GLOBAL_SHADER(FQxScreenPassVS1);
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters&)
 		{
 			return true;
 		}
 
-		FQxScreenPassVS() = default;
-		FQxScreenPassVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		FQxScreenPassVS1() = default;
+		FQxScreenPassVS1(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 			: FGlobalShader(Initializer)
 		{
 		}
 	};
 
-	IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/ScreenPass.usf", "QxScreenPassVS", SF_Vertex);
+	IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS1, "/QxPPShaders/ScreenPass.usf", "QxScreenPassVS", SF_Vertex);
 	
 #pragma region UtilFunctions
 	// 主要用来计算 subregion size
-	FVector2D GetInputViewortSize(const FIntRect& Input, const FIntPoint& Extent)
+	FVector2D GetInputViewortSize1(const FIntRect& Input, const FIntPoint& Extent)
 	{
 		// Based on
 		// GetScreenPassTextureViewportParameters()
@@ -80,7 +80,7 @@ namespace
 
 // this function draw a shader into Rendergraph texture
 	template<typename TShaderParameters, typename  TShaderClassVertex, typename TShaderClassPixel>
-	inline void DrawShaderpass(
+	inline void DrawShaderpass1(
 		FRDGBuilder& GraphBuilder,
 		const FString& PassName,
 		TShaderParameters* PassParameters,
@@ -428,10 +428,10 @@ void UQxPostprocessSubsystem::RenderLensFlare(FRDGBuilder& GraphBuilder, const F
 
 #pragma region SetupResourceVariables
 	const FScreenPassTextureViewport BloomViewport(Inputs.Bloom);
-	const FVector2D BloomInputViewportSize = GetInputViewortSize(BloomViewport.Rect, BloomViewport.Extent);
+	const FVector2D BloomInputViewportSize = GetInputViewortSize1(BloomViewport.Rect, BloomViewport.Extent);
 
 	const FScreenPassTextureViewport SceneColorViewport(Inputs.HalfScreenColor);
-	const FVector2D SceneColorViewportSize = GetInputViewortSize(SceneColorViewport.Rect, SceneColorViewport.Extent);
+	const FVector2D SceneColorViewportSize = GetInputViewortSize1(SceneColorViewport.Rect, SceneColorViewport.Extent);
 
 	// input
 	FRDGTextureRef InputTexture = Inputs.HalfScreenColor.Texture;
@@ -473,7 +473,7 @@ void UQxPostprocessSubsystem::RenderLensFlare(FRDGBuilder& GraphBuilder, const F
 		FRDGTextureRef RescaleTexture = GraphBuilder.CreateTexture(Desc, *PassName);
 
 		// Setup shaders
-		TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FQxScreenPassVS1> VertexShader(View.ShaderMap);
 		TShaderMapRef<FlensFlareRescalePS> PixelShader(View.ShaderMap);
 
 		// Setup Shader parameters
@@ -485,7 +485,7 @@ void UQxPostprocessSubsystem::RenderLensFlare(FRDGBuilder& GraphBuilder, const F
 		PassParameters->InputViewportSize = SceneColorViewportSize;
 
 		// Render Shader Into buffer;
-		DrawShaderpass(
+		DrawShaderpass1(
 			GraphBuilder,
 			PassName,
 			PassParameters,
@@ -556,7 +556,7 @@ void UQxPostprocessSubsystem::RenderLensFlare(FRDGBuilder& GraphBuilder, const F
 #pragma region ShaderParamSetup
 
 		// shader parameters
-		TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FQxScreenPassVS1> VertexShader(View.ShaderMap);
 		TShaderMapRef<FLensFlareBloomMixPS> PixelShader(View.ShaderMap);
 
 		FLensFlareBloomMixPS::FParameters* PassParams = GraphBuilder.AllocParameters<FLensFlareBloomMixPS::FParameters>();
@@ -614,7 +614,7 @@ void UQxPostprocessSubsystem::RenderLensFlare(FRDGBuilder& GraphBuilder, const F
 #pragma endregion
 
 		// Render
-		DrawShaderpass(
+		DrawShaderpass1(
 			GraphBuilder,
 			PassName,
 			PassParams,
@@ -658,7 +658,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderThreshold(FRDGBuilder& GraphBuilde
 		FRDGTextureRef Texture = GraphBuilder.CreateTexture(Description, *PassName);
 
 		// Render shader
-		TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FQxScreenPassVS1> VertexShader(View.ShaderMap);
 		TShaderMapRef<FDownsamplePS> PixelShader(View.ShaderMap);
 
 		FDownsamplePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDownsamplePS::FParameters>();
@@ -671,7 +671,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderThreshold(FRDGBuilder& GraphBuilde
 
 		ValidateShaderParameters(PixelShader, *PassParameters);
 		
-		DrawShaderpass(
+		DrawShaderpass1(
 			GraphBuilder,
 			PassName,
 			PassParameters,
@@ -733,7 +733,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderFlare(FRDGBuilder& GraphBuilder, F
 		ChromaTexture = GraphBuilder.CreateTexture(Description, *PassName);
 
 		// setup shader parameters
-		TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FQxScreenPassVS1> VertexShader(View.ShaderMap);
 		TShaderMapRef<FLensFlareChromaPS> PixelShader(View.ShaderMap);
 
 		FLensFlareChromaPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLensFlareChromaPS::FParameters>();
@@ -743,7 +743,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderFlare(FRDGBuilder& GraphBuilder, F
 		PassParameters->ChromaShift = PostprocessAsset->GhostChromaShift;
 		
 		// Render
-		DrawShaderpass(
+		DrawShaderpass1(
 			GraphBuilder,
 			PassName,
 			PassParameters,
@@ -769,7 +769,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderFlare(FRDGBuilder& GraphBuilder, F
 		FRDGTextureRef Texture = GraphBuilder.CreateTexture(Description, *PassName);
 
 		// setup shader parameter
-		TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FQxScreenPassVS1> VertexShader(View.ShaderMap);
 		TShaderMapRef<FLensFlareGhostPS> PixelShader(View.ShaderMap);
 
 		FLensFlareGhostPS::FParameters* ShaderParams = GraphBuilder.AllocParameters<FLensFlareGhostPS::FParameters>();
@@ -799,7 +799,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderFlare(FRDGBuilder& GraphBuilder, F
 		}
 		
 		// Render Shader
-		DrawShaderpass(
+		DrawShaderpass1(
 			GraphBuilder,
 			PassName,
 			ShaderParams,
@@ -815,7 +815,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderFlare(FRDGBuilder& GraphBuilder, F
 	{
 		const FString PassName("LensFlareHalo");
 
-		TShaderMapRef<FQxScreenPassVS> VertexShder(View.ShaderMap);
+		TShaderMapRef<FQxScreenPassVS1> VertexShder(View.ShaderMap);
 		TShaderMapRef<FLensFlaresHaloPS> PixelShader(View.ShaderMap);
 
 		FLensFlaresHaloPS::FParameters* ShaderParams = GraphBuilder.AllocParameters<FLensFlaresHaloPS::FParameters>();
@@ -828,7 +828,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderFlare(FRDGBuilder& GraphBuilder, F
 		ShaderParams->Pass.InputTexture = InputTexture;
 		ShaderParams->Pass.RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
 
-		DrawShaderpass(
+		DrawShaderpass1(
 			GraphBuilder,
 			PassName,
 			ShaderParams,
@@ -995,7 +995,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderBlur(FRDGBuilder& GraphBuilder, FR
                                                    const FViewInfo& View, const FIntRect& Viewport, int BlurSteps)
 {
 	// Shader setup
-	TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FQxScreenPassVS1> VertexShader(View.ShaderMap);
 	TShaderMapRef<FKawaseBlurDownPS> PixelShaderDown(View.ShaderMap);
 	TShaderMapRef<FKawaseBlurUpPS> PixelShaderUp(View.ShaderMap);
 
@@ -1063,7 +1063,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderBlur(FRDGBuilder& GraphBuilder, FR
 			PassDownParameters->InputTextureSampler            = BilinearClampSampler;
 			PassDownParameters->BufferSize              = ViewportResolution;
 
-			DrawShaderpass(
+			DrawShaderpass1(
 				GraphBuilder,
 				PassName,
 				PassDownParameters,
@@ -1081,7 +1081,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderBlur(FRDGBuilder& GraphBuilder, FR
 			PassUpParameters->InputTextureSampler              = BilinearClampSampler;
 			PassUpParameters->BufferSize                = ViewportResolution;
 
-			DrawShaderpass(
+			DrawShaderpass1(
 				GraphBuilder,
 				PassName,
 				PassUpParameters,
