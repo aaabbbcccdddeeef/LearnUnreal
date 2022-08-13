@@ -35,15 +35,17 @@ void AQxRuntimMeshOperate::GenerateMeshCom_Test1()
 
 	
 	FStaticMeshLODResources& LODResources = RenderData->LODResources[0];
-	FillLODResourcesWithTestData1(LODResources);
+	FBoxSphereBounds MeshBounds;
+	
+	FillLODResourcesWithTestData1(LODResources, MeshBounds);
 
-	// 设置包围盒
-	{
-		FBoxSphereBounds TestBounds;
-		TestBounds.Origin = FVector::ZeroVector;
-		TestBounds.SphereRadius = 100.f;
-		RenderData->Bounds = TestBounds;
-	}
+	RenderData->Bounds = MeshBounds;
+	// // 设置包围盒
+	// {
+	// 	MeshBounds.Origin = FVector::ZeroVector;
+	// 	MeshBounds.SphereRadius = 100.f;
+	// 	RenderData->Bounds = MeshBounds;
+	// }
 
 #pragma endregion
 
@@ -66,8 +68,13 @@ void AQxRuntimMeshOperate::GenerateMeshCom_Test1()
 	MeshCom->RegisterComponent();
 }
 
-void AQxRuntimMeshOperate::FillLODResourcesWithTestData1(FStaticMeshLODResources& OutLODResources)
+void AQxRuntimMeshOperate::FillLODResourcesWithTestData1(
+	FStaticMeshLODResources& OutLODResources,
+	FBoxSphereBounds& OutMeshBounds)
 {
+	FBox BondingBox;
+	BondingBox.Init();
+	
 	// build up index array
 	TArray<uint32> indices;
 	{
@@ -90,6 +97,7 @@ void AQxRuntimMeshOperate::FillLODResourcesWithTestData1(FStaticMeshLODResources
 		vertex0.TangentX = FVector(0, 1, 0);
 		vertex0.TangentY = FVector(1, 0, 0);
 		vertex0.TangentY = FVector(0, 0, 1);
+		BondingBox += vertex0.Position;
 	
 		FStaticMeshBuildVertex& vertex1 = StaticMeshBuildVertices[1];
 		vertex1.Position = FVector(100, 0, 0);
@@ -98,6 +106,7 @@ void AQxRuntimMeshOperate::FillLODResourcesWithTestData1(FStaticMeshLODResources
 		vertex1.TangentX = FVector(0, 1, 0);
 		vertex1.TangentY = FVector(1, 0, 0);
 		vertex1.TangentY = FVector(0, 0, 1);
+		BondingBox += vertex1.Position;
 
 		FStaticMeshBuildVertex& vertex2 = StaticMeshBuildVertices[2];
 		vertex2.Position = FVector(0, 100, 0);
@@ -106,7 +115,7 @@ void AQxRuntimMeshOperate::FillLODResourcesWithTestData1(FStaticMeshLODResources
 		vertex2.TangentX = FVector(0, 1, 0);
 		vertex2.TangentY = FVector(1, 0, 0);
 		vertex2.TangentY = FVector(0, 0, 1);
-		
+		BondingBox += vertex2.Position;		
 	}
 
 	
@@ -119,7 +128,7 @@ void AQxRuntimMeshOperate::FillLODResourcesWithTestData1(FStaticMeshLODResources
 	OutLODResources.VertexBuffers.PositionVertexBuffer.Init(StaticMeshBuildVertices);
 
 	// 根据是否有顶点色初始化ColorVertexBuffer
-	// OutLODResources.VertexBuffers.ColorVertexBuffer.Init()
+	OutLODResources.VertexBuffers.ColorVertexBuffer.Init(StaticMeshBuildVertices, false);
 
 	// 初始化LODResource 的 法线，切线，贴图坐标buffer
 	OutLODResources.VertexBuffers.StaticMeshVertexBuffer.Init(StaticMeshBuildVertices, 1, false);
@@ -137,7 +146,16 @@ void AQxRuntimMeshOperate::FillLODResourcesWithTestData1(FStaticMeshLODResources
 	MeshSection.MaxVertexIndex = StaticMeshBuildVertices.Num() - 1;
 
 #pragma endregion
-	
+
+#pragma region InitBounds
+	BondingBox.GetCenterAndExtents(OutMeshBounds.Origin, OutMeshBounds.BoxExtent);
+	OutMeshBounds.SphereRadius = 0.f;
+	for (auto& Vertex : StaticMeshBuildVertices)
+	{
+		OutMeshBounds.SphereRadius =
+			FMath::Max((Vertex.Position - OutMeshBounds.Origin).Size(), OutMeshBounds.SphereRadius);
+	}
+#pragma endregion
 }
 
 // Called every frame

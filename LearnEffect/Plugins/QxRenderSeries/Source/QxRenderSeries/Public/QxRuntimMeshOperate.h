@@ -27,8 +27,9 @@ private:
 	/**
 	 * @brief 
 	 * @param OutResources 应该是没有初始化的LODResources
+	 * @param OutMeshBounds 这个是包括所有顶点的bounds
 	 */
-	void FillLODResourcesWithTestData1(FStaticMeshLODResources& OutResources);
+	void FillLODResourcesWithTestData1(FStaticMeshLODResources& OutResources, FBoxSphereBounds& OutMeshBounds);
 	
 public:
 	// Called every frame
