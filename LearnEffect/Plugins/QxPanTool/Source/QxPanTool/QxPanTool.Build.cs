@@ -26,6 +26,7 @@ public class QxPanTool : ModuleRules
 			new string[]
 			{
 				"Core",
+				"LevelEditor"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

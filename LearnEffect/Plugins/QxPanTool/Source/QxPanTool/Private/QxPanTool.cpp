@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "QxPanTool.h"
+
+#include <stdexcept>
+
 #include "QxPanToolStyle.h"
 #include "QxPanToolCommands.h"
 #include "LevelEditor.h"
@@ -9,8 +12,10 @@
 #include "Widgets/Text/STextBlock.h"
 #include "ToolMenus.h"
 #include "MyFile_BPLib.h"
+#include "SWidgetDemo.h"
 
 static const FName QxPanToolTabName("QxPanTool");
+static const FName QxPanToolExTabName("QxPanToolEx");
 
 #define LOCTEXT_NAMESPACE "FQxPanToolModule"
 
@@ -24,16 +29,30 @@ void FQxPanToolModule::StartupModule()
 	FQxPanToolCommands::Register();
 	
 	PluginCommands = MakeShareable(new FUICommandList);
+	PanToolExCommands = MakeShareable(new FUICommandList);
 
 	PluginCommands->MapAction(
 		FQxPanToolCommands::Get().OpenPluginWindow,
 		FExecuteAction::CreateRaw(this, &FQxPanToolModule::PluginButtonClicked),
 		FCanExecuteAction());
+	PanToolExCommands->MapAction(
+	FQxPanToolCommands::Get().OpenPanToolExWindow,
+		FExecuteAction::CreateRaw(this, &FQxPanToolModule::PanToolExButtonClicked),
+		FCanExecuteAction()
+		);
 
-	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FQxPanToolModule::RegisterMenus));
+	UToolMenus::RegisterStartupCallback(
+		FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FQxPanToolModule::RegisterMenus));
 	
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(QxPanToolTabName, FOnSpawnTab::CreateRaw(this, &FQxPanToolModule::OnSpawnPluginTab))
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(QxPanToolTabName,
+		FOnSpawnTab::CreateRaw(this, &FQxPanToolModule::OnSpawnPluginTab))
 		.SetDisplayName(LOCTEXT("FQxPanToolTabTitle", "QxPanTool"))
+		.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+		QxPanToolExTabName,
+		FOnSpawnTab::CreateRaw(this, &FQxPanToolModule::OnSpawnPoolToolExTab))
+		.SetDisplayName(LOCTEXT("FQxPanToolTabTitleEx", "QxPanToolEx"))
 		.SetMenuType(ETabSpawnerMenuType::Hidden);
 }
 
@@ -51,6 +70,7 @@ void FQxPanToolModule::ShutdownModule()
 	FQxPanToolCommands::Unregister();
 
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(QxPanToolTabName);
+	FGlobalTabmanager::Get()->UnregisterTabSpawner(QxPanToolExTabName);
 }
 
 TSharedRef<SDockTab> FQxPanToolModule::OnSpawnPluginTab(const FSpawnTabArgs& SpawnTabArgs)
@@ -111,13 +131,27 @@ TSharedRef<SDockTab> FQxPanToolModule::OnSpawnPluginTab(const FSpawnTabArgs& Spa
 		];
 }
 
+TSharedRef<SDockTab> FQxPanToolModule::OnSpawnPoolToolExTab(const FSpawnTabArgs& SpawnTabArgs)
+{
+	return SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+			[
+				SNew(SWidgetDemo)
+			];
+}
+
 void FQxPanToolModule::PluginButtonClicked()
 {
 	FGlobalTabmanager::Get()->TryInvokeTab(QxPanToolTabName);
 }
 
+void FQxPanToolModule::PanToolExButtonClicked()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(QxPanToolExTabName);
+}
+
 /**
- * 在工具栏和菜单上添加按钮
+ * 鍦ㄥ伐鍏锋爮鍜岃彍鍗曚笂娣诲姞鎸夐挳
  */
 void FQxPanToolModule::RegisterMenus()
 {
@@ -129,6 +163,7 @@ void FQxPanToolModule::RegisterMenus()
 		{
 			FToolMenuSection& Section = Menu->FindOrAddSection("WindowLayout");
 			Section.AddMenuEntryWithCommandList(FQxPanToolCommands::Get().OpenPluginWindow, PluginCommands);
+			Section.AddMenuEntryWithCommandList(FQxPanToolCommands::Get().OpenPanToolExWindow, PanToolExCommands);
 		}
 	}
 
@@ -137,8 +172,13 @@ void FQxPanToolModule::RegisterMenus()
 		{
 			FToolMenuSection& Section = ToolbarMenu->FindOrAddSection("Settings");
 			{
-				FToolMenuEntry& Entry = Section.AddEntry(FToolMenuEntry::InitToolBarButton(FQxPanToolCommands::Get().OpenPluginWindow));
+				FToolMenuEntry& Entry = Section.AddEntry(
+					FToolMenuEntry::InitToolBarButton(FQxPanToolCommands::Get().OpenPluginWindow));
 				Entry.SetCommandList(PluginCommands);
+				FToolMenuEntry& Entry2 = Section.AddEntry(
+					FToolMenuEntry::InitToolBarButton(FQxPanToolCommands::Get().OpenPanToolExWindow)
+					);
+				Entry2.SetCommandList(PanToolExCommands);
 			}
 		}
 	}

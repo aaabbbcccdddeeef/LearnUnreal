@@ -23,4 +23,6 @@ public:
 
 public:
 	TSharedPtr< FUICommandInfo > OpenPluginWindow;
+
+	TSharedPtr< FUICommandInfo> OpenPanToolExWindow;
 };

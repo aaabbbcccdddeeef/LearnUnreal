@@ -7,6 +7,8 @@
 void FQxPanToolCommands::RegisterCommands()
 {
 	UI_COMMAND(OpenPluginWindow, "QxPanTool", "Bring up QxPanTool window", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(OpenPanToolExWindow, "QxPanToolEx", "Bring up QxPanToollEx window",
+		EUserInterfaceActionType::Button, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE
