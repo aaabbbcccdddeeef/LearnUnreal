@@ -51,11 +51,11 @@ namespace
 	IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/ScreenPass.usf", "QxScreenPassVS", SF_Vertex);
 	
 	// Bloom down sample
-	class FDownSamplePS : public FGlobalShader
+	class FDownSamplePS_Bloom : public FGlobalShader
 	{
 	public:
-		DECLARE_GLOBAL_SHADER(FDownSamplePS);
-		SHADER_USE_PARAMETER_STRUCT(FDownSamplePS, FGlobalShader);
+		DECLARE_GLOBAL_SHADER(FDownSamplePS_Bloom);
+		SHADER_USE_PARAMETER_STRUCT(FDownSamplePS_Bloom, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
 			SHADER_PARAMETER_STRUCT_INCLUDE(FQxLensFlarePassParameters, Pass)
@@ -68,7 +68,7 @@ namespace
 			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
-	IMPLEMENT_GLOBAL_SHADER(FDownSamplePS, "/QxPPShaders/Bloom/DownSample.usf", "DownSamplePS", SF_Pixel);
+	IMPLEMENT_GLOBAL_SHADER(FDownSamplePS_Bloom, "/QxPPShaders/Bloom/DownSample.usf", "DownSamplePS", SF_Pixel);
 
 	// Bloom upsample + combine
 	class FUpsampleCombinePS : public FGlobalShader
@@ -581,9 +581,9 @@ FRDGTextureRef UQxBloomSubsystem::RenderDownSample(FRDGBuilder& GraphBuilder, co
 
 	// Render Shader
 	TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
-	TShaderMapRef<FDownSamplePS> PixelShader(View.ShaderMap);
+	TShaderMapRef<FDownSamplePS_Bloom> PixelShader(View.ShaderMap);
 
-	FDownSamplePS::FParameters* PassParams = GraphBuilder.AllocParameters<FDownSamplePS::FParameters>();
+	FDownSamplePS_Bloom::FParameters* PassParams = GraphBuilder.AllocParameters<FDownSamplePS_Bloom::FParameters>();
 	PassParams->Pass.InputTexture = InputTexture;
 	PassParams->Pass.RenderTargets[0] = FRenderTargetBinding(
 		TargetTexture,

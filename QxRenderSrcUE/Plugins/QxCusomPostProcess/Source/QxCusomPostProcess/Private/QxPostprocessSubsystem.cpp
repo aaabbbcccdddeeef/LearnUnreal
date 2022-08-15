@@ -151,11 +151,11 @@ namespace
 	#endif
 
 	// TODO SHADER DOWNSAMPLE
-	class FDownsamplePS : public FGlobalShader
+	class FDownsamplePS_PP : public FGlobalShader
 	{
 	public:
-		DECLARE_GLOBAL_SHADER(FDownsamplePS);
-		SHADER_USE_PARAMETER_STRUCT(FDownsamplePS, FGlobalShader);
+		DECLARE_GLOBAL_SHADER(FDownsamplePS_PP);
+		SHADER_USE_PARAMETER_STRUCT(FDownsamplePS_PP, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
 			SHADER_PARAMETER_STRUCT_INCLUDE(FQxLensFlarePassParameters, Pass)
@@ -170,7 +170,7 @@ namespace
 			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
-	IMPLEMENT_GLOBAL_SHADER(FDownsamplePS, "/QxPPShaders/DownsampleThreshold.usf", "DownsampleThresholdPS", SF_Pixel);
+	IMPLEMENT_GLOBAL_SHADER(FDownsamplePS_PP, "/QxPPShaders/DownsampleThreshold.usf", "DownsampleThresholdPS", SF_Pixel);
 
 #pragma region BlurShaders
 	// TODO SHADER KAWASE
@@ -659,9 +659,9 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderThreshold(FRDGBuilder& GraphBuilde
 
 		// Render shader
 		TShaderMapRef<FQxScreenPassVS1> VertexShader(View.ShaderMap);
-		TShaderMapRef<FDownsamplePS> PixelShader(View.ShaderMap);
+		TShaderMapRef<FDownsamplePS_PP> PixelShader(View.ShaderMap);
 
-		FDownsamplePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDownsamplePS::FParameters>();
+		FDownsamplePS_PP::FParameters* PassParameters = GraphBuilder.AllocParameters<FDownsamplePS_PP::FParameters>();
 		PassParameters->Pass.InputTexture = InputTexture;
 		PassParameters->Pass.RenderTargets[0] = FRenderTargetBinding(Texture, ERenderTargetLoadAction::ENoAction);
 		PassParameters->InputSize = FVector2D(Viewport2.Size());
