@@ -12,4 +12,7 @@ class QXRENDERSERIES_API FQxRenderUtils
 {
 public:
       static TArray<FVector> GetVertexPositonsWS(UStaticMeshComponent* InMeshComponent);
+
+	static bool RayCastHit(const FVector& RayOrigin, const FVector& RayDirection,
+		float RayMarchingLength,  FHitResult& OutHitResult, AActor* InActor);
 };

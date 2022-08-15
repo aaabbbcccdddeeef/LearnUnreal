@@ -155,6 +155,7 @@ public:
 	{
 		FRHIComputeShader* shaderRHI = RHICmdList.GetBoundComputeShader();
 
+		// ERHIAccess::
 		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier,
 			EResourceTransitionPipeline::EComputeToCompute, UAV);
 		OutputSurface.SetTexture(RHICmdList, shaderRHI, InOutSurfaceValue, UAV);

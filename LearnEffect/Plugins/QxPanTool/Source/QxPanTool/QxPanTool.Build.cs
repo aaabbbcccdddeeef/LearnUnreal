@@ -42,7 +42,7 @@ public class QxPanTool : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"Slate",
-				"SlateCore",
+				"SlateCore", "QxRenderSeries", "QxRenderSeries",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

@@ -3,6 +3,8 @@
 
 #include "QxRenderUtils.h"
 
+#include "Kismet/KismetSystemLibrary.h"
+
 TArray<FVector> FQxRenderUtils::GetVertexPositonsWS(UStaticMeshComponent* InMeshComponent)
 {
 	TArray<FVector> meshVerticesWS;
@@ -34,4 +36,28 @@ TArray<FVector> FQxRenderUtils::GetVertexPositonsWS(UStaticMeshComponent* InMesh
 		meshVerticesWS.Add(vertexWS);
 	}
 	return  meshVerticesWS;
+}
+
+bool FQxRenderUtils::RayCastHit(const FVector& RayOrigin, const FVector& RayDirection, float RayMarchingLength,
+	FHitResult& OutHitResult, AActor* InActor)
+{
+	const TArray<AActor*> IgActor;
+
+	FVector StartPos = RayOrigin;
+	FVector EndPos = RayOrigin + RayDirection * RayMarchingLength;
+
+	return UKismetSystemLibrary::LineTraceSingle(
+			InActor,
+			StartPos,
+			EndPos,
+			ETraceTypeQuery::TraceTypeQuery1,
+			false,
+			IgActor,
+			EDrawDebugTrace::Type::None,
+			OutHitResult,
+			true,
+			FLinearColor::Blue,
+			FLinearColor::Red,
+			1.0f
+		);
 }

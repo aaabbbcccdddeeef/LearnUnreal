@@ -23,7 +23,6 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs);
 
-	bool RayCastHit(const FVector& RayOrigin, const FVector& RayDirection,
-		float RayMarchingLength,  FHitResult& OutHitResult, AActor* InActor);
+	
 	void OnMyTest(FString usn, FString pwd);
 };
