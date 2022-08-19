@@ -55,7 +55,7 @@ void FQxStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 #endif // WITH_EDITOR
 
 				const int32 NumBatches = GetNumMeshBatches();
-				// ÏÈ²»¿¼ÂÇvirtual texture
+				// å…ˆä¸è€ƒè™‘virtual texture
 				//PDI->ReserveMemoryForMeshes(NumBatches * (1 + NumRuntimeVirtualTextureTypes));
 				PDI->ReserveMemoryForMeshes(NumBatches);
 
@@ -67,7 +67,7 @@ void FQxStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 					{
 						PDI->DrawMesh(BaseMeshBatch, FLT_MAX);
 
-						// ÏÂÃæÊÇ×Ô¼ºÌí¼ÓµÄ
+						// ä¸‹é¢æ˜¯è‡ªå·±æ·»åŠ çš„
 						const FLODInfo&  proxyLODInfo =  LODs[LODIndex];
 						UMaterialInterface* MaterialInterface = proxyLODInfo.Sections[SectionIndex].Material;
 
@@ -83,7 +83,7 @@ void FQxStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 							BaseMeshBatch.MaterialRenderProxy =
 								qxStaticMeshComponent->SecondPassMaterial->GetRenderProxy();
 
-							// ÉèÖÃ·´×ªÌŞ³ı
+							// è®¾ç½®åè½¬å‰”é™¤
 							BaseMeshBatch.ReverseCulling = true;
 							PDI->DrawMesh(BaseMeshBatch, FLT_MAX);
 						}
@@ -101,7 +101,7 @@ void FQxStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 				bool bUseUnifiedMeshForShadow = false;
 				bool bUseUnifiedMeshForDepth = false;
 
-				// ÏÈ²»¿¼ÂÇ shadow µÄÎÊÌâ
+				// å…ˆä¸è€ƒè™‘ shadow çš„é—®é¢˜
 				/*
 				if (GUseShadowIndexBuffer && LODModel.bHasDepthOnlyIndices)
 				{
@@ -206,7 +206,7 @@ void FQxStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 							}
 
 
-							// ÏÂÃæÊÇ×Ô¼ºÌí¼ÓµÄ
+							// ä¸‹é¢æ˜¯è‡ªå·±æ·»åŠ çš„
 							{
 								const FLODInfo& proxyLODInfo = LODs[LODIndex];
 								UMaterialInterface* MaterialInterface = proxyLODInfo.Sections[SectionIndex].Material;
@@ -223,7 +223,7 @@ void FQxStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 									BaseMeshBatch.MaterialRenderProxy =
 										qxStaticMeshComponent->SecondPassMaterial->GetRenderProxy();
 
-									// ÉèÖÃ·´×ªÌŞ³ı
+									// è®¾ç½®åè½¬å‰”é™¤
 									BaseMeshBatch.ReverseCulling = true;
 									PDI->DrawMesh(BaseMeshBatch, FLT_MAX);
 								}
@@ -265,7 +265,7 @@ void UQxStaticMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMa
 				bool needAddMaterial = true;
 				for (auto& element: materialMap)
 				{
-					// Èç¹ûÒÑ¾­ÓĞÁË£¬²»ÓÃÔÙÌí¼Ó
+					// å¦‚æœå·²ç»æœ‰äº†ï¼Œä¸ç”¨å†æ·»åŠ 
 					if (element.Value == SecondPassMaterial)
 					{
 						needAddMaterial = false;

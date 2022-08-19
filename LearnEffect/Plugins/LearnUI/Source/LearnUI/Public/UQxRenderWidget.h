@@ -6,6 +6,7 @@
 #include "PreviewScene.h"
 #include "Components/Widget.h"
 #include "UObject/Object.h"
+#include "Widgets/Images/SImage.h"
 #include "UQxRenderWidget.generated.h"
 
 
@@ -48,7 +49,7 @@ private:
 
 	TSharedPtr<FRenderWidgetPreviewScene> RenderScene;
 
-	TSharedRef<SImage> MyImage;
+	TSharedPtr<SImage> MyImage;
 };
 
 
