@@ -678,3 +678,4 @@ FSceneRenderTargetItem& UQxRenderBPLib::RequestSurface(FRHICommandListImmediate&
 	return RenderTargetItem;
 }
 
+#undef LOCTEXT_NAMESPACE

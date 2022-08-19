@@ -7,8 +7,9 @@
 #include "Components/Widget.h"
 #include "UObject/Object.h"
 #include "Widgets/Images/SImage.h"
-#include "UQxRenderWidget.generated.h"
+#include "QxRenderWidget.generated.h"
 
+class UQxRenderWidget;
 
 class FRenderWidgetPreviewScene : public FPreviewScene
 {
@@ -17,17 +18,19 @@ public:
 };
 
 
-class SPriewScene : public  SImage
+class LEARNUI_API SPriewScene : public  SImage
 {
 public:
-	
+	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+
+	UQxRenderWidget* PreSceneWidgetPtr;
 };
 
 /**
  * 
  */
 UCLASS()
-class LEARNUI_API UUQxRenderWidget : public UWidget
+class LEARNUI_API UQxRenderWidget : public UWidget
 {
 	GENERATED_BODY()
 
@@ -44,12 +47,21 @@ protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 
 	virtual void SynchronizeProperties() override;
-
+private:
+public:
+	void UpdateRenderWidgetPreviewScene();
+	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 private:
 
 	TSharedPtr<FRenderWidgetPreviewScene> RenderScene;
 
 	TSharedPtr<SImage> MyImage;
+
+	UPROPERTY()
+	USceneCaptureComponent2D* CaptureCom = nullptr;
+
+	UPROPERTY()
+	UStaticMeshComponent* MeshComponent = nullptr;
 };
 
 
