@@ -1,0 +1,25 @@
+#include "/Engine/Private/VertexFactoryCommon.ush"
+#include "/Engine/Private/LocalVertexFactoryCommon.ush"
+#include "/Engine/Private/LightmapData.ush"
+
+struct FVertexFactoryInput
+{
+	uint VeretexID : SV_VertexID;
+};
+
+struct MyVertex
+{
+	float3 Position;
+};
+
+StructuredBuffer<MyVertex> MyStructedBuffer;
+
+float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	//事实上从buffer获取数据这一步应该写在GetVertexFactoryIntermediates里面
+	MyVertex Vertex = MyStructedBuffer[Input.VeretexID];
+
+	Position = Vertex.Position;
+
+	return TransformLocalToTranslatedWorld(Position);
+}

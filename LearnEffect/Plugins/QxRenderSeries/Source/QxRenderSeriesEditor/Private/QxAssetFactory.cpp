@@ -33,3 +33,4 @@ FString UQxAssetFactory::GetDefaultNewAssetName() const
 	return FString(TEXT("NewQxDataAsset"));
 }
 
+#undef LOCTEXT_NAMESPACE

@@ -21,7 +21,8 @@ public:
 	FQxDeformMeshVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
 		: FLocalVertexFactory(InFeatureLevel, "FQxDeformMeshVertexFactory")
 	{
-		// 这里的manual vertex fetch 是做什么用的 #TODO
+		// 这里的manual vertex fetch 是做什么用的
+		// manual fetch 是指不直接通过input assabler 获得vertex信息的方式
 		bSupportsManualVertexFetch = false;
 	}
 
@@ -692,7 +693,7 @@ FBoxSphereBounds UQxDeformComponent::CalcBounds(const FTransform& LocalToWorld) 
     FBoxSphereBounds Ret(LocalBounds.TransformBy(LocalToWorld));
     Ret.BoxExtent *= BoundsScale;
     Ret.SphereRadius *= BoundsScale;
-	return Super::CalcBounds(LocalToWorld);
+	return Ret;
 }
 
 void UQxDeformComponent::ClearMeshSection(int32 SectionIndex)

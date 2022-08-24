@@ -16,8 +16,13 @@ IMPLEMENT_SHADER_TYPE(, FQxCheckboardComputeShader, TEXT("/QxShaders/QxCheckboar
 void FQxShaderTestPS::SetTestColor(FRHICommandList& RHICmdList, const FLinearColor& InTestColor)
 {
 	FRHIPixelShader* ps = RHICmdList.GetBoundPixelShader();
-	 (RHICmdList, ps, TestColor, InTestColor);
-
+	 // (RHICmdList, ps, TestColor, InTestColor);
+	SetShaderValue(
+		RHICmdList,
+		ps,
+		TestColor,
+		InTestColor
+		);
 }
 
 void FQxShaderTestPS::SetTestTexture(FRHICommandList& RHICmdList, FTextureReferenceRHIRef InTextureRHI)
