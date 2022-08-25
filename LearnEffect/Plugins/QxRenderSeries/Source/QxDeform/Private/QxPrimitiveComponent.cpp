@@ -9,6 +9,8 @@
 
 namespace 
 {
+	static const uint32 VertexCount = 3;
+	
 	struct FMyVertex
 	{
 		FVector Position;
@@ -21,12 +23,20 @@ public:
 	FQxPrimitiveVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName) 
 			: FVertexFactory(InFeatureLevel)
 	{
+		bSupportsManualVertexFetch = false;
 	}
 	
 #pragma region Stanadard
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 	{
-		return  IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		if ( (Parameters.MaterialParameters.MaterialDomain == MD_Surface &&
+				Parameters.MaterialParameters.ShadingModels == MSM_Unlit)
+			|| Parameters.MaterialParameters.bIsDefaultMaterial)
+		{
+			return  true;
+		}
+		return false;
+		// return  IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	};
 
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters,
@@ -64,16 +74,23 @@ public:
 		StructuredVertexBufferSRV->Release();
 	};
 
-	uint32 Length  = 4;
+	uint32 Length  = VertexCount;
 	FStructuredBufferRHIRef StructuredVertexBuffer;
 	FUnorderedAccessViewRHIRef StructuredVertexBufferUAV;
 	FShaderResourceViewRHIRef StructuredVertexBufferSRV;
 };
 
+	//QxPrimitiveVertexFactory
 IMPLEMENT_VERTEX_FACTORY_TYPE(FQxPrimitiveVertexFactory, "/QxShaders/QxPrimitiveVertexFactory.ush",	true, true, true, true, true);
 
-struct FQxUserData : public FOneFrameResource
+class FQxUserData : public FOneFrameResource
 {
+public:
+	
+	~FQxUserData()
+	{
+		MyBuffer->Release();
+	}
 	FShaderResourceViewRHIRef MyBuffer;
 };
 	
@@ -143,7 +160,7 @@ public:
 		{
 			MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 		}
-		QxPrimitiveVertexFactory.Length = 5;
+		QxPrimitiveVertexFactory.Length = VertexCount;
 		ENQUEUE_RENDER_COMMAND(InitQxVertexFactory)(
 			[this](FRHICommandListImmediate& RHICmdList)
 			{
@@ -180,13 +197,15 @@ public:
 				FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
 				// 填充batch element
 
-				BatchElement.NumPrimitives = 5;
+				BatchElement.NumPrimitives = VertexCount;
 				BatchElement.IndexBuffer = nullptr;
 				BatchElement.BaseVertexIndex = 0;
 				BatchElement.FirstIndex = 0;
 				BatchElement.bIsInstanceRuns = false;
 				BatchElement.NumInstances = 1;
 				BatchElement.MinVertexIndex = 0;
+				// primtive uniform buffer 必须绑定
+				BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 
 				// 传buffer
 				FQxUserData* UserData = &Collector.AllocateOneFrameResource<FQxUserData>();
@@ -197,6 +216,25 @@ public:
 			}
 		}
 	};
+
+	virtual	FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
+	{
+		FPrimitiveViewRelevance ViewRelevance;
+		ViewRelevance.bDrawRelevance = IsShown(View);
+		ViewRelevance.bShadowRelevance = IsShadowCast(View);
+		ViewRelevance.bDynamicRelevance = true;
+		ViewRelevance.bRenderInMainPass = ShouldRenderInMainPass();
+		ViewRelevance.bRenderInDepthPass = ShouldRenderInDepthPass();
+		ViewRelevance.bRenderCustomDepth = ShouldRenderCustomDepth();
+		//#TODO 什么是lightingchannel
+		ViewRelevance.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
+		ViewRelevance.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
+		// MaterialRelevance.SetPrimitiveViewRelevance(ViewRelevance);
+
+		// 这句为什么在这
+		ViewRelevance.bVelocityRelevance = IsMovable() && ViewRelevance.bOpaque && ViewRelevance.bRenderInMainPass;
+		return ViewRelevance;
+	}
 private:
 	FQxPrimitiveVertexFactory QxPrimitiveVertexFactory;
 	FMaterialRenderProxy* MaterialRenderProxy;

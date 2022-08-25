@@ -1,25 +1,271 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LocalVertexFactory.usf: Local vertex factory shader code.
+=============================================================================*/
+
 #include "/Engine/Private/VertexFactoryCommon.ush"
 #include "/Engine/Private/LocalVertexFactoryCommon.ush"
 #include "/Engine/Private/LightmapData.ush"
 
-struct FVertexFactoryInput
-{
-	uint VeretexID : SV_VertexID;
-};
+#include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 
+
+//--------- Qx自定义
 struct MyVertex
 {
 	float3 Position;
 };
 
 StructuredBuffer<MyVertex> MyStructedBuffer;
+//--------- Qx自定义
 
+/**
+ * Per-vertex inputs from bound vertex buffers
+ */
+struct FVertexFactoryInput
+{
+	uint VeretexID : SV_VertexID;
+};
+
+
+/** 
+ * Per-vertex inputs from bound vertex buffers.  Used by passes with a trimmed down position-only shader.
+ */
+struct FPositionOnlyVertexFactoryInput
+{
+	uint VeretexID : SV_VertexID;
+};
+
+/** 
+ * Per-vertex inputs from bound vertex buffers.  Used by passes with a trimmed down position-and-normal-only shader.
+ */
+struct FPositionAndNormalOnlyVertexFactoryInput
+{
+	uint VeretexID : SV_VertexID;
+};
+
+/** 
+ * Caches intermediates that would otherwise have to be computed multiple times.  Avoids relying on the compiler to optimize out redundant operations.
+ */
+struct FVertexFactoryIntermediates
+{
+	half3x3 TangentToLocal;
+	half3x3 TangentToWorld;
+	half TangentToWorldSign;
+	
+	half4 Color;
+
+	uint PrimitiveId;
+
+	// float3 PreSkinPosition;
+
+	//自定义的
+	float4 PositionWS;
+	float4 PositionClipS;
+};
+
+
+/** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
+FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVSToPS Interpolants, float4 SvPosition)
+{
+	// GetMaterialPixelParameters is responsible for fully initializing the result
+	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
+
+	// half3 TangentToWorld0 = GetTangentToWorld0(Interpolants).xyz;
+	// half4 TangentToWorld2 = GetTangentToWorld2(Interpolants);
+	// Result.UnMirrored = TangentToWorld2.w;
+
+	Result.VertexColor = GetColor(Interpolants);
+
+	// Required for previewing materials that use ParticleColor
+	// Result.Particle.Color = half4(1,1,1,1);
+
+	// Result.TangentToWorld = AssembleTangentToWorld( TangentToWorld0, TangentToWorld2 );
+
+
+	Result.TwoSidedSign = 1;
+	Result.PrimitiveId = GetPrimitiveId(Interpolants);
+
+
+	return Result;
+}
+
+
+/** Converts from vertex factory specific input to a FMaterialVertexParameters, which is used by vertex shader material inputs. */
+FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, half3x3 TangentToLocal)
+{
+	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	Result.WorldPosition = WorldPosition;
+	Result.VertexColor = Intermediates.Color;
+
+	// does not handle instancing!
+	Result.TangentToWorld = Intermediates.TangentToWorld;
+
+	Result.PreSkinnedNormal = TangentToLocal[2]; //TangentBias(Input.TangentZ.xyz);
+	Result.PrimitiveId = Intermediates.PrimitiveId;
+	return Result;
+}
+
+
+float4 CalcWorldPosition(float4 Position, uint PrimitiveId)
+{
+	return TransformLocalToTranslatedWorld(Position.xyz, PrimitiveId);
+}
+
+half3x3 CalcTangentToLocal(FVertexFactoryInput Input, out float TangentSign)
+{
+	half3x3 Result;
+	Result[0] = half3(1.0,0.0,0.0);
+	Result[1] = half3(0.0,1.0,0.0);
+	Result[2] = half3(0.0,0.0,1.0);
+	TangentSign = 1.0;
+	return Result;
+}
+
+half3x3 CalcTangentToWorld(FVertexFactoryIntermediates Intermediates, half3x3 TangentToLocal)
+{
+	half3x3 Result;
+	Result[0] = half3(1.0,0.0,0.0);
+	Result[1] = half3(0.0,1.0,0.0);
+	Result[2] = half3(0.0,0.0,1.0);
+	return Result;
+}
+
+float4 GetWorldPositionByVertexID(uint VertexID)
+{
+	float4 Pos[3];
+	Pos[0] = float4(-1.0, -1.0, 0.0, 1.0) * 1000;
+	Pos[1] = float4(-1.0, +1.0, 0.0, 1.0) * 1000;
+	Pos[2] = float4(+1.0, -1.0, 0.0, 1.0) * 1000;
+
+	return Pos[VertexID];
+}
+
+FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
+{
+	FVertexFactoryIntermediates Intermediates;
+	Intermediates.PrimitiveId = 0;
+
+	Intermediates.Color = half4(1, 0, 0, 1);
+
+	float TangentSign;
+	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);
+	Intermediates.TangentToWorld = CalcTangentToWorld(Intermediates,Intermediates.TangentToLocal);
+	Intermediates.TangentToWorldSign = 1.0;
+
+	Intermediates.PositionWS = GetWorldPositionByVertexID(Input.VeretexID);
+	Intermediates.PositionClipS = Intermediates.PositionWS;
+	return Intermediates;
+}
+
+/**
+* Get the 3x3 tangent basis vectors for this vertex factory
+* this vertex factory will calculate the binormal on-the-fly
+*
+* @param Input - vertex input stream structure
+* @return 3x3 matrix
+*/
+half3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
+{
+	return Intermediates.TangentToLocal;
+}
+
+// @return translated world position
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	//事实上从buffer获取数据这一步应该写在GetVertexFactoryIntermediates里面
-	MyVertex Vertex = MyStructedBuffer[Input.VeretexID];
+	// return CalcWorldPosition(Input.Position, Intermediates.PrimitiveId);
+	return Intermediates.PositionWS;
+}
 
-	Position = Vertex.Position;
+float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
+{
+	return InWorldPosition;
+}
 
-	return TransformLocalToTranslatedWorld(Position);
+float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition)
+{
+	return TranslatedWorldPosition;
+}
+
+FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFactoryInput Input,
+	FVertexFactoryIntermediates Intermediates,
+	FMaterialVertexParameters VertexParameters)
+{
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+
+	// Initialize the whole struct to 0
+	// Really only the last two components of the packed UVs have the opportunity to be uninitialized
+	Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
+	
+	SetTangents(Interpolants, Intermediates.TangentToWorld[0], Intermediates.TangentToWorld[2], Intermediates.TangentToWorldSign);
+	SetColor(Interpolants, Intermediates.Color);
+	
+	SetPrimitiveId(Interpolants, Intermediates.PrimitiveId);
+
+	return Interpolants;
+}
+
+// /** for depth-only pass */
+float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
+{
+	// float4 Position = Input.Position;
+	//
+	// uint PrimitiveId = 0;
+	// return CalcWorldPosition(Position, PrimitiveId);
+	return GetWorldPositionByVertexID(Input.VeretexID);
+}
+//
+// /** for depth-only pass (slope depth bias) */
+// float4 VertexFactoryGetWorldPosition(FPositionAndNormalOnlyVertexFactoryInput Input)
+// {
+// 	// float4 Position = Input.Position;
+// 	//
+// 	// uint PrimitiveId = 0;
+// 	// return CalcWorldPosition(Position, PrimitiveId);
+// 	return GetWorldPositionByVertexID(Input.VeretexID);
+// }
+
+float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Input)
+{
+	// float3 Normal = Input.Normal.xyz;
+	//
+	// uint PrimitiveId = 0;
+	//
+	// return RotateLocalToWorld(Normal, PrimitiveId);
+	return float3(0.f, -1.f, 0.f);
+}
+
+
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	// return Intermediates.TangentToWorld[2];
+	return float3(0.f, -1.f, 0.f);
+}
+
+
+
+// @return previous translated world position
+float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	// float4x4 PreviousLocalToWorldTranslated = GetPrimitiveData(Intermediates.PrimitiveId).PreviousLocalToWorld;
+	// PreviousLocalToWorldTranslated[3][0] += ResolvedView.PrevPreViewTranslation.x;
+	// PreviousLocalToWorldTranslated[3][1] += ResolvedView.PrevPreViewTranslation.y;
+	// PreviousLocalToWorldTranslated[3][2] += ResolvedView.PrevPreViewTranslation.z;
+	//
+	// return mul(Input.Position, PreviousLocalToWorldTranslated);
+	return Intermediates.PositionWS;
+}
+
+
+
+float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	float4 ObjectWorldPositionAndRadius = GetPrimitiveData(GetPrimitiveId(Interpolants)).ObjectWorldPositionAndRadius;
+	return float4(ObjectWorldPositionAndRadius.xyz + ResolvedView.PreViewTranslation.xyz, ObjectWorldPositionAndRadius.w);
+}
+
+uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	return GetPrimitiveId(Interpolants);
 }
