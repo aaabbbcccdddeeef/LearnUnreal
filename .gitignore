@@ -43,3 +43,8 @@ LearnCPPAdvance/Debug/
 QxRenderSrcUE/.idea/
 QxRenderSrcUE/Content/StarterContent/
 LearnEffect/ExtraAssets/
+LearnEffect/Content/Assets/
+LearnEffect/Content/RenderProgramming/LearnSSS/
+LearnEffect/Content/RenderProgramming/ISM/
+LearnEffect/Content/LearnGamePlay/LearnLoadingScreen/
+*.mp4

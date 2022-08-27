@@ -142,27 +142,6 @@ float4 GetWorldPositionByVertexID(uint VertexID)
 	return Pos[VertexID];
 }
 
-void SetupVertex(uint VertexIndex, out float3 OutPosition)
-{
-	//因为用的是PT_TriangleList，所以6个顶点一个矩形
-	//如果担心顺序不对导致被面剔除掉，可以直接用twoside材质
-	float3 RectVertex[6] = {
-		float3(0.0, 0.0, 0.0),
-		float3(0.0, 1.0, 0.0),
-		float3(1.0, 1.0, 0.0),
-		float3(0.0, 0.0, 0.0),
-		float3(1.0, 1.0, 0.0),
-		float3(1.0, 0.0, 0.0)
-	};
-
-	MyVertex Vertex = MyStructedBuffer[VertexIndex / 6];
-
-	float3 Position = Vertex.Position;
-	Position += RectVertex[VertexIndex % 6] * 5.0;
-
-	OutPosition = Position;
-}
-
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates;
@@ -175,10 +154,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.TangentToWorld = CalcTangentToWorld(Intermediates,Intermediates.TangentToLocal);
 	Intermediates.TangentToWorldSign = 1.0;
 
-	// Intermediates.PositionWS = GetWorldPositionByVertexID(Input.VeretexID);
-	float3 PositionWorld ;
-	SetupVertex(Input.VeretexID, PositionWorld);
-	Intermediates.PositionWS = float4(PositionWorld, 1.);
+	Intermediates.PositionWS = GetWorldPositionByVertexID(Input.VeretexID);
 	Intermediates.PositionClipS = Intermediates.PositionWS;
 	return Intermediates;
 }
@@ -199,8 +175,7 @@ half3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFactor
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 	// return CalcWorldPosition(Input.Position, Intermediates.PrimitiveId);
-	// return Intermediates.PositionWS;
-	return TransformLocalToTranslatedWorld(Intermediates.PositionWS);
+	return Intermediates.PositionWS;
 }
 
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)

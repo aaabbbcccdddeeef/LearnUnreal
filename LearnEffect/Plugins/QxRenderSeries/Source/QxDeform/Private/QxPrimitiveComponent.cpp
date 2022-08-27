@@ -9,7 +9,7 @@
 
 namespace 
 {
-	static const uint32 VertexCount = 3;
+	static const uint32 PrimitiveCount = 6;
 	
 	struct FMyVertex
 	{
@@ -74,13 +74,13 @@ public:
 		StructuredVertexBufferSRV->Release();
 	};
 
-	uint32 Length  = VertexCount;
+	uint32 Length  = PrimitiveCount;
 	FStructuredBufferRHIRef StructuredVertexBuffer;
 	FUnorderedAccessViewRHIRef StructuredVertexBufferUAV;
 	FShaderResourceViewRHIRef StructuredVertexBufferSRV;
 };
 
-	//QxPrimitiveVertexFactory
+	//QxPrimitiveVertexFactory QxLocalVertexFactory
 IMPLEMENT_VERTEX_FACTORY_TYPE(FQxPrimitiveVertexFactory, "/QxShaders/QxPrimitiveVertexFactory.ush",	true, true, true, true, true);
 
 class FQxUserData : public FOneFrameResource
@@ -101,7 +101,7 @@ class FQxVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
-		QxStructedBufferParam.Bind(ParameterMap, TEXT("QxStructuredBuffer"));
+		QxStructedBufferParam.Bind(ParameterMap, TEXT("MyStructedBuffer"));
 	}
 
 	/** 
@@ -160,7 +160,7 @@ public:
 		{
 			MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 		}
-		QxPrimitiveVertexFactory.Length = VertexCount;
+		QxPrimitiveVertexFactory.Length = PrimitiveCount;
 		ENQUEUE_RENDER_COMMAND(InitQxVertexFactory)(
 			[this](FRHICommandListImmediate& RHICmdList)
 			{
@@ -186,7 +186,7 @@ public:
 			{
 				FMeshBatch& MeshBatch = Collector.AllocateMesh();
 				// 填充Mesh Batch
-				MeshBatch.Type = PT_PointList;
+				MeshBatch.Type = PT_TriangleList;
 				MeshBatch.VertexFactory = &QxPrimitiveVertexFactory;
 				MeshBatch.LCI = nullptr;
 				MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
@@ -197,7 +197,7 @@ public:
 				FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
 				// 填充batch element
 
-				BatchElement.NumPrimitives = VertexCount;
+				BatchElement.NumPrimitives = PrimitiveCount;
 				BatchElement.IndexBuffer = nullptr;
 				BatchElement.BaseVertexIndex = 0;
 				BatchElement.FirstIndex = 0;
@@ -219,25 +219,20 @@ public:
 
 	virtual	FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{
-		FPrimitiveViewRelevance ViewRelevance;
-		ViewRelevance.bDrawRelevance = IsShown(View);
-		ViewRelevance.bShadowRelevance = IsShadowCast(View);
-		ViewRelevance.bDynamicRelevance = true;
-		ViewRelevance.bRenderInMainPass = ShouldRenderInMainPass();
-		ViewRelevance.bRenderInDepthPass = ShouldRenderInDepthPass();
-		ViewRelevance.bRenderCustomDepth = ShouldRenderCustomDepth();
-		//#TODO 什么是lightingchannel
-		ViewRelevance.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
-		ViewRelevance.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
-		// MaterialRelevance.SetPrimitiveViewRelevance(ViewRelevance);
+		FPrimitiveViewRelevance Relevance;
+		Relevance.bDrawRelevance = true;
+		Relevance.bDynamicRelevance = true;
+		Relevance.bRenderInMainPass = true;
 
-		// 这句为什么在这
-		ViewRelevance.bVelocityRelevance = IsMovable() && ViewRelevance.bOpaque && ViewRelevance.bRenderInMainPass;
-		return ViewRelevance;
+		//通过材质的类型来得到ViewRelevance
+		//MaterialRelevance = MaterialInterface->GetRelevance_Concurrent(...);
+		MaterialRelevance.SetPrimitiveViewRelevance(Relevance);
+		return Relevance;
 	}
 private:
 	FQxPrimitiveVertexFactory QxPrimitiveVertexFactory;
 	FMaterialRenderProxy* MaterialRenderProxy;
+	FMaterialRelevance MaterialRelevance;
 };
 
 }
