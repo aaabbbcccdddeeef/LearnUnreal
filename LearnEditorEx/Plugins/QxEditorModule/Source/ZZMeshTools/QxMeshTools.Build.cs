@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class ZZMeshTools : ModuleRules
+public class QxMeshTools : ModuleRules
 {
-	public ZZMeshTools(ReadOnlyTargetRules Target) : base(Target)
+	public QxMeshTools(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		

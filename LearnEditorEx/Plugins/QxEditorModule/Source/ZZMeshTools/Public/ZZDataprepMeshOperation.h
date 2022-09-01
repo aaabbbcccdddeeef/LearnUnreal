@@ -10,7 +10,7 @@
  * 
  */
 UCLASS(Category = ObjectOperation, Meta = (DisplayName = "Create Proxy Mesh Each", ToolTip = "create mesh proxy for every mesh indivivisually"))
-class ZZMESHTOOLS_API UDataprepCreateProxyMeshEachOperation : public UDataprepEditingOperation
+class QXMESHTOOLS_API UDataprepCreateProxyMeshEachOperation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
 public:

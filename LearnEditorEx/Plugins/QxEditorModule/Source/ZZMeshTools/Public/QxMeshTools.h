@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-class FZZMeshToolsModule : public IModuleInterface
+class FQxMeshToolsModule : public IModuleInterface
 {
 public:
 

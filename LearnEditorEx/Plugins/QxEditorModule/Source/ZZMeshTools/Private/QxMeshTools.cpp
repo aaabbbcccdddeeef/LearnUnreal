@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ZZMeshTools.h"
+#include "QxMeshTools.h"
 
 #define LOCTEXT_NAMESPACE "FZZMeshToolsModule"
 
-void FZZMeshToolsModule::StartupModule()
+void FQxMeshToolsModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 }
 
-void FZZMeshToolsModule::ShutdownModule()
+void FQxMeshToolsModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
@@ -17,4 +17,4 @@ void FZZMeshToolsModule::ShutdownModule()
 
 #undef LOCTEXT_NAMESPACE
 	
-IMPLEMENT_MODULE(FZZMeshToolsModule, ZZMeshTools)
+IMPLEMENT_MODULE(FQxMeshToolsModule, QxMeshTools)
