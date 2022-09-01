@@ -301,7 +301,7 @@ void UQxBloomSubsystem::Render(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 	const FScreenPassTextureViewport SceneColorViewport(SceneColor);
 	const FVector2D SceneColorViewportSize = GetInputViewortSize(SceneColorViewport.Rect, SceneColorViewport.Extent);
 
-	#if WITH_EDITOR
+	#if 0//WITH_EDITOR
 	// Editor buffer scale
 	// Rescale the Scene Color to fit the whole texture and not use a sub-region.
 	// This is to simplify the render pass (shaders) that come after.
@@ -539,7 +539,7 @@ FScreenPassTexture UQxBloomSubsystem::RenderBloom(FRDGBuilder& GraphBuilder, con
 	// before as the current input (-1).
 	// We also go from end to start of array to
 	// go from small to big texture (going back up the mips)
-	for (int i = PassAmount - 2; i >= 0; --i)
+	for (int i = PassAmount - 3; i >= 0; --i)
 	{
 		FIntRect CurrentSize = MipMapUpSamples[i].ViewRect;
 
@@ -554,8 +554,8 @@ FScreenPassTexture UQxBloomSubsystem::RenderBloom(FRDGBuilder& GraphBuilder, con
 			GraphBuilder,
 			PassName,
 			View,
-			MipmapsDownSamples[i], // Current Texture
-			MipmapsDownSamples[i + 1], // Previous Texture
+			MipMapUpSamples[i], // Current Texture
+			MipMapUpSamples[i + 1], // Previous Texture
 			Radius
 			);
 
