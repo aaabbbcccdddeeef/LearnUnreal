@@ -34,12 +34,20 @@ void FQxEditorModuleModule::StartupModule()
 	PluginCommands = MakeShareable(new FUICommandList);
 	PluginCommands->MapAction(FQxTestCommands::Get().OpenPluginWindow,
 		FExecuteAction::CreateRaw(this, &FQxEditorModuleModule::PluginButtonClicked));
+	DoNothingCommands = MakeShareable(new FUICommandList);
+	DoNothingCommands->MapAction(FQxTestCommands::Get().DoNothing,
+		FExecuteAction());
+	PluginCommands->MapAction(FQxTestCommands::Get().DoNothing,
+		FExecuteAction::CreateRaw(this, &FQxEditorModuleModule::PluginButtonClicked));
+	PluginCommands->MapAction(FQxTestCommands::Get().DoNothing,
+		FExecuteAction::CreateRaw(this, &FQxEditorModuleModule::PluginButtonClicked2));
 	// PluginCommands->MapAction()
 	// ExtendMenuItem();
 	//ExtendMenuItem2();
 
 	ExtendToolBar();
 	//ExtendToolBar2();
+	ExtendToolWithNoAction();
 
 	FGlobalTabmanager::Get()->RegisterTabSpawner(QxTestToolTabName,
 		FOnSpawnTab::CreateRaw(this, &FQxEditorModuleModule::OnSpawnPluginTab));
@@ -114,9 +122,6 @@ void FQxEditorModuleModule::ExtendToolBar()
 
 		editorModule.GetToolBarExtensibilityManager()->AddExtender(ToolBarExtender);
 	}
-
-
-
 }
 
 void FQxEditorModuleModule::ExtendToolBar2()
@@ -129,6 +134,27 @@ void FQxEditorModuleModule::ExtendToolBar2()
 				FQxTestCommands::Get().OpenPluginWindow));
 			entry.SetCommandList(PluginCommands);
 		}
+	}
+}
+
+void FQxEditorModuleModule::ExtendToolWithNoAction()
+{
+	FLevelEditorModule& editorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	// 创建工具栏扩展项
+	{
+		auto addMenuLambda = [](FToolBarBuilder& InBuilder)
+		{
+			InBuilder.AddToolBarButton(FQxTestCommands::Get().DoNothing);
+		};
+		TSharedPtr<FExtender> ToolBarExtender = MakeShareable(new FExtender());
+
+		FToolBarExtensionDelegate dummyDelegate;
+		ToolBarExtender->AddToolBarExtension("Content", EExtensionHook::After,
+			PluginCommands,
+			FToolBarExtensionDelegate::CreateLambda(addMenuLambda));
+		
+		editorModule.GetToolBarExtensibilityManager()->AddExtender(ToolBarExtender);
 	}
 }
 
@@ -145,6 +171,14 @@ void FQxEditorModuleModule::ShutdownModule()
 void FQxEditorModuleModule::PluginButtonClicked()
 {
 	UE_LOG(QxToolLog, Warning, TEXT("Plugin Button Clicked"));
+
+	// 激活一个全局的tab窗口
+	FGlobalTabmanager::Get()->TryInvokeTab(QxTestToolTabName);
+}
+
+void FQxEditorModuleModule::PluginButtonClicked2()
+{
+	UE_LOG(QxToolLog, Warning, TEXT("Plugin Button Clicked2"));
 
 	// 激活一个全局的tab窗口
 	FGlobalTabmanager::Get()->TryInvokeTab(QxTestToolTabName);
