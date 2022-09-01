@@ -76,6 +76,7 @@ int32 SQxMaskWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGe
 	}
 #endif
 
+	// 	渲染背景
 	if (CurBgImage)
 	{
 		// 背景颜色部分由下面3项决定
@@ -91,6 +92,7 @@ int32 SQxMaskWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGe
 			);
 	}
 
+	// 渲染一组镂空元素
 	if (MaskMatBrush)
 	{
 		FSlateLayoutTransform LayoutTrans(AllottedGeometry.Scale, AllottedGeometry.AbsolutePosition);

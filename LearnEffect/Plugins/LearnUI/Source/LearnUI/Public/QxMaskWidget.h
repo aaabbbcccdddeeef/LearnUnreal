@@ -41,6 +41,9 @@ public:
 	void SetBgImage(UTexture2D* Tex, bool bMatchSize = false);
 
 	UFUNCTION(BlueprintCallable, Category="Appearance")
+	void SetMaskMaterial(UMaterialInterface* InMaterial);
+
+	UFUNCTION(BlueprintCallable, Category="Appearance")
 	void SetBrushTintColor(FSlateColor TintColor);
 
 	UFUNCTION(BlueprintCallable, Category="MaskClip")

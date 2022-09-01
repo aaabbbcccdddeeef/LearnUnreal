@@ -45,6 +45,20 @@ void UQxMaskWidget::SetBgImage(UTexture2D* Tex, bool bMatchSize)
 	}
 }
 
+void UQxMaskWidget::SetMaskMaterial(UMaterialInterface* InMaterial)
+{
+	if (!InMaterial)
+	{
+		return;
+	}
+
+	QxWidgetStyle.MaskMatBrush.SetResourceObject(InMaterial);
+	if (QxMask.IsValid())
+	{
+		QxMask->SetStyle(&QxWidgetStyle);
+	}
+}
+
 void UQxMaskWidget::SetBrushTintColor(FSlateColor TintColor)
 {
 	if (QxWidgetStyle.BackgroundImage.TintColor != TintColor)

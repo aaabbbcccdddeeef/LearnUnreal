@@ -35,6 +35,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=FQxVertexData)
 	float VertexZ = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=FQxVertexData)
-	float PrimitiveID = -1;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=FQxVertexData)
+	// float PrimitiveID = -1;
 };

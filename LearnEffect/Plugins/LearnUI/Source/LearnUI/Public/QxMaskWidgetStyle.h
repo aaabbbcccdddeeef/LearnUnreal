@@ -98,6 +98,7 @@ public:
 };
 
 /**
+ *  这个类的主要用途是实现FStyle的序列化，在编辑器中创建和编辑内部的WidgetStyle资源
  */
 UCLASS(hidecategories=Object, MinimalAPI)
 class UQxMaskWidgetStyle : public USlateWidgetStyleContainerBase

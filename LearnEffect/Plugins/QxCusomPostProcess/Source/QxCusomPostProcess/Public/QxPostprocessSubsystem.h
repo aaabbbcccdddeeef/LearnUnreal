@@ -16,5 +16,6 @@ UCLASS()
 class QXCUSOMPOSTPROCESS_API UQxPostprocessSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
+
 	
 };
