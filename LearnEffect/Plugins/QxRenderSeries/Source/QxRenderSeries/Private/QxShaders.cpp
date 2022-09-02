@@ -9,6 +9,8 @@
 IMPLEMENT_GLOBAL_SHADER(FQxShaderTestVS, "/QxShaders/QxTest.usf", "MainVS", SF_Vertex);
 IMPLEMENT_GLOBAL_SHADER(FQxShaderTestPS, "/QxShaders/QxTest.usf", "MainPS", SF_Pixel);
 
+IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxShaders/ScreenPass.usf", "QxScreenPassVS", SF_Vertex);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMyUniform, "FMyUniform");
 
 IMPLEMENT_SHADER_TYPE(, FQxCheckboardComputeShader, TEXT("/QxShaders/QxCheckboard.usf"), TEXT("MainCS"), SF_Compute);

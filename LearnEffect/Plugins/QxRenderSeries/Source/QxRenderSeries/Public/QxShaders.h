@@ -38,7 +38,6 @@ class FQxShaderTestVS : public FGlobalShader
 public:
 	FQxShaderTestVS()
 	{
-
 	}
 
 	FQxShaderTestVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -175,3 +174,20 @@ private:
 };
 
 #pragma endregion
+
+
+class FQxScreenPassVS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FQxScreenPassVS);
+public:
+	FQxScreenPassVS() {  }
+	FQxScreenPassVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+	};
+	
+	static bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters)
+	{
+		return true;
+	}
+};

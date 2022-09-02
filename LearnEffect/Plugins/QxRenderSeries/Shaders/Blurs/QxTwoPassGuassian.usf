@@ -1,0 +1,38 @@
+#include "../Shared.ush"
+
+uint IsHorizontal;
+
+float4 Guassian1D(float2 UV, Texture2D InTexture, SamplerState InTextureSampler, float2 InPixelSize, uint bHorizontal)
+{
+	static const float Weights[5] = {0.227027,0.1945946,0.1216216,0.054054,0.016216};
+	
+	float3 Result = Texture2DSample(InTexture, InTextureSampler, UV).rgb * Weights[0];
+	BRANCH
+	if (bHorizontal)
+	{
+		UNROLL
+		for (int i = 1; i < 5; ++i)
+		{
+			Result += Texture2DSample(InTexture, InputTextureSampler, UV + float2(InPixelSize.x * i, 0.f)).rgb * Weights[i];
+			Result += Texture2DSample(InTexture, InputTextureSampler, UV - float2(InPixelSize.x * i, 0.f)).rgb * Weights[i];
+		}
+	}
+	else
+	{
+		UNROLL
+		for (int i = 1; i < 5; ++i)
+		{
+			Result += Texture2DSample(InTexture, InputTextureSampler, UV + float2(0.f,InPixelSize.x * i)).rgb * Weights[i];
+			Result += Texture2DSample(InTexture, InputTextureSampler, UV - float2(0.f,InPixelSize.x * i)).rgb * Weights[i];
+		}
+	}
+	return float4(Result, 1.f);
+}
+
+void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0,
+	out float4 OutColor : SV_Target)
+{
+	float2 UV = UVAndScreenPos.xy;
+	float2 PixelSize = 1.f / InputViewportSize;
+	OutColor = Guassian1D(UV, InputTexture, InputTextureSampler, PixelSize, IsHorizontal);
+}

@@ -3,14 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ScreenPass.h"
 #include "UObject/Object.h"
-#include "QxPPExt.generated.h"
+#include "QxPPExtSubSystem.generated.h"
 
 /**
  * 这个类用来试验在插件中通过代码实现一些后期效果
  */
 UCLASS()
-class QXRENDERSERIES_API UQxPPExt : public UEngineSubsystem
+class QXRENDERSERIES_API UQxPPExtSubSystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
 public:
@@ -20,6 +21,11 @@ public:
 
 private:
 	void RenderQxGuassianBlur(FPostOpaqueRenderParameters& InParameters);
+
+	FScreenPassTexture RenderQxGuassianOnePass(FRDGBuilder& GraphBuilder,
+		FPostOpaqueRenderParameters& InParameters,
+		FRDGTextureRef InRDGTexture,
+		bool InIsHorizontal);
 	
 	void RegisterRenderCallbacks();
 

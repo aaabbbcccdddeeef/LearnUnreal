@@ -49,7 +49,10 @@ public class QxRenderSeries : ModuleRules
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
-		
+		PrivateIncludePaths.AddRange(new string[]
+		{
+			EngineDirectory + "/Source/Runtime/Renderer/Private"		
+		});
 		
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
