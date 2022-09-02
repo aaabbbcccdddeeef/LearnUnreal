@@ -148,9 +148,9 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	// FGraphicsPipelineState* PipelineState;
 	// PipelineState.set
 	// graphicPSOInit.set
-	
+	FTextureRHIRef TexRHIRef = InTextureRHI->GetReferencedTexture();
 	pixelShader->SetTestColor(RHICmdList, InColor);
-	pixelShader->SetTestTexture(RHICmdList, InTextureRHI);
+	pixelShader->SetTestTexture(RHICmdList, TexRHIRef);
 	pixelShader->SetMyUniform(RHICmdList, InMyUniformData);
 
 	//RHICmdList.SetStreamSource(0, )
@@ -535,6 +535,8 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 		//
 	FSceneRenderTargetItem& renderTargete =		RequestSurface(RHICmdList);
 	RHICmdList.Transition(FRHITransitionInfo(rtTextureRHI, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+		// 从根据SceneColor分配一个IRenderTarget，获得原来的SceneColor RenderTarget, 将新的设置给SceneContext,
+		// 转换原来的RenderTarget状态
 
 		
 	// FRHIRenderPassInfo rpInfo(renderTargete.TargetableTexture, ERenderTargetActions::DontLoad_Store);
@@ -565,11 +567,10 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 	FGraphicsPipelineStateInitializer graphicPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(graphicPSOInit);
 	graphicPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-	//graphicPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 	graphicPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 	graphicPSOInit.PrimitiveType = PT_TriangleList;
 
-	bool bAdditiveBlend = true;
+	bool bAdditiveBlend = false;
 	// set the state
 	if (bAdditiveBlend)
 	{
@@ -583,7 +584,6 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 	//设置顶点声明
 	graphicPSOInit.BoundShaderState.VertexDeclarationRHI = GQxTestVertexDeclaration.VertexDeclarationRHI;
 
-
 	graphicPSOInit.BoundShaderState.VertexShaderRHI = vertexShader.GetVertexShader();
 	graphicPSOInit.BoundShaderState.PixelShaderRHI = pixelShader.GetPixelShader();
 	SetGraphicsPipelineState(RHICmdList, graphicPSOInit);
@@ -594,7 +594,11 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 	
 	pixelShader->SetTestColor(RHICmdList, FLinearColor::Red);
 	// pixelShader->SetTestTexture(RHICmdList, rtTextureRHI);
-
+		FTextureRHIRef sceneColorTexRHI1  = SceneRenderTargets.GetSceneColor()->GetRenderTargetItem().ShaderResourceTexture;
+		FTextureRHIRef sceneColorTexRHI = SceneRenderTargets.GetSceneColorTexture();
+		FTextureRHIRef GBufferCRHI = SceneRenderTargets.GBufferC->GetRenderTargetItem().ShaderResourceTexture;
+		FTextureRHIRef TestRHI1 = SceneRenderTargets.GetGBufferATexture();
+		pixelShader->SetTestTexture(RHICmdList, sceneColorTexRHI);
 
 	pixelShader->SetMyUniform(RHICmdList, TestUniformData);
 
@@ -614,7 +618,11 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 	RHICmdList.EndRenderPass();
 	}
 
-
+	auto& tmp = SceneRenderTargets.GetSceneColor();
+	RHICmdList.CopyToResolveTarget(
+tmp->GetRenderTargetItem().TargetableTexture,
+tmp->GetRenderTargetItem().ShaderResourceTexture,
+				FResolveParams());
 
 	// RHICmdList.Transition(FRHITransitionInfo(RenderTargetResource->GetRenderTargetTexture(), ERHIAccess::RTV, ERHIAccess::SRVMask));
 }

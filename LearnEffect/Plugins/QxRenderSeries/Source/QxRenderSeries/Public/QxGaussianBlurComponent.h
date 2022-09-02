@@ -29,7 +29,6 @@ public:
 	                           FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
-	static void  
 private:
 
 	FDelegateHandle OnGuassianBlurHandle;
