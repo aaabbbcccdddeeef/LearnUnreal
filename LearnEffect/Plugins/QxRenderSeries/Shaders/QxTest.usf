@@ -19,6 +19,12 @@ float4 TestColor;
 Texture2D MyTexture;
 SamplerState MyTextureSampler;
 
+float Sphere2DMask(float2 UV, float2 Center)
+{
+    float radius = 0.45f;
+    return  length(UV - Center) - radius < 0; 
+}
+
 float4 MainPS(
     in float2 UV : TEXCOORD0
     ) : SV_Target0
@@ -48,5 +54,8 @@ float4 MainPS(
     // float3 test =View.WorldViewOrigin;
     // test = normalize(test);
     // outColor = outColor * float4(test, 1.f);
+    float mask = Sphere2DMask(UV, float2(0.5f, 0.5f));
+    // outColor *
+    outColor = outColor * float4(1.f, 0.f, 0.f, 1.f) * (1 - mask);
     return outColor;
 }
