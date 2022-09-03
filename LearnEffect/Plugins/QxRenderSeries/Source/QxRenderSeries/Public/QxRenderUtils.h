@@ -15,7 +15,7 @@
 class QXRENDERSERIES_API FQxRenderUtils 
 {
 public:
-      static TArray<FVector> GetVertexPositonsWS(UStaticMeshComponent* InMeshComponent);
+	static TArray<FVector> GetVertexPositonsWS(UStaticMeshComponent* InMeshComponent);
 
 	static bool RayCastHit(const FVector& RayOrigin, const FVector& RayDirection,
 		float RayMarchingLength,  FHitResult& OutHitResult, AActor* InActor);
@@ -47,24 +47,37 @@ namespace QxRenderUtils
 					Viewport.Max.X, Viewport.Max.Y, 1.f);
 				SetScreenPassPipelineState(RHICmdList, PipelineState);
 
-				// SetShaderParameters(RHICmdList,
-				// 	PixelShader,
-				// 	PixelShader.GetShader(),
-				// 	*PassParameters
-				// 	);
-				//
-				// DrawRectangle(
-				// 	RHICmdList,
-				// 	0.f, 0.f,
-				// 	Viewport.Width(), Viewport.Height(),
-				// 	Viewport.Min.X, Viewport.Min.Y,
-				// 	Viewport.Width(), Viewport.Height(),
-				// 	Viewport.Size(),
-				// 	Viewport.Size(),
-				// 	PipelineState.VertexShader,
-				// 	EDrawRectangleFlags::EDRF_Default
-				// 	);
+				SetShaderParameters(RHICmdList,
+					PixelShader,
+					PixelShader.GetPixelShader(),
+					*PassParameters
+					);
+				
+				DrawRectangle(
+					RHICmdList,
+					0.f, 0.f,
+					Viewport.Width(), Viewport.Height(),
+					Viewport.Min.X, Viewport.Min.Y,
+					Viewport.Width(), Viewport.Height(),
+					Viewport.Size(),
+					Viewport.Size(),
+					PipelineState.VertexShader,
+					EDrawRectangleFlags::EDRF_Default
+					);
 			}
 			);
 	}
+
+}
+
+// 这个namespace 的方法不是直接用的，用来作为实现的参考
+namespace QxRenderReference
+{
+
+	void GetRenderStates();
+
+#pragma region TextureOperations_RenderThread
+
+	FRDGTextureRef CreateRDGTexture(FRDGBuilder& GraphBuilder, FRDGTextureRef InputTexture);
+#pragma endregion
 }

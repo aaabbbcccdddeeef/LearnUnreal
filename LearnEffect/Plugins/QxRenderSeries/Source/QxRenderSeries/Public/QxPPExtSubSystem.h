@@ -20,12 +20,26 @@ public:
 	virtual void Deinitialize() override;
 
 private:
+
+
 	void RenderQxGuassianBlur(FPostOpaqueRenderParameters& InParameters);
 
-	FScreenPassTexture RenderQxGuassianOnePass(FRDGBuilder& GraphBuilder,
+	// 通过注册这个函数到回调, 尝试用RDG的方式实现自定义后期，最终失败
+	// 原因是这个回调执行在SceneRenderer的GraphBuilder中，通过回调参数无法拿到GraphBuilder，
+	// 而如果新创建一个GraphBuilder，一个RDG执行过程中不能够插入新的RDG，所以最终失败
+	void RenderQxGuassianBlur_RDG(FPostOpaqueRenderParameters& InParameters);
+	
+	void RenderQxGuassianOnePass_RDG(FRDGBuilder& GraphBuilder,
 		FPostOpaqueRenderParameters& InParameters,
 		FRDGTextureRef InRDGTexture,
+		FRDGTextureRef TargetTexture,
 		bool InIsHorizontal);
+
+	void RenderQxGuassianOnePass(
+	FPostOpaqueRenderParameters& InParameters,
+	FRDGTextureRef InRDGTexture,
+	FRDGTextureRef TargetTexture,
+	bool InIsHorizontal);
 	
 	void RegisterRenderCallbacks();
 

@@ -579,6 +579,7 @@ FRDGTextureRef UQxBloomSubsystem::RenderDownSample(FRDGBuilder& GraphBuilder, co
 	FRDGTextureRef TargetTexture = GraphBuilder.CreateTexture(Desc,
 		*PassName);
 
+	
 	// Render Shader
 	TShaderMapRef<FQxScreenPassVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FDownSamplePS_Bloom> PixelShader(View.ShaderMap);

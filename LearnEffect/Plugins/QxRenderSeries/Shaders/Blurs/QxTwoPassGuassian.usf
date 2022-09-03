@@ -1,5 +1,6 @@
 #include "../Shared.ush"
 
+// 先这样写，之后尝试改成条件编译的形式
 uint IsHorizontal;
 
 float4 Guassian1D(float2 UV, Texture2D InTexture, SamplerState InTextureSampler, float2 InPixelSize, uint bHorizontal)
