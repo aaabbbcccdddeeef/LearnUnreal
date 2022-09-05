@@ -35,11 +35,15 @@ private:
 		FRDGTextureRef TargetTexture,
 		bool InIsHorizontal);
 
-	void RenderQxGuassianOnePass(
-	FPostOpaqueRenderParameters& InParameters,
-	FRDGTextureRef InRDGTexture,
-	FRDGTextureRef TargetTexture,
-	bool InIsHorizontal);
+	// void RenderQxGuassianOnePass(
+	// FPostOpaqueRenderParameters& InParameters,
+	// FTextureRHIRef InRDGTexture,
+	// FRDGTextureRef TargetTexture,
+	// bool InIsHorizontal);
+
+	// 请保证Texture资源的状态在这个函数调用前, 输入的纹理在响应的状态
+	void RenderQxGuassianOnePass(FPostOpaqueRenderParameters& InParameters, FTextureRHIRef InTexture,
+		FTextureRHIRef TargetTexture, bool InIsHorizontal);
 	
 	void RegisterRenderCallbacks();
 

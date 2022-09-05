@@ -34,6 +34,7 @@ namespace
 	};
 	IMPLEMENT_GLOBAL_SHADER(FQxGuassianBlurPS_RDG, "/QxShaders/Blurs/QxTwoPassGuassian.usf", "MainPS", SF_Pixel);
 
+	
 	class FQxGuassianBlurePS : public FGlobalShader
 	{
 		// 注意：下面这种方式定义shader参数是和RDG无关的，任意shader都能用，只是RDG相关的shader变量需要用RDG资源传入
@@ -42,7 +43,7 @@ namespace
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
 			SHADER_PARAMETER_TEXTURE(Texture2D, InputTexture)
-			RENDER_TARGET_BINDING_SLOTS()
+			// RENDER_TARGET_BINDING_SLOTS()
 			SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
 			SHADER_PARAMETER(FVector2D, InputViewportSize)
 			SHADER_PARAMETER(int32, IsHorizontal)
@@ -112,6 +113,10 @@ void UQxPPExtSubSystem::Deinitialize()
 
 void UQxPPExtSubSystem::RenderQxGuassianBlur(FPostOpaqueRenderParameters& InParameters)
 {
+	// QUICK_SCOPE_CYCLE_COUNTER(STAT_ShaderPlugin_PixelShader); // Used to gather CPU profiling data for the UE4 session frontend
+	SCOPED_DRAW_EVENT(*InParameters.RHICmdList, QxQuassianBlur); // Used to profile GPU activity and add metadata to be consumed by for example RenderDoc
+
+	
 	// 准备需要作为输入和输出的纹理
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(*InParameters.RHICmdList);
 	// FRDGTextureRef IntermidateTex = GraphBuilder.CreateTexture(Desc, TEXT("Guassian Intermedietate"));
@@ -128,9 +133,30 @@ void UQxPPExtSubSystem::RenderQxGuassianBlur(FPostOpaqueRenderParameters& InPara
 	GRenderTargetPool.FindFreeElement(*InParameters.RHICmdList,
 		newTexDesc,
 		TmpRT,
-		TEXT("FFT Tmp Kernel Buffer"));
+		TEXT("Guassian Horinzontal result"));
 
 	
+	// 渲染高斯 horizontal pass
+	// RenderTarget是新分配的，input texture是scene color;
+	{
+		RenderQxGuassianOnePass(
+			InParameters,
+			SceneContext.GetSceneColorTexture(),
+			TmpRT->GetTargetableRHI(),
+			true
+			);
+	}
+
+	// 渲染高斯 vertical pass
+	// render target是scene color, input texture是上面的render target
+	{
+		RenderQxGuassianOnePass(
+			InParameters,
+			TmpRT->GetShaderResourceRHI(),
+			SceneContext.GetSceneColor()->GetRenderTargetItem().GetRHI(ERenderTargetTexture::Targetable),
+			false
+			);
+	}
 }
 
 void UQxPPExtSubSystem::RenderQxGuassianBlur_RDG(FPostOpaqueRenderParameters& InParameters)
@@ -241,6 +267,18 @@ void UQxPPExtSubSystem::RenderQxGuassianOnePass_RDG(
 void UQxPPExtSubSystem::RenderQxGuassianOnePass(FPostOpaqueRenderParameters& InParameters, FTextureRHIRef InTexture,
 	FTextureRHIRef TargetTexture, bool InIsHorizontal)
 {
+	// 验证Texture的状态
+#pragma region ValidateTextureStates
+
+#pragma endregion
+	
+	FRHICommandListImmediate& RHICmdList = *InParameters.RHICmdList;
+
+	// #TODO 这里Rendertarget action或许有更好的选择，先这么做
+	FRHIRenderPassInfo GuassianRenderPassInfo(TargetTexture,
+		ERenderTargetActions::Clear_DontStore);
+	RHICmdList.BeginRenderPass(GuassianRenderPassInfo, InIsHorizontal ? TEXT("QxGuassianBlur_Horizontal") : TEXT("QxGuassianBlur_Vertical"));
+	
 
 	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	TShaderMapRef<FQxScreenPassVS> VertexShader(GlobalShaderMap);
@@ -248,7 +286,6 @@ void UQxPPExtSubSystem::RenderQxGuassianOnePass(FPostOpaqueRenderParameters& InP
 
 	FRHIBlendState* BlendState =  TStaticBlendState<>::GetRHI();
 	const FScreenPassPipelineState PipelineState(VertexShader, PixelShader, BlendState);
-	FRHICommandListImmediate& RHICmdList = *InParameters.RHICmdList;
 	const FIntRect& Viewport = InParameters.ViewportRect;
 	RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.f,
 					Viewport.Max.X, Viewport.Max.Y, 1.f);
@@ -257,7 +294,6 @@ void UQxPPExtSubSystem::RenderQxGuassianOnePass(FPostOpaqueRenderParameters& InP
 
 	FQxGuassianBlurePS::FParameters PassParams;
 	PassParams.InputTexture = InTexture;
-	PassParams.RenderTargets[0] = FRenderTargetBinding(TargetTexture, ERenderTargetLoadAction::ENoAction);
 	PassParams.InputTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParams.InputViewportSize = InParameters.ViewportRect.Size();
 	PassParams.IsHorizontal = InIsHorizontal;
@@ -279,6 +315,8 @@ void UQxPPExtSubSystem::RenderQxGuassianOnePass(FPostOpaqueRenderParameters& InP
 		PipelineState.VertexShader,
 		EDrawRectangleFlags::EDRF_Default
 		);
+
+	RHICmdList.EndRenderPass();
 }
 
 
@@ -292,5 +330,5 @@ void UQxPPExtSubSystem::RegisterRenderCallbacks()
 
 	
 	GuassuaDelegateHandle = RendererModule->RegisterPostOpaqueRenderDelegate(
-		FPostOpaqueRenderDelegate::CreateUObject(this, &UQxPPExtSubSystem::RenderQxGuassianBlur_RDG));
+		FPostOpaqueRenderDelegate::CreateUObject(this, &UQxPPExtSubSystem::RenderQxGuassianBlur));
 }
