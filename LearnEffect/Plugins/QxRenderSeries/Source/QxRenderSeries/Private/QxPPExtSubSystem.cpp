@@ -113,6 +113,10 @@ void UQxPPExtSubSystem::Deinitialize()
 
 void UQxPPExtSubSystem::RenderQxGuassianBlur(FPostOpaqueRenderParameters& InParameters)
 {
+	if (!bRenderGuassianBlur)
+	{
+		return;	
+	}
 	// QUICK_SCOPE_CYCLE_COUNTER(STAT_ShaderPlugin_PixelShader); // Used to gather CPU profiling data for the UE4 session frontend
 	SCOPED_DRAW_EVENT(*InParameters.RHICmdList, QxQuassianBlur); // Used to profile GPU activity and add metadata to be consumed by for example RenderDoc
 

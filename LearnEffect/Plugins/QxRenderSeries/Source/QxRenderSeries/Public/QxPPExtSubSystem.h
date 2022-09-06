@@ -19,9 +19,13 @@ public:
 
 	virtual void Deinitialize() override;
 
+	UFUNCTION(BlueprintCallable, Category="QxPPSystem")
+	void SetRenderGuassianBlur(bool bInRenderGuassianBlur)
+	{
+		bRenderGuassianBlur = 	bInRenderGuassianBlur;
+	};
 private:
-
-
+	// #TODO 已知问题，在编辑中修改窗口时，会有一部分视口无法占满
 	void RenderQxGuassianBlur(FPostOpaqueRenderParameters& InParameters);
 
 	// 通过注册这个函数到回调, 尝试用RDG的方式实现自定义后期，最终失败
@@ -47,5 +51,10 @@ private:
 	
 	void RegisterRenderCallbacks();
 
+private:
 	FDelegateHandle GuassuaDelegateHandle;
+
+#pragma region Settings
+	bool bRenderGuassianBlur = false;
+#pragma endregion
 };
