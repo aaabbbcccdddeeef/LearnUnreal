@@ -56,6 +56,7 @@ public:
 	// called when level is added or removed 
 	void OnLevelsChanged() {RefreshRegions();}
 
+	void SortRegionsByPriority();
 #if WITH_EDITOR
 	void OnLevelActorListChanged() {RefreshRegions();}
 #endif
@@ -63,7 +64,7 @@ private:
 	// populate region actors
 	void RefreshRegions();
 
-	void SortRegionsByPriority();
+
 public:
 
 	/** Stores pointers to all ColorCorrectRegion Actors. */ 

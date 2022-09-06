@@ -3,6 +3,9 @@
 
 #include "QxColorCorrectRegion.h"
 
+#include "QxColorCorrectRegionDatabase.h"
+#include "QxColorCorrectSubsystem.h"
+
 
 // Sets default values
 AQxColorCorrectRegion::AQxColorCorrectRegion()
@@ -13,18 +16,94 @@ AQxColorCorrectRegion::AQxColorCorrectRegion()
 
 void AQxColorCorrectRegion::ClearUp()
 {
+	QxColorCorrectSubsystem = nullptr;
 }
 
 // Called when the game starts or when spawned
 void AQxColorCorrectRegion::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	if (const UWorld* World = GetWorld())
+	{
+		QxColorCorrectSubsystem = World->GetSubsystem<UQxColorCorrectSubsystem>();
+	}
+	if (QxColorCorrectSubsystem)
+	{
+		QxColorCorrectSubsystem->OnActorSpawned(this);
+	}
 }
 
-// Called every frame
-void AQxColorCorrectRegion::Tick(float DeltaTime)
+void AQxColorCorrectRegion::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (QxColorCorrectSubsystem)
+	{
+		QxColorCorrectSubsystem->OnActorDeleted(this);
+		QxColorCorrectSubsystem = nullptr;
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+void AQxColorCorrectRegion::BeginDestroy()
+{
+	if (QxColorCorrectSubsystem)
+	{
+		QxColorCorrectSubsystem->OnActorDeleted(this);
+		QxColorCorrectSubsystem = nullptr;
+	}
+	Super::BeginDestroy();
+}
+
+
+void AQxColorCorrectRegion::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
 {
 	Super::Tick(DeltaTime);
+
+	FTransform CurrentFrameTransform = GetTransform();
+	if (!PreviousFrameTransform.Equals(CurrentFrameTransform))
+	{
+		PreviousFrameTransform = CurrentFrameTransform;
+		GetActorBounds(true, BoxOrigin, BoxExtent);
+	}
+
+	if (const UPrimitiveComponent* FirstPrimitiveComponent = FindComponentByClass<UPrimitiveComponent>())
+	{
+		FQxColorCorrectRegionDatabase::UpdateCCRDatabaseFirstComponentId(this,
+			FirstPrimitiveComponent->ComponentId);
+	}
 }
+
+bool AQxColorCorrectRegion::ShouldTickIfViewportsOnly() const
+{
+	return true;
+}
+
+
+#ifdef WITH_EDITOR
+void AQxColorCorrectRegion::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(AQxColorCorrectRegion, Priority)
+		|| (PropertyChangedEvent.Property == nullptr))
+	{
+		if (!QxColorCorrectSubsystem)
+		{
+			if (const UWorld* World = GetWorld())
+			{
+				QxColorCorrectSubsystem =
+					World->GetSubsystem<UQxColorCorrectSubsystem>();
+			}
+		}
+
+		if (QxColorCorrectSubsystem)
+		{
+			QxColorCorrectSubsystem->SortRegionsByPriority();
+		}
+	}
+
+	GetActorBounds(true, BoxOrigin, BoxExtent);
+}
+#endif
+
 
