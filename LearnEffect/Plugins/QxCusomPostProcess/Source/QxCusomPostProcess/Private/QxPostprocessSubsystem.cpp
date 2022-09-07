@@ -4,12 +4,19 @@
 #include "QxPostprocessSubsystem.h"
 
 #include "QxBloomSceneViewExtension.h"
+#include "QxLensFlareAsset.h"
 #include "SceneViewExtension.h"
 
 void UQxPostprocessSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	QxBloomSceneViewExtension = FSceneViewExtensions::NewExtension<FQxBloomSceneViewExtension>(this);
+
+	//加载Bloom Flare setting object asset
+
+	FString AssetPath = "QxBloomFlareAsset'/QxCusomPostProcess/DA_QxBloomFlareDefault.DA_QxBloomFlareDefault'";
+	PostProcessAsset = LoadObject<UQxBloomFlareAsset>(nullptr, *AssetPath);
+	checkf(PostProcessAsset, TEXT("Does not find QxBloomFlare setting asset"));
 }
 
 void UQxPostprocessSubsystem::Deinitialize()
@@ -31,6 +38,7 @@ void UQxPostprocessSubsystem::Deinitialize()
 	
 	QxBloomSceneViewExtension.Reset();
 	QxBloomSceneViewExtension = nullptr;
-	
+
+	PostProcessAsset = nullptr;
 	Super::Deinitialize();
 }
