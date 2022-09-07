@@ -9,6 +9,7 @@
 // DECLARE_MULTICAST_DELEGATE_FourParams( FPP_LensFlares, FRDGBuilder&, const FViewInfo&, const FLensFlareInputs&, FLensFlareOutputsData& );
 // extern RENDERER_API FPP_LensFlares PP_LensFlares;
 
+class FQxBloomSceneViewExtension;
 /**
  * 
  */
@@ -16,6 +17,10 @@ UCLASS()
 class QXCUSOMPOSTPROCESS_API UQxPostprocessSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
+public:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
-	
+private:
+	TSharedPtr<FQxBloomSceneViewExtension, ESPMode::ThreadSafe> QxBloomSceneViewExtension;
 };

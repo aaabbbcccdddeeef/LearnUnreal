@@ -65,6 +65,7 @@ namespace
 			Parameters.UVViewportMin + 0.5f * Parameters.ExtentInverse;
 		Parameters.UVViewportMax =
 			Parameters.UVViewportMax - 0.5f * Parameters.ExtentInverse;
+		return Parameters;
 	}
 
 	void GetPixelSpaceBoundingRect(
@@ -264,14 +265,14 @@ void FQxColorCorrectSceneViewExtension::PrePostProcessPass_RenderThread(FRDGBuil
 			}
 			else
 			{
-				GetPixelSpaceBoundingRect(
-					View,
-					BoxCenter,
-					Viewport,
-					MaxDepth,
-					MinDepth
-					);
-				
+				// GetPixelSpaceBoundingRect(
+				// 	View,
+				// 	BoxCenter,
+				// 	Viewport,
+				// 	MaxDepth,
+				// 	MinDepth
+				// 	);
+				//
 			}
 		}
 	}
