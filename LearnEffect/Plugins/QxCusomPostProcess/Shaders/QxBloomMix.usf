@@ -1,10 +1,20 @@
 #include "Shared.ush"
 
-// int3 MixPassFlags;
-//
-// // Bloom
-// Texture2D BloomTexture;
-// float BloomIntensity;
+int3 MixPassFlags;
+
+// Bloom
+Texture2D BloomTexture;
+float BloomIntensity;
+
+// Glare
+Texture2D GlareTexture;
+float2 GlarePixelSize;
+
+// Flare
+float FlareInstensity;
+float4 FlareTint;
+Texture2D FlareGradientTexture;
+SamplerState FlareGradientTextureSampler;
 
 
 
@@ -17,17 +27,50 @@ void MixPS(
 	OutColor = float4(0, 0, 0, 0);
 
 	// Bloom
-	// if (MixPassFlags.x)
-	// {
-	// 	OutColor.rgb += Texture2DSample(BloomTexture, InputTextureSampler, UV).rgb * BloomIntensity;
-	// }
-	//
-	// float3 Flares = float3(0, 0, 0);
+	if (MixPassFlags.x)
+	{
+		OutColor.rgb += Texture2DSample(BloomTexture, InputTextureSampler, UV).rgb * BloomIntensity;
+	}
+	
+	float3 Flares = float3(0, 0, 0);
 	
 	// Flares
-	
+	if (MixPassFlags.y)
+	{
+		Flares = Texture2DSample(InputTexture, InputTextureSampler, UV).rgb;
+	}
 	
 	// Glare
+	if (MixPassFlags.z)
+	{
+		const float2 Coords[4] = {
+			float2(-1.0f, 1.0f),
+			float2( 1.0f, 1.0f),
+			float2(-1.0f,-1.0f),
+			float2( 1.0f,-1.0f)
+		};
 
-	OutColor = float4(0, 0, 0, 1);
+		float3 GlareColor = float3(0, 0, 0);
+
+		UNROLL
+		for (int i = 0; i < 4; ++i)
+		{
+			float2 OffsetUV = UV + GlarePixelSize * Coords[i];
+			GlareColor.rgb += 0.25f * Texture2DSample(GlareTexture, InputTextureSampler, OffsetUV).rgb;
+		}
+		Flares += GlareColor;
+	}
+
+	// Color Gradient
+	const float2 Center = float2(0.5f, 0.5f);
+	float2 GradientUV = float2(
+		saturate( distance(UV, Center) * 2.f),
+		0.f
+		);
+	float3 Gradient = Texture2DSample(FlareGradientTexture, FlareGradientTextureSampler, GradientUV).rgb;
+
+	Flares *= Gradient * FlareTint.rgb * FlareInstensity;
+	
+	OutColor.rgb += Flares;
+	OutColor.a = 1;
 }

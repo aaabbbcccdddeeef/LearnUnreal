@@ -75,7 +75,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	// UE_LOG(LogTemp, Warning, TEXT("tEST Qxbloom"));
 	//
 	const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(View);
-	FScreenPassTexture Result = RenderBloomFlare(
+	FScreenPassTexture BloomTexture = RenderBloomFlare(
 		GraphBuilder,
 		ViewInfo,
 		InOutInputs,
@@ -84,10 +84,11 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	DownSampleTextures.Empty();
 	UpSampleTextures.Empty();
 
-
+	
+	
 	// #TODO
 	// My Tone Mapping
-	return Result;
+	return BloomTexture;
 }
 
 

@@ -48,6 +48,12 @@ private:
 		const FPostProcessMaterialInputs& PostProcessMaterialInput,
 		const UQxBloomFlareAsset* QxBloomSettingAsset);
 
+	FScreenPassTexture RenderFlare(FRDGBuilder& GraphBuilder,
+		const FViewInfo& ViewInfo,
+		const FPostProcessMaterialInputs& PostProcessMaterialInput,
+		FScreenPassTexture InputTexture
+		);
+
 	FScreenPassTexture RenderBloom(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& ViewInfo,
