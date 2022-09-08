@@ -26,8 +26,33 @@ TAutoConsoleVariable<float> CVarQxBloomRadius(
 	);
 namespace
 {
+	class FQxMixPass : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FQxMixPass);
+		SHADER_USE_PARAMETER_STRUCT(FQxMixPass, FGlobalShader);
 
-
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxBloomFlarePassParameters, Pass)
+			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BloomTexture)
+			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GlareTexture)
+			SHADER_PARAMETER_TEXTURE(Texture2D, FlareGradientTexture)
+			SHADER_PARAMETER_SAMPLER(SamplerState, FlareGradientTextureSampler)
+			SHADER_PARAMETER(FVector4, FlareTint)
+			SHADER_PARAMETER(FVector2D, InputViewportSize)
+			SHADER_PARAMETER(FVector2D, BufferSize)
+			SHADER_PARAMETER(FVector2D, GlarePixelSize)
+			SHADER_PARAMETER(FIntVector, MixPassFlags) //bloom/flare/glare是否开启的flag
+			SHADER_PARAMETER(float, BloomIntensity)
+			SHADER_PARAMETER(float, FlareIntensity)
+		END_SHADER_PARAMETER_STRUCT()
+		
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FQxMixPass, "/QxPPShaders/QxBloomMix.usf", "MixPS", SF_Pixel);
 }
 
 IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/QxScreenPass.usf", "QxScreenPassVS", SF_Vertex);
@@ -40,7 +65,10 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 	RDG_GPU_STAT_SCOPE(GraphBuilder, PostProcessQx);
 	RDG_EVENT_SCOPE(GraphBuilder, "PostProcessQx");
 
-	int32 DownSamplePassNum = QxPostprocessSubsystem->GetBloomSettingAsset()->DownSampleCount;
+	const UQxBloomFlareAsset* const BloomSettingAsset = QxPostprocessSubsystem->GetBloomSettingAsset();
+	check(BloomSettingAsset);
+
+	int32 DownSamplePassNum = BloomSettingAsset->DownSampleCount;
 	if (CVarQxBloomPassAmount.GetValueOnRenderThread())
 	{
 		DownSamplePassNum = CVarQxBloomPassAmount.GetValueOnRenderThread();
@@ -80,11 +108,111 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 
 	// Composite Bloom, Flare and Glare together
 
-	FScreenPassTexture MixTexture;
+	
+	FRDGTextureRef MixTexture;
+	FIntRect MixViewport(
+		0, 0,
+		ViewInfo.ViewRect.Width() / 2,
+		ViewInfo.ViewRect.Height() / 2
+		);
+	// Render Mix Pass
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "MixPass");
 
+		const FString PassName("Mix");
+
+		float BloomIntensity = BloomSettingAsset->BloomIntensity;
+
+		// If the internal blending for the upsample pass is additive
+		// (aka not using the lerp) then uncomment this line to
+		// normalize the final bloom intensity.
+		//  BloomIntensity = 1.0f / float( FMath::Max( PassAmount, 1 ) );
+
+		FVector2D BufferSize(
+			float(MixViewport.Width()),
+			float(MixViewport.Height())
+			);
+
+		FIntVector BufferValidity(
+			(BloomTexture.IsValid()),
+			(FlareTexture.IsValid()),
+			(GlareTexture.IsValid())
+			);
+
+		// Create Texture
+		FRDGTextureDesc Desc = SceneColorTexture.Texture->Desc;
+		Desc.Reset();
+		Desc.Extent = MixViewport.Size();
+		Desc.Format = PF_FloatRGB;
+		Desc.ClearValue = FClearValueBinding(FLinearColor::Black);
+		MixTexture = GraphBuilder.CreateTexture(Desc, *PassName);
+
+		// Render shader
+		TShaderMapRef<FQxScreenPassVS> VertexShader(ViewInfo.ShaderMap);
+		TShaderMapRef<FQxMixPass> PixelShader(ViewInfo.ShaderMap);
+
+		FQxMixPass::FParameters* PassParams = GraphBuilder.AllocParameters<FQxMixPass::FParameters>();
+		// 设置 shader 参数
+		{
+			PassParams->Pass.RenderTargets[0] = FRenderTargetBinding(MixTexture, ERenderTargetLoadAction::ENoAction);
+			PassParams->Pass.InputTextureSampler = BilinearClampSampler;
+			PassParams->MixPassFlags = BufferValidity;
+			// Bloom
+			PassParams->BloomTexture = BlackDummy.Texture;
+			PassParams->BloomIntensity = BloomIntensity;
+
+			// Glare
+			PassParams->GlareTexture = BlackDummy.Texture;
+			PassParams->GlarePixelSize = FVector2D(1.f, 1.f) / BufferSize;
+
+			// Flare
+			PassParams->Pass.InputTexture  = BlackDummy.Texture;
+			PassParams->FlareIntensity = BloomSettingAsset->FlareIntensity;
+			PassParams->FlareTint = FVector4(BloomSettingAsset->FlareTint);
+			PassParams->FlareGradientTexture = GWhiteTexture->TextureRHI;
+			PassParams->FlareGradientTextureSampler = BilinearClampSampler;
+
+			if (BloomSettingAsset->FlareGradient)
+			{
+				const FTextureRHIRef TextureRHI = BloomSettingAsset->FlareGradient->Resource->TextureRHI;
+				PassParams->FlareGradientTexture = TextureRHI;
+			}
+
+			if (BufferValidity.X)
+			{
+				PassParams->BloomTexture = BloomTexture.Texture;
+			}
+
+			if (BufferValidity.Y)
+			{
+				PassParams->Pass.InputTexture = FlareTexture.Texture;
+			}
+
+			if (BufferValidity.Z)
+			{
+				PassParams->GlareTexture = GlareTexture.Texture;
+			}
+		}
+		check(PassParams);
+		ClearUnusedGraphResources(PixelShader, PassParams);
+		
+		// Render
+		DrawShaderpass(
+			GraphBuilder,
+			PassName,
+			PassParams,
+			VertexShader,
+			PixelShader,
+			ClearBlendState,
+			MixViewport
+			);
+	}
+	
 	// #TODO 先测试bloom
-	MixTexture = BloomTexture;
-	return MixTexture;
+	FScreenPassTexture OutTexture;
+	OutTexture.Texture = MixTexture;
+	OutTexture.ViewRect = MixViewport;
+	return OutTexture;
 }
 
 FScreenPassTexture FQxBloomSceneViewExtension::RenderBloom(

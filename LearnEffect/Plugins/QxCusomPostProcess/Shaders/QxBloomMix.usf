@@ -1,0 +1,33 @@
+#include "Shared.ush"
+
+// int3 MixPassFlags;
+//
+// // Bloom
+// Texture2D BloomTexture;
+// float BloomIntensity;
+
+
+
+void MixPS(
+	in noperspective float4 UVAndScreenPos : TEXCOORD0,
+	out float4 OutColor : SV_Target
+	)
+{
+	float2 UV = UVAndScreenPos.xy;
+	OutColor = float4(0, 0, 0, 0);
+
+	// Bloom
+	// if (MixPassFlags.x)
+	// {
+	// 	OutColor.rgb += Texture2DSample(BloomTexture, InputTextureSampler, UV).rgb * BloomIntensity;
+	// }
+	//
+	// float3 Flares = float3(0, 0, 0);
+	
+	// Flares
+	
+	
+	// Glare
+
+	OutColor = float4(0, 0, 0, 1);
+}

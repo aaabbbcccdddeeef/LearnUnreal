@@ -1,0 +1,97 @@
+#ifndef __QxRayMarchers
+#define __QxRayMarchers
+
+#include "QxRayMarchUtils.ush"
+#include "/Engine/Generated/UniformBuffers/View.ush"
+#include "/Engine/Generated/UniformBuffers/InstancedView.ush"
+
+// 这个函数的目的是计算相机ray和volume的entry intersection point 和穿过volume的长度
+float4 RayMarchCubeSetup(
+	FMaterialPixelParameters Parameters,
+	float PlaneAlignment,
+	float MaxSteps
+	)
+{
+	float scale = length(TransformLocalVectorToWorld(Parameters, float3(1, 0, 0).xyz));
+	float localSceneDepth = CalcSceneDepth(ScreenAlignedPosition(GetScreenPosition(Parameters)));
+
+	float3 cameraFwd = mul(float3(0, 0, 1), (float3x3)ResolvedView.ViewToTranslatedWorld);
+	localSceneDepth /= (GetPrimitiveData(Parameters.PrimitiveId).LocalObjectBoundsMax.x * 2 * scale);
+	localSceneDepth /= abs(dot(cameraFwd, Parameters.CameraVector));
+	
+	float3 cameraPosLS = mul(float4(ResolvedView.WorldCameraOrigin, 1.f), GetPrimitiveData(Parameters.PrimitiveId).WorldToLocal).xyz;
+	float3 cameraVecLS = normalize(mul(Parameters.CameraVector, (float3x3)GetPrimitiveData(Parameters.PrimitiveId).WorldToLocal));
+
+	// make camera position 0-1
+	float3  cameraPosLS_Norm = (cameraPosLS / GetPrimitiveData(Parameters.PrimitiveId).LocalObjectBoundsMax.x) * 0.5 + 0.5;
+	
+	float3 invRayDir = 1 / cameraVecLS;
+
+	float3 firstInterSections = (0 - cameraPosLS_Norm) * invRayDir;
+	float3 secondInterSections = (1 - cameraPosLS_Norm) * invRayDir;
+	float3 closet = min(firstInterSections, secondInterSections);
+	float3 furthest = max(firstInterSections, secondInterSections);
+
+	float t0 = max(closet.x, max(closet.y, closet.z));
+	float t1 = min(furthest.x, min(furthest.y, furthest.z));
+
+	float planeOffset = 1 - frac((t0 - length(cameraPosLS_Norm - 0.5)) * MaxSteps);
+
+	t0 += (planeOffset / MaxSteps) * PlaneAlignment;
+	t1 = min(1, localSceneDepth);
+	t0 = max(0, t0);
+
+	float boxThickness = max(0, t1 - t0);
+	float3 entryPos = cameraPosLS + (max(0, t0) * cameraVecLS);
+	
+	return float4(entryPos, boxThickness);
+}
+
+float RayMarchGetDistance(
+	Texture3D InVolumeTexture,
+	SamplerState InVolumeTextureSampler,
+	float InMaxSteps,
+	float3 LocalSpaceUVW,
+	float3 CameraVectorLS)
+{
+	float StepSize = 1.f / InMaxSteps;
+	float3 CurPos = LocalSpaceUVW;
+	float3 RayDir = -CameraVectorLS; // 这里传入的是像素到相机的方向，取反来得到相机到像素的方向作为rayDir
+
+	float sumDistance = 0;
+	for (int i = 0; i < InMaxSteps; ++i)
+	{
+		float curSample = InVolumeTexture.Sample(InVolumeTextureSampler, saturate(CurPos)).r;
+		sumDistance += curSample * StepSize;
+		CurPos += RayDir * StepSize;
+	}
+	return sumDistance;
+}
+
+// 这里使用的InVolumeTexture是类似于flipBook的多个slice 组成一个的texture
+float RayMarchGetDistance_2D(
+	Texture2D InVolumeTexture,
+	SamplerState InVolumeTextureSampler,
+	float InMaxSteps,
+	float XYFrames,
+	float3 LocalSpaceUVW,
+	float3 CameraVectorLS)
+{
+	float numFrames = XYFrames * XYFrames;
+	float StepSize = 1.f / InMaxSteps;
+	float3 CurPos = LocalSpaceUVW;
+	// CameraVectorLS = normalize( mul(CameraVectorLS, Primitive.WorldToLocal) );
+	float3 RayDir = -CameraVectorLS; // 这里传入的是像素到相机的方向，取反来得到相机到像素的方向作为rayDir
+	float2 xySize = float2(XYFrames, XYFrames);
+	
+	float sumDistance = 0;
+	for (int i = 0; i < InMaxSteps; ++i)
+	{
+		float curSample = PseudoVolumeTexture(InVolumeTexture, InVolumeTextureSampler, saturate(CurPos), xySize, numFrames).r;
+		sumDistance += curSample * StepSize;
+		CurPos += RayDir * StepSize;
+	}
+	return sumDistance;
+}
+
+#endif

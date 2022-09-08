@@ -34,15 +34,18 @@ public:
 	// 用来控制bloom过程的downsample 次数
 	UPROPERTY(EditAnywhere, Category="Bloom", meta=(UIMin = "0.0", UIMax = "10"))
 	int32 DownSampleCount = 8;
+
+	UPROPERTY(EditAnywhere, Category="Bloom", meta=(UIMin="0.0", UIMax="1.0"))
+	float BloomIntensity = 1.0f;
 	
 	UPROPERTY(EditAnywhere, Category="General", meta=(UIMin="0.0", UIMax="10.0"))
-	float Intensity = 1.0f;
+	float FlareIntensity = 1.0f;
 
 	UPROPERTY(EditAnywhere, Category="General")
-	FLinearColor Tint = FLinearColor(1.0f, 0.85f, 0.7f, 1.0f);
+	FLinearColor FlareTint = FLinearColor(1.0f, 0.85f, 0.7f, 1.0f);
 
 	UPROPERTY(EditAnywhere, Category="General")
-	UTexture2D* Gradient = nullptr;
+	UTexture2D* FlareGradient = nullptr;
 
 	UPROPERTY(EditAnywhere, Category="Threshold", meta=(UIMin="0.0", UIMax="10.0"))
 	float ThresholdLevel = 1.0f;

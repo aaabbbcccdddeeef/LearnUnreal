@@ -56,7 +56,7 @@ void FQxBloomSceneViewExtension::SubscribeToPostProcessingPass(EPostProcessingPa
 {
 	// FSceneViewExtensionBase::SubscribeToPostProcessingPass(Pass, InOutPassCallbacks, bIsPassEnabled);
 	// 当前来看插入到这个pass之后是最合适的
-	if (PassId == EPostProcessingPass::MotionBlur)
+	if (PassId == EPostProcessingPass::MotionBlur && false)
 	{
 		InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(
 			this, &FQxBloomSceneViewExtension::RenderQxBloom_RenderThread));
