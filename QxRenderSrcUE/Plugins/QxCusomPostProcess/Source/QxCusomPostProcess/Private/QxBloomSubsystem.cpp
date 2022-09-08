@@ -368,7 +368,6 @@ void UQxBloomSubsystem::Render(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 		View.ViewRect.Width() / 2,
 		View.ViewRect.Height() / 2
 		);
-
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "MixPass");
 

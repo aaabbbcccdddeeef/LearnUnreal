@@ -51,10 +51,19 @@ private:
 	
 	void RegisterRenderCallbacks();
 
+public:
+#pragma region Settings
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category="QxGuassianBlur")
+	bool bRenderGuassianBlur = false;
+
+
+	// 这里的上限应该和QxGuassianShader中的上限一致
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category="QxGuassianBlur", meta=(UIMin = "0", UIMax = "5"))
+	int32 GuassianSampleCount = 5;
+#pragma endregion
+	
 private:
 	FDelegateHandle GuassuaDelegateHandle;
 
-#pragma region Settings
-	bool bRenderGuassianBlur = false;
-#pragma endregion
+
 };

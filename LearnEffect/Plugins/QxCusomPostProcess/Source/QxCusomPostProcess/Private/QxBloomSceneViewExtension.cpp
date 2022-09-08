@@ -80,6 +80,13 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 		ViewInfo,
 		InOutInputs,
 		QxPostprocessSubsystem->GetBloomSettingAsset());
+
+	DownSampleTextures.Empty();
+	UpSampleTextures.Empty();
+
+
+	// #TODO
+	// My Tone Mapping
 	return Result;
 }
 

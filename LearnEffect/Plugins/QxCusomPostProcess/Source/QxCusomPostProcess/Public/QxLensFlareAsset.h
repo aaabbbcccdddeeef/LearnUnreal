@@ -27,6 +27,14 @@ class QXCUSOMPOSTPROCESS_API UQxBloomFlareAsset : public UDataAsset
 {
 	GENERATED_BODY()
 public:
+	// 这个主要用来控制bloom upsample combine 过程中，低分辨率和高分辨率的混合插值的参数
+	UPROPERTY(EditAnywhere, Category="Bloom", meta=(UIMin = "0.0", UIMax = "1.0"))
+	float BloomRadius = 0.3f;
+
+	// 用来控制bloom过程的downsample 次数
+	UPROPERTY(EditAnywhere, Category="Bloom", meta=(UIMin = "0.0", UIMax = "10"))
+	int32 DownSampleCount = 8;
+	
 	UPROPERTY(EditAnywhere, Category="General", meta=(UIMin="0.0", UIMax="10.0"))
 	float Intensity = 1.0f;
 

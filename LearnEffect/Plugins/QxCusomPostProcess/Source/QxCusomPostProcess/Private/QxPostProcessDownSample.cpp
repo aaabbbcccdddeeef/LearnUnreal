@@ -21,7 +21,7 @@ namespace
 			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}		
 	};
-	IMPLEMENT_GLOBAL_SHADER(FQxDownSamplePS, "/QxPPShaders/Bloom/QxDownSample.usf", "DownSamplePS", SF_Pixel);
+	IMPLEMENT_GLOBAL_SHADER(FQxDownSamplePS, "/QxPPShaders/QxDownSample.usf", "DownSamplePS", SF_Pixel);
 
 	// Bloom upsample + combine
 	class FQxUpsampleCombinePS : public FGlobalShader
@@ -42,7 +42,7 @@ namespace
 			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
-	IMPLEMENT_GLOBAL_SHADER(FQxUpsampleCombinePS, "/QxPPShaders/QXUpsampleCombine.usf", "UpsampleCombinePS", SF_Pixel);
+	IMPLEMENT_GLOBAL_SHADER(FQxUpsampleCombinePS, "/QxPPShaders/QxUpsampleCombine.usf", "UpsampleCombinePS", SF_Pixel);
 }
 
 FRDGTextureRef FQxBloomSceneViewExtension::RenderDownSample(
@@ -97,6 +97,10 @@ FRDGTextureRef FQxBloomSceneViewExtension::RenderUpsampleCombine(FRDGBuilder& Gr
 	Desc.Extent = InputTexture.ViewRect.Size();
 	Desc.Format = PF_FloatRGB;
 	Desc.ClearValue = FClearValueBinding(FLinearColor::Black);
+	if (!Desc.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Test"));
+	}
 	FRDGTextureRef TargetTexture = GraphBuilder.CreateTexture(Desc, *PassName);
 
 	// setup shader params

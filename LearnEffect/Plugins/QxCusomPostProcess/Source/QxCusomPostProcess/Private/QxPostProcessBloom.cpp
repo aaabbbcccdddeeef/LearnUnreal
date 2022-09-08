@@ -3,6 +3,8 @@
 #include <stdexcept>
 
 #include "QxBloomSceneViewExtension.h"
+#include "QxLensFlareAsset.h"
+#include "QxPostprocessSubsystem.h"
 #include "Interfaces/IPluginManager.h"
 
 #include "RenderGraph.h"
@@ -12,15 +14,15 @@
 DECLARE_GPU_STAT(PostProcessQx);
 TAutoConsoleVariable<int32> CVarQxBloomPassAmount(
 TEXT("r.QxRender.BloomPassAmount"),
-8,
-TEXT("Number of passes to render bloom"),
+0,
+TEXT("Number of passes to render bloom, override bloom asset setting"),
 ECVF_RenderThreadSafe
 );
 
 TAutoConsoleVariable<float> CVarQxBloomRadius(
 	TEXT("r.QxRender.BloomRadius"),
-	0.85,
-	TEXT("Size/Scale of the Bloom")
+	0.f,
+	TEXT("Size/Scale of the Bloom, override bloom asset setting if not 0")
 	);
 namespace
 {
@@ -35,12 +37,14 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 {
 
 	// const FViewInfo& ViewInfo = dynamic_cast<FViewInfo>(View);
-		
-		
 	RDG_GPU_STAT_SCOPE(GraphBuilder, PostProcessQx);
 	RDG_EVENT_SCOPE(GraphBuilder, "PostProcessQx");
 
-	int32 DownSamplePassNum = CVarQxBloomPassAmount.GetValueOnRenderThread();
+	int32 DownSamplePassNum = QxPostprocessSubsystem->GetBloomSettingAsset()->DownSampleCount;
+	if (CVarQxBloomPassAmount.GetValueOnRenderThread())
+	{
+		DownSamplePassNum = CVarQxBloomPassAmount.GetValueOnRenderThread();
+	}
 
 	const FScreenPassTexture BlackDummy
 	{
@@ -94,7 +98,8 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloom(
 	/// PassAmount <= 1 后面的upsample 等逻辑不适用
 	if (PassAmount <= 1)
 	{
-		return FScreenPassTexture();
+		// return FScreenPassTexture();
+		return SceneColorTexture;
 	}
 	RDG_EVENT_SCOPE(GraphBuilder, "BloomPass");
 
@@ -138,7 +143,11 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloom(
 #pragma endregion
 
 #pragma region UpSample
-	float Radius = CVarQxBloomRadius.GetValueOnRenderThread();
+	float Radius = QxPostprocessSubsystem->GetBloomSettingAsset()->BloomRadius;
+	if (CVarQxBloomRadius.GetValueOnRenderThread() != 0)
+	{
+		Radius = CVarQxBloomRadius.GetValueOnRenderThread();
+	}
 
 	// downsamples 的结果拷贝到upsamples中以备后续访问
 	UpSampleTextures.Append(DownSampleTextures);

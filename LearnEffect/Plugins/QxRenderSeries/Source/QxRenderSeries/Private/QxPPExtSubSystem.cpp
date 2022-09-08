@@ -41,6 +41,20 @@ namespace
 		DECLARE_GLOBAL_SHADER(FQxGuassianBlurePS);
 		SHADER_USE_PARAMETER_STRUCT(FQxGuassianBlurePS, FGlobalShader);
 
+		// 下面这部分条件编译宏的定义参考FAmbientOcclusionPS
+		#pragma region PermutationDefine
+		class FUseHorizontal       : SHADER_PERMUTATION_BOOL("USE_HORIZONTAL");
+		class FGuassianSampleCount     : SHADER_PERMUTATION_INT("SAMPLE_COUNT", 6); 
+
+		using FPermutationDomain = TShaderPermutationDomain<FUseHorizontal, FGuassianSampleCount>;
+
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+		{
+			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 0);
+		}
+		#pragma endregion
+		
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
 			SHADER_PARAMETER_TEXTURE(Texture2D, InputTexture)
 			// RENDER_TARGET_BINDING_SLOTS()
@@ -48,6 +62,9 @@ namespace
 			SHADER_PARAMETER(FVector2D, InputViewportSize)
 			SHADER_PARAMETER(int32, IsHorizontal)
 		END_SHADER_PARAMETER_STRUCT()
+
+
+
 	public:
 		
 		static bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters)
@@ -55,7 +72,9 @@ namespace
 			return true;
 		}
 	};
-	IMPLEMENT_GLOBAL_SHADER(FQxGuassianBlurePS, "/QxShaders/Blurs/QxTwoPassGuassian.usf", "MainPS", SF_Pixel);
+	IMPLEMENT_GLOBAL_SHADER(FQxGuassianBlurePS, "/QxShaders/Blurs/QxTwoPassGuassianExt.usf", "MainPS", SF_Pixel);
+
+	
 	// class FQxGuassianBlurePS : public FGlobalShader
 	// {
 	// 	DECLARE_GLOBAL_SHADER(FQxGuassianBlurePS);
@@ -280,13 +299,17 @@ void UQxPPExtSubSystem::RenderQxGuassianOnePass(FPostOpaqueRenderParameters& InP
 
 	// #TODO 这里Rendertarget action或许有更好的选择，先这么做
 	FRHIRenderPassInfo GuassianRenderPassInfo(TargetTexture,
-		ERenderTargetActions::Clear_DontStore);
+		ERenderTargetActions::DontLoad_DontStore);
 	RHICmdList.BeginRenderPass(GuassianRenderPassInfo, InIsHorizontal ? TEXT("QxGuassianBlur_Horizontal") : TEXT("QxGuassianBlur_Vertical"));
-	
+
+	FQxGuassianBlurePS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FQxGuassianBlurePS::FUseHorizontal>(InIsHorizontal);
+	GuassianSampleCount = FMath::Min(FQxGuassianBlurePS::FGuassianSampleCount::MaxValue, GuassianSampleCount);
+	PermutationVector.Set<FQxGuassianBlurePS::FGuassianSampleCount>(GuassianSampleCount);
 
 	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	TShaderMapRef<FQxScreenPassVS> VertexShader(GlobalShaderMap);
-	TShaderMapRef<FQxGuassianBlurePS> PixelShader(GlobalShaderMap);
+	TShaderMapRef<FQxGuassianBlurePS> PixelShader(GlobalShaderMap, PermutationVector);
 
 	FRHIBlendState* BlendState =  TStaticBlendState<>::GetRHI();
 	const FScreenPassPipelineState PipelineState(VertexShader, PixelShader, BlendState);
