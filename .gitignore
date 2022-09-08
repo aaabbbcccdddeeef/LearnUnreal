@@ -48,3 +48,5 @@ LearnEffect/Content/RenderProgramming/LearnSSS/
 LearnEffect/Content/RenderProgramming/ISM/
 LearnEffect/Content/LearnGamePlay/LearnLoadingScreen/
 *.mp4
+LearnEditorEx/Content/TestGame/
+LearnEffect/Content/RenderProgramming/LearnEditor/EBP/LearnDataLoad/DataTables/
