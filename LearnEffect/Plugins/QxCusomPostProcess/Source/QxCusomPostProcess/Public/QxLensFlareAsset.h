@@ -23,7 +23,7 @@ struct FLensFlareGhostSettings
  * 
  */
 UCLASS()
-class QXCUSOMPOSTPROCESS_API UQxLensFlareAsset : public UDataAsset
+class QXCUSOMPOSTPROCESS_API UQxBloomFlareAsset : public UDataAsset
 {
 	GENERATED_BODY()
 public:
