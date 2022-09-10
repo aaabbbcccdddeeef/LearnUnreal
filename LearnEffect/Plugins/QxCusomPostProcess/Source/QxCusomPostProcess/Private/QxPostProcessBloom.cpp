@@ -322,7 +322,8 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBui
 {
 	if (!QxPostprocessSubsystem)
 	{
-		return;
+		return FScreenPassTexture();
 	}
 	// check(InputTexture)
+	return FScreenPassTexture();
 }
