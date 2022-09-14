@@ -5,6 +5,7 @@
 
 #include <stdexcept>
 
+#include "QxLensFlareAsset.h"
 #include "QxPostProcessBloom.h"
 #include "QxPostprocessSubsystem.h"
 #include "ScreenPass.h"
@@ -56,7 +57,7 @@ void FQxBloomSceneViewExtension::SubscribeToPostProcessingPass(EPostProcessingPa
 {
 	// FSceneViewExtensionBase::SubscribeToPostProcessingPass(Pass, InOutPassCallbacks, bIsPassEnabled);
 	// 当前来看插入到这个pass之后是最合适的
-	if (PassId == EPostProcessingPass::MotionBlur && false)
+	if (PassId == EPostProcessingPass::MotionBlur)
 	{
 		InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(
 			this, &FQxBloomSceneViewExtension::RenderQxBloom_RenderThread));
@@ -67,10 +68,11 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs)
 {
-	if (nullptr == QxPostprocessSubsystem->GetBloomSettingAsset())
+	if (nullptr == QxPostprocessSubsystem->GetBloomSettingAsset() ||
+		!QxPostprocessSubsystem->GetBloomSettingAsset()->bEnableQxPPEffect)
 	{
-		// return FScreenPassTexture(InOutInputs.GetInput(EPostProcessMaterialInput::SceneColor));
-		return FScreenPassTexture();
+		return FScreenPassTexture(InOutInputs.GetInput(EPostProcessMaterialInput::SceneColor));
+		// return FScreenPassTexture();
 	}
 	// UE_LOG(LogTemp, Warning, TEXT("tEST Qxbloom"));
 	//
@@ -84,7 +86,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	DownSampleTextures.Empty();
 	UpSampleTextures.Empty();
 
-	
+	FRDGTextureRef EyeAdap
 	
 	// #TODO
 	// My Tone Mapping

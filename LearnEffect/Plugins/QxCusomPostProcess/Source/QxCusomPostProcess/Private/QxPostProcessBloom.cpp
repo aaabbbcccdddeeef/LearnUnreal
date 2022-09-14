@@ -60,7 +60,9 @@ IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/QxScreenPass.usf", "QxScr
 FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo,
 	const FPostProcessMaterialInputs& PostProcessMaterialInput, const UQxBloomFlareAsset* QxBloomSettingAsset)
 {
-
+	bool bSupportHDROutput = GRHISupportsHDROutput;
+	UE_LOG(LogTemp, Warning, TEXT("support hdr: %s"), (bSupportHDROutput ? TEXT("true") : TEXT("false")));
+	
 	// const FViewInfo& ViewInfo = dynamic_cast<FViewInfo>(View);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, PostProcessQx);
 	RDG_EVENT_SCOPE(GraphBuilder, "PostProcessQx");

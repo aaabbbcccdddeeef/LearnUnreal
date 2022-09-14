@@ -11,7 +11,7 @@ Texture2D GlareTexture;
 float2 GlarePixelSize;
 
 // Flare
-float FlareInstensity;
+float FlareIntensity;
 float4 FlareTint;
 Texture2D FlareGradientTexture;
 SamplerState FlareGradientTextureSampler;
@@ -69,7 +69,7 @@ void MixPS(
 		);
 	float3 Gradient = Texture2DSample(FlareGradientTexture, FlareGradientTextureSampler, GradientUV).rgb;
 
-	Flares *= Gradient * FlareTint.rgb * FlareInstensity;
+	Flares *= Gradient * FlareTint.rgb * FlareIntensity;
 	
 	OutColor.rgb += Flares;
 	OutColor.a = 1;
