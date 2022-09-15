@@ -1,0 +1,13 @@
+
+
+float QxEyeAdaptation_MinAverageLuminance; //平均亮度限制范围
+float QxEyeAdaptation_MaxAverageLuminance;
+float QxEyeAdaptation_ExposureCompensationSettings;
+float QxEyeAdaptation_ExposureCompensationCuve;
+float QxEyeAdaptation_HistogramScale;
+float QxEyeAdaptation_HistogramBias;
+float QxEyeAdaptation_LuminanceMin;
+float QxEyeAdaptation_GreyMult;
+
+Texture2D QxEyeAdaptation_MeterMaskTexture; // 用来决定计算自动曝光时屏幕上的权重
+SamplerState QxEyeAdaptation_MeterMaskTextureSampler;

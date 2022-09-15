@@ -7,6 +7,7 @@
 
 namespace 
 {
+	// 参考文档https://www.froyok.fr/blog/2021-12-ue4-custom-bloom/中COD的filter实现的
 	class FQxDownSamplePS : public FGlobalShader
 	{
 	public:
@@ -45,7 +46,7 @@ namespace
 	IMPLEMENT_GLOBAL_SHADER(FQxUpsampleCombinePS, "/QxPPShaders/QxUpsampleCombine.usf", "UpsampleCombinePS", SF_Pixel);
 }
 
-FRDGTextureRef FQxBloomSceneViewExtension::RenderDownSample(
+FRDGTextureRef FQxBloomSceneViewExtension::RenderCOD_DownSample(
 	FRDGBuilder& GraphBuilder,
 	const FString& PassName,
 	const FViewInfo& View, FRDGTextureRef InputTexture,

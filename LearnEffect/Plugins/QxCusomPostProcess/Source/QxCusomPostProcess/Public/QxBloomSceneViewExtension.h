@@ -41,13 +41,24 @@ public:
 
 private:
 
-	FScreenPassTexture RenderQxBloom_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs);
+	FScreenPassTexture RenderQxBloom_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& PPMaterialInputs);
 	
 	FScreenPassTexture RenderBloomFlare(FRDGBuilder& GraphBuilder,
 		const FViewInfo& ViewInfo,
 		const FPostProcessMaterialInputs& PostProcessMaterialInput,
 		const UQxBloomFlareAsset* QxBloomSettingAsset);
+	
+	FScreenPassTexture RenderEyeAdaptation(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& ViewInfo,
+		const FPostProcessMaterialInputs& PostProcessMaterialInput);
 
+	FScreenPassTexture AddDownSamplePass(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& ViewInfo,
+		const FPostProcessMaterialInputs& PostProcessMaterialInput
+		);
+	
 	FScreenPassTexture RenderFlare(FRDGBuilder& GraphBuilder,
 		const FViewInfo& ViewInfo,
 		const FPostProcessMaterialInputs& PostProcessMaterialInput,
@@ -61,7 +72,8 @@ private:
 		int32 PassAmount
 		);
 
-	FRDGTextureRef RenderDownSample(FRDGBuilder& GraphBuilder,
+	// 这个是参照文档中COD的filter的特殊down sample
+	FRDGTextureRef RenderCOD_DownSample(FRDGBuilder& GraphBuilder,
 		const FString& PassName,
 		const FViewInfo& View,
 		FRDGTextureRef InputTexture,

@@ -1,0 +1,54 @@
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+#include "/Engine/Private/PostProcessCommon.ush"
+
+Texture2D InputTexture;
+SamplerState InputTextureSampler;
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Input) // 这个宏是引擎预定义好的,和c++中的FScreenPassTextureViewportParameters一致
+SCREEN_PASS_TEXTURE_VIEWPORT(Output) 
+
+float4 QxSampleInput(float2 UV)
+{
+	// Texture viewport min / max in normalized UV coordinates, with respect to the texture extent,
+	// adjusted by a half pixel offset for bilinear filtering. Useful for clamping to avoid sampling
+	// pixels on viewport edges; e.g. clamp(UV, UVViewportBilinearMin, UVViewportBilinearMax);
+	// 下面这句是处理在边缘时的sample
+	UV = clamp(UV, Input_UVViewportBilinearMin, Input_UVViewportBilinearMax);
+	return Texture2DSampleLevel(InputTexture, InputTextureSampler, UV, 0);
+}
+
+float4 QxDownSampleCommon(float2 UV)
+{
+	float4 OutColor;
+
+	// 4 filtered samples
+	float2 UVs[4];
+	// Blur during downsample (4x4 kernel) to get better quality especially for HDR content.
+	UVs[0] = UV + Input_ExtentInverse * float2(-1, -1);
+	UVs[1] = UV + Input_ExtentInverse * float2( 1, -1);
+	UVs[2] = UV + Input_ExtentInverse * float2(-1,  1);
+	UVs[3] = UV + Input_ExtentInverse * float2( 1,  1);
+
+	float4 Sample[4];
+
+	UNROLL
+	for (uint i = 0; i < 4; ++i)
+	{
+		Sample[i] = QxSampleInput(UVs[i]);
+	}
+
+	OutColor = (Sample[0] + Sample[1] + Sample[2] + Sample[3]) * 0.25f;
+	// Fixed rarely occurring yellow color tint of the whole viewport (certain viewport size, need to investigate more)
+	OutColor.rgb = max(float3(0,0,0), OutColor.rgb);
+	return OutColor;
+}
+
+void MainPS(float4 SvPosition : SV_Position,
+	out float4 OutColor : SV_Target)
+{
+	const float2 UV = SvPosition.xy * Output_ExtentInverse;
+
+	OutColor = QxDownSampleCommon(UV);
+}

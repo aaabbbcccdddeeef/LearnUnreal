@@ -1,4 +1,5 @@
 #include "Shared.ush"
+// 参考文档的特殊的filtered kernel的down sample shader
 
 float2 InputSize;
 

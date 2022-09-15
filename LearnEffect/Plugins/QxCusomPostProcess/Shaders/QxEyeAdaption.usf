@@ -1,0 +1,99 @@
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+#include "/Engine/Private/PostProcessCommon.ush"
+#include "QxPPHistogramCommon.ush"
+
+Texture2D ColorTexture; //经过down sample之后的纬度较小的texture
+SamplerState ColorTextureSampler;
+
+uint2 Color_ViewportMin;
+uint2 Color_ViewportMax;
+
+
+// 这个pass的主要目的是计算规范化之后的 luminance输出到w(alpha)通道
+// #TODO 为什么不直接用最后的color texture计算luminance
+void QxBasicEyeAdaptationSetupPS(
+	noperspective float4 UVAndScreenPos : TEXCOORD0,
+	out float4 OutColor : SV_Target0
+	)
+{
+	float2 UV = UVAndScreenPos.xy;
+	OutColor = Texture2DSample(ColorTexture, ColorTextureSampler, UV);
+	
+	const float Intensity = max( dot(OutColor.xyz, float3(1.f,1.f, 1.f)/3.f) , QxEyeAdaptation_LuminanceMin);
+	const float LogIntensity = clamp(log2(Intensity), -10.f, 20.f);
+
+	// 保存log instensity 到alpha通道， scale 到0-1的范围
+	OutColor.w = QxEyeAdaptation_HistogramBias + QxEyeAdaptation_HistogramScale * LogIntensity;
+}
+
+float QxAdaptationWeightTexture(float2 InUV)
+{
+	return Texture2DSample(QxEyeAdaptation_MeterMaskTexture, QxEyeAdaptation_MeterMaskTextureSampler, InUV).x;
+}
+
+float QxComputeWeightTextureAverageAlpha(
+	Texture2D InTexture,
+	uint2 RectMin,
+	uint2 RectMax)
+{
+	const float InvRectWidth = 1.f / (RectMax.x - RectMin.x);
+	const float InvRectHeight = 1.f / (RectMax.y - RectMin.y);
+
+	float Average = 0.f;
+	float WeightTotal = 0.f;
+
+	for (uint i = RectMin.x; i < RectMax.x; ++i)
+	{
+		for (uint j = RectMin.y; j < RectMax.y; ++j)
+		{
+			float2 ScreenUV = float2(float(i) * InvRectWidth, float2(j) * InvRectHeight);
+			
+			float Weight = max(QxAdaptationWeightTexture(ScreenUV), 0.05f);
+
+			WeightTotal += Weight;
+
+			float SampleRes = InTexture.Load(int3(i, j, 0)).w; //w是input texture的luminance
+			Average += Weight * SampleRes;
+		}
+	}
+
+	Average /= WeightTotal;
+	return Average;
+}
+
+void QxBasicEyeAdaptation(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor: SV_Traget0)
+{
+	// 先不考虑pre exposure的问题
+	const float OneOverPreExposure = 1.0f;
+	
+	// 计算平均亮度
+	// compute scale log Luminance average
+	float LogLumAve = QxComputeWeightTextureAverageAlpha(ColorTexture, Color_ViewportMin, Color_ViewportMax);
+
+	// correct for [0,1] scaling
+	LogLumAve = (LogLumAve - QxEyeAdaptation_HistogramBias) / QxEyeAdaptation_HistogramScale;
+
+	// convert log luminance average to average instensity
+	const float AverageSceneLuminance = OneOverPreExposure * exp2(LogLumAve);
+
+	// 我们希望平均亮度映射到 0.18， 而不是1.0
+	const float MiddleGreyExposureCompensation = QxEyeAdaptation_ExposureCompensationSettings * QxEyeAdaptation_ExposureCompensationCuve
+			* QxEyeAdaptation_GreyMult;
+
+	const float LumAve = AverageSceneLuminance;
+	const float ClampedLumAve = clamp(LumAve, QxEyeAdaptation_MinAverageLuminance, QxEyeAdaptation_MaxAverageLuminance);
+
+	//#TODO 添加基于时间的亮度过渡
+	const float EstimatedLuminance = ClampedLumAve;
+
+	const float SmoothedExposureScale = 1.f / max(0.0001f, EstimatedLuminance);
+	const float TargetExposureScale =  1.f / max(0.0001f, ClampedLumAve);
+
+	// 输出将要rescale image intensity
+	OutColor.X = MiddleGreyExposureCompensation * SmoothedExposureScale;
+	OutColor.y = MiddleGreyExposureCompensation * TargetExposureScale;
+	OutColor.z = AverageSceneLuminance;
+	OutColor.w = MiddleGreyExposureCompensation / QxEyeAdaptation_GreyMult;
+}

@@ -66,12 +66,12 @@ void FQxBloomSceneViewExtension::SubscribeToPostProcessingPass(EPostProcessingPa
 
 FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	FRDGBuilder& GraphBuilder,
-	const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs)
+	const FSceneView& View, const FPostProcessMaterialInputs& PPMaterialInputs)
 {
 	if (nullptr == QxPostprocessSubsystem->GetBloomSettingAsset() ||
 		!QxPostprocessSubsystem->GetBloomSettingAsset()->bEnableQxPPEffect)
 	{
-		return FScreenPassTexture(InOutInputs.GetInput(EPostProcessMaterialInput::SceneColor));
+		return FScreenPassTexture(PPMaterialInputs.GetInput(EPostProcessMaterialInput::SceneColor));
 		// return FScreenPassTexture();
 	}
 	// UE_LOG(LogTemp, Warning, TEXT("tEST Qxbloom"));
@@ -80,13 +80,24 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	FScreenPassTexture BloomTexture = RenderBloomFlare(
 		GraphBuilder,
 		ViewInfo,
-		InOutInputs,
+		PPMaterialInputs,
 		QxPostprocessSubsystem->GetBloomSettingAsset());
 
 	DownSampleTextures.Empty();
 	UpSampleTextures.Empty();
 
-	FRDGTextureRef EyeAdap
+	FScreenPassTexture HalResSceneColor = AddDownSamplePass(
+		GraphBuilder,
+		ViewInfo,
+		PPMaterialInputs
+		);
+	
+	FScreenPassTexture EyeAdaptationTexture = RenderEyeAdaptation(
+		GraphBuilder,
+		ViewInfo,
+		PPMaterialInputs
+		);
+	
 	
 	// #TODO
 	// My Tone Mapping

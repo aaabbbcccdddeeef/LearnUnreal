@@ -217,6 +217,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 	return OutTexture;
 }
 
+
 FScreenPassTexture FQxBloomSceneViewExtension::RenderBloom(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& ViewInfo,
@@ -258,7 +259,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloom(
 								+ FString::FromInt( Size.Height() );
 
 		FRDGTextureRef Texture = 
-			RenderDownSample(
+			RenderCOD_DownSample(
 				GraphBuilder,
 				PassName,
 				ViewInfo,
