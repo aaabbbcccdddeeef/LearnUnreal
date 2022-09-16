@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "QxPostProcessEyeAdaptation.h"
 #include "QxLensFlareAsset.generated.h"
 
 // 这个结构用来更方便的设置ghost 的设置
@@ -115,4 +116,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="Glare")
 	UTexture2D* GlareLineMask = nullptr;
+
+#pragma region AutoExposureSettings
+	UPROPERTY(EditAnywhere, Category="AutoExposure")
+	EQxAutoExposureMethod AutoExposureMethod = EQxAutoExposureMethod::AEM_None;
+#pragma endregion
 };

@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "QxCommonShaders.h"
 #include "RenderGraphBuilder.h"
 #include "SceneViewExtension.h"
 #include "RHI.h"
 #include "RHIResources.h"
 #include "SceneRendering.h"
+#include "QxPostProcessDownSample.h"
+#include "QxPostProcessEyeAdaptation.h"
 #include "UObject/Object.h"
 
 
@@ -47,16 +50,29 @@ private:
 		const FViewInfo& ViewInfo,
 		const FPostProcessMaterialInputs& PostProcessMaterialInput,
 		const UQxBloomFlareAsset* QxBloomSettingAsset);
+
 	
+	/**
+	 * @brief 
+	 * @param GraphBuilder 
+	 * @param ViewInfo 
+	 * @param PostProcessMaterialInput 
+	 * @param InHalfTexture  SceneColor一半分辨率的texture
+	 * @return 
+	 */
 	FScreenPassTexture RenderEyeAdaptation(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& ViewInfo,
-		const FPostProcessMaterialInputs& PostProcessMaterialInput);
+		const FPostProcessMaterialInputs& PostProcessMaterialInput,
+		const FScreenPassTexture& InHalfTexture);
 
-	FScreenPassTexture AddDownSamplePass(
+	
+
+	FRDGTextureRef AddQxBasicEyeAdaptationPass(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& ViewInfo,
-		const FPostProcessMaterialInputs& PostProcessMaterialInput
+		const FQxEyeAdaptationParameters& EyeAdaptationParameters,
+		FScreenPassTexture SceneColor
 		);
 	
 	FScreenPassTexture RenderFlare(FRDGBuilder& GraphBuilder,
@@ -112,4 +128,9 @@ private:
 	FRHISamplerState* BilinearBorderSampler = nullptr;
 	FRHISamplerState* BilinearRepeatSampler = nullptr;
 	FRHISamplerState* NearestRepeatSampler = nullptr;
+
+#pragma region EyeAdaptationStateCache
+	// 上一帧的平均亮度， 0表示无效，用来采样compensation curve
+	float LastAverageSceneLuminance = 0.f;
+#pragma endregion
 };

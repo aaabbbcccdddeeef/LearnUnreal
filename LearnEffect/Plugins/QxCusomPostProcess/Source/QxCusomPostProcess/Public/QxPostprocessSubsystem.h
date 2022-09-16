@@ -26,6 +26,12 @@ public:
 	{
 		return PostProcessAsset;
 	}
+
+public:
+	// 用这个来讲eyeAdaptaion Texture 复制下来,主要是为了测试
+	UPROPERTY(EditAnywhere, Category="QxPostProcess")
+	UTexture2D* QxEyeAdaptationDump = nullptr;
+	
 private:
 	TSharedPtr<FQxBloomSceneViewExtension, ESPMode::ThreadSafe> QxBloomSceneViewExtension;
 

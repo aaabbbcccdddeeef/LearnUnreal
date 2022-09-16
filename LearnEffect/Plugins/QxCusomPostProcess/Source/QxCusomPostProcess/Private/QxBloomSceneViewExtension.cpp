@@ -8,6 +8,7 @@
 #include "QxLensFlareAsset.h"
 #include "QxPostProcessBloom.h"
 #include "QxPostprocessSubsystem.h"
+#include "RenderTargetPool.h"
 #include "ScreenPass.h"
 #include "PostProcess/PostProcessMaterial.h"
 
@@ -68,15 +69,54 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView& View, const FPostProcessMaterialInputs& PPMaterialInputs)
 {
+	FScreenPassTexture SceneColor = PPMaterialInputs.GetInput(EPostProcessMaterialInput::SceneColor);
 	if (nullptr == QxPostprocessSubsystem->GetBloomSettingAsset() ||
 		!QxPostprocessSubsystem->GetBloomSettingAsset()->bEnableQxPPEffect)
 	{
-		return FScreenPassTexture(PPMaterialInputs.GetInput(EPostProcessMaterialInput::SceneColor));
-		// return FScreenPassTexture();
+		return SceneColor;
 	}
 	// UE_LOG(LogTemp, Warning, TEXT("tEST Qxbloom"));
 	//
 	const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(View);
+
+	// 进行一次downsample 给后面的pass用
+	FScreenPassTexture HalResSceneColor;
+	{
+		FQxDownSampleInputs DownSampleInputs;
+		DownSampleInputs.Name = TEXT("QXPostProcessing.SceneColor.HalfRes");
+		DownSampleInputs.SceneColor = SceneColor;
+		DownSampleInputs.Quality = EQxDownampleQuality::High;
+		DownSampleInputs.FormatOverride = PF_FloatRGB;
+		HalResSceneColor = QxRenderUtils::AddQxDownSamplePass(
+			GraphBuilder,
+			ViewInfo,
+			DownSampleInputs
+			);
+	}
+	FScreenPassTexture EyeAdaptationTexture = RenderEyeAdaptation(
+		GraphBuilder,
+		ViewInfo,
+		PPMaterialInputs,
+		HalResSceneColor
+		);
+
+	// 将EyeAdaptationTexture 拷贝到dump中
+	if (QxPostprocessSubsystem->QxEyeAdaptationDump != nullptr)
+	{
+		FRHITexture2D* dumTexRHI =
+			QxPostprocessSubsystem->QxEyeAdaptationDump->Resource->GetTexture2DRHI();
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("QxEyeAdaptionDump"),
+			ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
+			[EyeAdaptationTexture, dumTexRHI](FRHICommandListImmediate& RHICmdList)
+			{
+				FRHICopyTextureInfo CopyInfo;
+				RHICmdList.CopyTexture( EyeAdaptationTexture.Texture->GetRHI(),
+					dumTexRHI, CopyInfo);
+			}
+			);
+	}
+	
 	FScreenPassTexture BloomTexture = RenderBloomFlare(
 		GraphBuilder,
 		ViewInfo,
@@ -85,18 +125,6 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 
 	DownSampleTextures.Empty();
 	UpSampleTextures.Empty();
-
-	FScreenPassTexture HalResSceneColor = AddDownSamplePass(
-		GraphBuilder,
-		ViewInfo,
-		PPMaterialInputs
-		);
-	
-	FScreenPassTexture EyeAdaptationTexture = RenderEyeAdaptation(
-		GraphBuilder,
-		ViewInfo,
-		PPMaterialInputs
-		);
 	
 	
 	// #TODO
