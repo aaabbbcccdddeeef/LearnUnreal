@@ -48,7 +48,7 @@ float QxComputeWeightTextureAverageAlpha(
 	{
 		for (uint j = RectMin.y; j < RectMax.y; ++j)
 		{
-			float2 ScreenUV = float2(float(i) * InvRectWidth, float2(j) * InvRectHeight);
+			float2 ScreenUV = float2(float(i) * InvRectWidth, float(j) * InvRectHeight);
 			
 			float Weight = max(QxAdaptationWeightTexture(ScreenUV), 0.05f);
 
@@ -63,7 +63,7 @@ float QxComputeWeightTextureAverageAlpha(
 	return Average;
 }
 
-void QxBasicEyeAdaptation(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor: SV_Traget0)
+void QxBasicEyeAdaptation(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor: SV_Target0)
 {
 	// 先不考虑pre exposure的问题
 	const float OneOverPreExposure = 1.0f;
@@ -92,7 +92,7 @@ void QxBasicEyeAdaptation(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutCo
 	const float TargetExposureScale =  1.f / max(0.0001f, ClampedLumAve);
 
 	// 输出将要rescale image intensity
-	OutColor.X = MiddleGreyExposureCompensation * SmoothedExposureScale;
+	OutColor.x = MiddleGreyExposureCompensation * SmoothedExposureScale;
 	OutColor.y = MiddleGreyExposureCompensation * TargetExposureScale;
 	OutColor.z = AverageSceneLuminance;
 	OutColor.w = MiddleGreyExposureCompensation / QxEyeAdaptation_GreyMult;

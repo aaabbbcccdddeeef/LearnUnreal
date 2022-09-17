@@ -193,6 +193,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderEyeAdaptation(
 	const FPostProcessMaterialInputs& PostProcessMaterialInput,
 	const FScreenPassTexture& InHalfTexture)
 {
+	RDG_EVENT_SCOPE(GraphBuilder, "QxEyeAdaptation");
 	const EQxAutoExposureMethod AutoExposureMethod = QxPostprocessSubsystem->GetBloomSettingAsset()->AutoExposureMethod;
 	if (AutoExposureMethod == EQxAutoExposureMethod::AEM_None)
 	{

@@ -10,6 +10,7 @@
 #include "QxPostprocessSubsystem.h"
 #include "RenderTargetPool.h"
 #include "ScreenPass.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "PostProcess/PostProcessMaterial.h"
 
 FQxBloomSceneViewExtension::FQxBloomSceneViewExtension(const FAutoRegister& AutoRegister,
@@ -65,6 +66,11 @@ void FQxBloomSceneViewExtension::SubscribeToPostProcessingPass(EPostProcessingPa
 	}
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FQxCopyTextureParameters, )
+	RDG_TEXTURE_ACCESS(Input,  ERHIAccess::CopySrc)
+	// RDG_TEXTURE_ACCESS(Output, ERHIAccess::CopyDest)
+END_SHADER_PARAMETER_STRUCT()
+
 FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView& View, const FPostProcessMaterialInputs& PPMaterialInputs)
@@ -103,15 +109,24 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	// 将EyeAdaptationTexture 拷贝到dump中
 	if (QxPostprocessSubsystem->QxEyeAdaptationDump != nullptr)
 	{
+		UTextureRenderTarget2D* dumpRT = QxPostprocessSubsystem->QxEyeAdaptationDump;
+		
 		FRHITexture2D* dumTexRHI =
 			QxPostprocessSubsystem->QxEyeAdaptationDump->Resource->GetTexture2DRHI();
+		FQxCopyTextureParameters* Parameters = GraphBuilder.AllocParameters<FQxCopyTextureParameters>();
+		Parameters->Input = EyeAdaptationTexture.Texture;
+		
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("QxEyeAdaptionDump"),
+			Parameters,
 			ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
-			[EyeAdaptationTexture, dumTexRHI](FRHICommandListImmediate& RHICmdList)
+			[Parameters, dumTexRHI](FRHICommandListImmediate& RHICmdList)
 			{
+				// FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 				FRHICopyTextureInfo CopyInfo;
-				RHICmdList.CopyTexture( EyeAdaptationTexture.Texture->GetRHI(),
+				RHICmdList.Transition(FRHITransitionInfo(dumTexRHI, ERHIAccess::Unknown, ERHIAccess::CopyDest));
+				FRHITexture* EyeAdaptationRHI = Parameters->Input.GetTexture()->GetRHI();
+				RHICmdList.CopyTexture( EyeAdaptationRHI,
 					dumTexRHI, CopyInfo);
 			}
 			);

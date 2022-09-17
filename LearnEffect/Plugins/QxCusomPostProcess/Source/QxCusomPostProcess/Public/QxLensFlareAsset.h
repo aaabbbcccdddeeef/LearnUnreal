@@ -119,6 +119,6 @@ public:
 
 #pragma region AutoExposureSettings
 	UPROPERTY(EditAnywhere, Category="AutoExposure")
-	EQxAutoExposureMethod AutoExposureMethod = EQxAutoExposureMethod::AEM_None;
+	EQxAutoExposureMethod AutoExposureMethod = EQxAutoExposureMethod::AEM_Basic;
 #pragma endregion
 };
