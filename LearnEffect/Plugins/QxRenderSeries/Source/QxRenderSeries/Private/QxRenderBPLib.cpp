@@ -135,8 +135,9 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	graphicPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 	graphicPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 	graphicPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	graphicPSOInit.PrimitiveType = PT_TriangleList;
-
+	// graphicPSOInit.PrimitiveType = PT_TriangleList;
+	graphicPSOInit.PrimitiveType = PT_PointList;
+	
 	//设置顶点声明
 	graphicPSOInit.BoundShaderState.VertexDeclarationRHI = GQxTestVertexDeclaration.VertexDeclarationRHI;
 
@@ -498,6 +499,29 @@ void UQxRenderBPLib::RenderTexture_WithCSRDG(UTextureRenderTarget2D* InRenderTar
 	}
 	);
 	
+}
+static const uint32 TGSize = 16;
+
+void UQxRenderBPLib::RenderAverageTexture_WithCS(UTexture2D* InTexture, UTextureRenderTarget2D* InRenderTarget)
+{
+	if (!InTexture || !InRenderTarget)
+	{
+		return;
+	}
+	// 调整render target 尺寸
+	uint32 OutSize =  FMath::Max<uint32>(InTexture->GetSizeX() / (TGSize * 2), 1);
+	InRenderTarget->ResizeTarget(OutSize, OutSize);
+	
+	
+	// 发送render command
+	ENQUEUE_RENDER_COMMAND(QxAverageCS)(
+		[InTexture, InRenderTarget](FRHICommandListImmediate& RHICmdList)
+		{
+			QxRenderUtils::RenderAverageToTarget_RenderThread(RHICmdList, InTexture, InRenderTarget);
+		}
+		);
+
+	InRenderTarget->UpdateResource();
 }
 
 TArray<FVector> UQxRenderBPLib::GetMeshVerticesWS(UStaticMeshComponent* InMeshComponent)

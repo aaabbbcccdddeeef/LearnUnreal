@@ -58,6 +58,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "QxRender")
 	static void RenderTexture_WithCSRDG(UTextureRenderTarget2D* InRenderTarget, TArray<FVector> InVertexPositions);
 
+
+	
+	/**
+	 * @brief 用RDG 和compute shader 计算平均值，输入是InTexture,输出是InRenderTarget，RenderTarget尺寸会根据reduction情况调整
+	 * @param InTexture 当前要求InTexture只有一个通道
+	 * @param InRenderTarget 
+	 */
+	UFUNCTION(BlueprintCallable, Category="QxRender")
+	static void RenderAverageTexture_WithCS(UTexture2D* InTexture, UTextureRenderTarget2D* InRenderTarget);
+
 	UFUNCTION(BlueprintCallable, Category = "QxRender")
 	static TArray<FVector> GetMeshVerticesWS(UStaticMeshComponent* InMeshComponent);
 

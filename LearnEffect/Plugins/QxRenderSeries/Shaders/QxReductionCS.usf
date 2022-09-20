@@ -1,0 +1,51 @@
+// #include "Shared.ush"
+#include "/Engine/Public/Platform.ush"
+// #define TGSize_ 16
+
+static const int TotalNumThreads = TGSize_ * TGSize_;
+
+// Resources
+Texture2D<float> InputTexture;
+RWTexture2D<float> OutputTexture; //当前程序是一个thread group emmit一个thread group内的平均值,
+
+// 同一个thread group 内共享的内存,最终会在index 归约到当前thread group的亮度和
+groupshared float4 Sharedmem[TotalNumThreads];
+
+// 一个thread group 有TGSize_ x TGSize_个thread
+[numthreads(TGSize_, TGSize_, 1)]
+void QxReductionCS(
+	uint3 GroupID : SV_GroupID, // group 在cpu端的dispatch 调用中所有的group中的id
+	uint3 GroupThreadID : SV_GroupThreadID, // 当前thread在 当前thread group中的id
+	uint3 DispatchThreadID : SV_DispatchThreadID //每个thread 在当前dispatch调用中唯一的id，算法参照文档，
+	)
+{
+	const uint ThreadIdx = GroupThreadID.y * TGSize_ + GroupThreadID.x;
+
+	const uint2 SampleIdx = (GroupID.xy * TGSize_ + GroupThreadID.xy) * 2;
+	float4 sample = 0.f;
+	sample.x += InputTexture[SampleIdx + uint2(0, 0)];
+	sample.y += InputTexture[SampleIdx + uint2(1, 0)];
+	sample.z += InputTexture[SampleIdx + uint2(0, 1)];
+	sample.w += InputTexture[SampleIdx + uint2(1, 1)];
+
+	// Store in shared memory
+	Sharedmem[ThreadIdx] = sample;
+	GroupMemoryBarrierWithGroupSync(); //等待所有线程
+
+	// Parallel reduction
+	[unroll(TotalNumThreads)]
+	for (uint i = TotalNumThreads / 2; i > 0; i >>= 1) //TotalNumThreads 一定是2^n, i表示当前需要归约的长度
+	{
+		if (ThreadIdx < i)
+		{
+			Sharedmem[ThreadIdx] = Sharedmem[ThreadIdx + i];
+		}
+		GroupMemoryBarrierWithGroupSync();
+	}
+
+	// have the first thread write out to the output texture
+	if (ThreadIdx == 0)
+	{
+		OutputTexture[GroupID.xy] = dot(Sharedmem[0], 0.25f) / TotalNumThreads;
+	}
+}

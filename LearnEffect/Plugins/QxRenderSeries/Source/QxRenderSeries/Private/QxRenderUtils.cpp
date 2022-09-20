@@ -3,6 +3,8 @@
 
 #include "QxRenderUtils.h"
 
+#include "QxShaders.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 TArray<FVector> FQxRenderUtils::GetVertexPositonsWS(UStaticMeshComponent* InMeshComponent)
@@ -59,6 +61,61 @@ bool FQxRenderUtils::RayCastHit(const FVector& RayOrigin, const FVector& RayDire
 			FLinearColor::Blue,
 			FLinearColor::Red,
 			1.0f
+		);
+}
+
+void QxRenderUtils::RenderAverageToTarget_RenderThread(
+	FRHICommandListImmediate& RHICmdList,
+	UTexture2D* InTexture,
+	UTextureRenderTarget2D* InRenderTarget)
+{
+	check(IsInRenderingThread());
+	// 确保InRenderTarget的size是InTexture的size / 32
+	check(InTexture->GetSizeX()/32 == InRenderTarget->SizeX);
+	
+	FRDGBuilder GraphBuilder(RHICmdList);
+	// 渲染完成后暂存到这个pooled target 中
+	TRefCountPtr<IPooledRenderTarget> TmpTarget;
+	{
+		// RDG_EVENT_SCOPE(GraphBuilder, "QxTestRDG_GroupEvent");
+		FQxAverageCS::FParameters* PassParams = GraphBuilder.AllocParameters<FQxAverageCS::FParameters>();
+
+		// 分配一个临时rdg texture 作为render target
+		FRDGTextureDesc TexDesc;
+		TexDesc.Extent = FIntPoint(InRenderTarget->SizeX, InRenderTarget->SizeY);
+		TexDesc.Format = InRenderTarget->GetFormat();
+		TexDesc.Flags = ETextureCreateFlags::TexCreate_UAV | ETextureCreateFlags::TexCreate_Transient;
+		TexDesc.ClearValue = FClearValueBinding(FLinearColor::Black);
+		
+		FRDGTextureRef TmpRDGTexture = GraphBuilder.CreateTexture(TexDesc, TEXT("TmpAverageTarget"));
+		FRDGTextureUAVDesc TexUAVDesc(TmpRDGTexture);
+		PassParams->OutputTexture = GraphBuilder.CreateUAV(TexUAVDesc);
+
+		PassParams->InputTexture = InTexture->Resource->TextureRHI;
+		// PassParams->OutputTexture = RHICmdList.CreateUnorderedAccessView(InRenderTarget->Resource->TextureRHI, 0);
+		// RHICmdList.Transition(FRHITransitionInfo(InTexture->Resource->TextureRHI, ERHIAccess::Unknown,
+		// 		ERHIAccess::SRVCompute));
+		// RHICmdList.Transition(FRHITransitionInfo(InRenderTarget->Resource->TextureRHI, ERHIAccess::Unknown,
+		// 		ERHIAccess::UAVCompute));
+		
+		FIntVector GroupCount = FIntVector(InRenderTarget->SizeX, InRenderTarget->SizeY, 1);
+		TShaderMapRef<FQxAverageCS> AverageCS(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("QxAveragePas"),
+			AverageCS,
+			PassParams,
+			GroupCount
+			);
+
+		GraphBuilder.QueueTextureExtraction(TmpRDGTexture, &TmpTarget);
+	}
+	GraphBuilder.Execute();
+
+	RHICmdList.CopyToResolveTarget(
+		TmpTarget.GetReference()->GetRenderTargetItem().TargetableTexture,
+		InRenderTarget->GetRenderTargetResource()->TextureRHI,
+		FResolveParams()
 		);
 }
 

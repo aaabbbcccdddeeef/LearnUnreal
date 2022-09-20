@@ -137,7 +137,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 		ViewInfo,
 		PPMaterialInputs,
 		QxPostprocessSubsystem->GetBloomSettingAsset());
-
+	
 	DownSampleTextures.Empty();
 	UpSampleTextures.Empty();
 	

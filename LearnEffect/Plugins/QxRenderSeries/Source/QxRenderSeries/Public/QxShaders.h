@@ -7,6 +7,7 @@
 #include <ShaderParameterMacros.h>
 #include "Shader.h"
 #include "ShaderParameters.h"
+#include "ShaderParameterStruct.h"
 #include "QxShaders.generated.h"
 
 /**
@@ -189,5 +190,32 @@ public:
 	static bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters)
 	{
 		return true;
+	}
+};
+
+// 将输入的texture 求平均值输出到out texture,请提前保证输出texture的纬度正确
+class FQxAverageCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FQxAverageCS)
+	SHADER_USE_PARAMETER_STRUCT(FQxAverageCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+		SHADER_PARAMETER_TEXTURE(Texture2D<float>, InputTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, OutputTexture)
+		// SHADER_PARAMETER_UAV(RWTexture2D<float>, OutputTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		// OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
+		// OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 16);
+		OutEnvironment.SetDefine(TEXT("TGSize_"), 16);
 	}
 };

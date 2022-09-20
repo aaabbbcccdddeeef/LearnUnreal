@@ -57,6 +57,7 @@ namespace
 
 IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/QxScreenPass.usf", "QxScreenPassVS", SF_Vertex);
 
+
 FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo,
 	const FPostProcessMaterialInputs& PostProcessMaterialInput, const UQxBloomFlareAsset* QxBloomSettingAsset)
 {
@@ -105,6 +106,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 	}	
 
 	// Flare
+	
 
 	// Glare
 
