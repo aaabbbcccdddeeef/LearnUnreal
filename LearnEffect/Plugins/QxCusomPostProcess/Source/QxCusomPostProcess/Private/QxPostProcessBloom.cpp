@@ -97,16 +97,27 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 
 	// Bloom
 	{
-		BloomTexture = RenderBloom(
-			GraphBuilder,
-			ViewInfo,
-			SceneColorTexture,
-			DownSamplePassNum
-			);
+		const bool bShowFlare = QxPostprocessSubsystem->GetBloomSettingAsset()->bEnableQxFlare;
+		if (bShowFlare)
+		{
+			BloomTexture = RenderBloom(
+				GraphBuilder,
+				ViewInfo,
+				SceneColorTexture,
+				DownSamplePassNum
+				);
+		}
+
 	}	
 
 	// Flare
-	
+	{
+		FlareTexture = RenderFlare(
+			GraphBuilder,
+			ViewInfo,
+			BloomTexture
+			);
+	}
 
 	// Glare
 
@@ -319,11 +330,17 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloom(
 	return UpSampleTextures[0]; 
 }
 
+FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo,
+	const FScreenPassTexture InputTexture)
+{
+	
+}
+
 
 FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBuilder,
-	const FViewInfo& ViewInfo,
-	const FPostProcessMaterialInputs& PostProcessMaterialInput,
-	FScreenPassTexture InputTexture)
+                                                           const FViewInfo& ViewInfo,
+                                                           const FPostProcessMaterialInputs& PostProcessMaterialInput,
+                                                           FScreenPassTexture InputTexture)
 {
 	if (!QxPostprocessSubsystem)
 	{

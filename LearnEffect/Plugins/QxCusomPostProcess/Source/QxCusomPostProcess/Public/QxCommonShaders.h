@@ -11,6 +11,13 @@ enum EQxDownampleQuality
 	MAX
 };
 
+// 所有pass都要用到的rdg buffer input
+BEGIN_SHADER_PARAMETER_STRUCT(FQxBloomFlarePassParameters,)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
+		RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 BEGIN_SHADER_PARAMETER_STRUCT(FQxDownsampleParameters,)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
@@ -41,3 +48,21 @@ public:
 };
 
 
+class FQxRescaleShader : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FQxRescaleShader);
+	SHADER_USE_PARAMETER_STRUCT(FQxRescaleShader, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FQxBloomFlarePassParameters, Pass)
+		SHADER_PARAMETER(FVector2D, InputViewportSize)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters&)
+	{
+		return true;
+	}
+
+};
+// IMPLEMENT_GLOBAL_SHADER(FQxRescale, "/QxPPShaders/Rescale.usf", "RescalePS", SF_Pixel);

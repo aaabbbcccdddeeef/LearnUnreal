@@ -33,12 +33,7 @@ public:
 
 
 
-// 所有pass都要用到的rdg buffer input
-BEGIN_SHADER_PARAMETER_STRUCT(FQxBloomFlarePassParameters,)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
-		RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
+
 
 
 template<typename TShaderParameters, typename  TShaderClassVertex, typename TShaderClassPixel>

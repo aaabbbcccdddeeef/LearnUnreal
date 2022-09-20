@@ -1,0 +1,13 @@
+#include "Shared.ush"
+
+void RescalePS(
+	in noperspective float4 UVAndScreenPs : TEXCOORD0,
+	out float4 OutColor : SV_Target0
+	)
+{
+	float2 UV = UVAndScreenPs.xy * InputViewportSize;
+	OutColor.rgb = Texture2DSample(
+		InputTexture, InputTextureSampler, UV
+		).rgb;
+	OutColor.a = 1;
+}

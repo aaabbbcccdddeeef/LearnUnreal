@@ -28,8 +28,14 @@ class QXCUSOMPOSTPROCESS_API UQxBloomFlareAsset : public UDataAsset
 {
 	GENERATED_BODY()
 public:
+#pragma region EffectFlags
 	UPROPERTY(EditAnywhere, Category="General")
 	bool bEnableQxPPEffect = true;
+
+	UPROPERTY(EditAnywhere, Category="General")
+	bool bEnableQxFlare = true;
+#pragma endregion
+
 	
 	// 这个主要用来控制bloom upsample combine 过程中，低分辨率和高分辨率的混合插值的参数
 	UPROPERTY(EditAnywhere, Category="Bloom", meta=(UIMin = "0.0", UIMax = "1.0"))

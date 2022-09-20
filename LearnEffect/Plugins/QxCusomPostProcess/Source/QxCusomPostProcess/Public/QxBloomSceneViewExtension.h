@@ -88,6 +88,12 @@ private:
 		int32 PassAmount
 		);
 
+	FScreenPassTexture RenderFlare(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& ViewInfo,
+		const FScreenPassTexture InputTexture
+		);
+
 	// 这个是参照文档中COD的filter的特殊down sample
 	FRDGTextureRef RenderCOD_DownSample(FRDGBuilder& GraphBuilder,
 		const FString& PassName,

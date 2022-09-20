@@ -5,6 +5,7 @@
 
 #include <stdexcept>
 
+#include "PixelShaderUtils.h"
 #include "QxLensFlareAsset.h"
 #include "QxPostProcessBloom.h"
 #include "QxPostprocessSubsystem.h"
@@ -71,6 +72,28 @@ BEGIN_SHADER_PARAMETER_STRUCT(FQxCopyTextureParameters, )
 	// RDG_TEXTURE_ACCESS(Output, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
+namespace 
+{
+	// extent 当前纹理占用的大小， Inrect是当前viewport占用的空间
+	// 注意，返回的是标准uv空间下的,例如如果视口不变,则一般返回的是[0-1],其它根据放大缩小变化
+	FVector2D GetInputViewportSize(const FIntRect& InRect, const FIntPoint& Extent)
+	{
+		// Based on
+		// GetScreenPassTextureViewportParameters()
+		// Engine/Source/Runtime/Renderer/Private/ScreenPass.cpp
+
+		FVector2D ExtentInverse = FVector2D(1.f/ Extent.X, 1.f / Extent.Y);
+
+		FVector2D RectMin = FVector2D(InRect.Min);
+		FVector2D RectMax = FVector2D(InRect.Max);
+
+		FVector2D Min = RectMin * ExtentInverse;
+		FVector2D Max = RectMax * ExtentInverse;
+		return (Max - Min);
+	}
+	
+}
+
 FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView& View, const FPostProcessMaterialInputs& PPMaterialInputs)
@@ -85,6 +108,47 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	//
 	const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(View);
 
+#if WITH_EDITOR
+	const FScreenPassTextureViewport SceneColorViewport(SceneColor);
+
+	// rect标识占用viewport的大小, extent表示纹理的大小，当拖动修改viewport后这两个会不一致
+	if ((SceneColorViewport.Rect.Width() != SceneColorViewport.Extent.X) ||
+		(SceneColorViewport.Rect.Height() != SceneColorViewport.Extent.Y))
+	{
+		FVector2D SceneColorViewportSize = GetInputViewportSize(SceneColorViewport.Rect, SceneColorViewport.Extent);
+		const FString PassName("QxRescale");
+
+		FRDGTextureDesc TextureDesc = SceneColor.Texture->Desc;
+		TextureDesc.Reset();
+		TextureDesc.Extent = SceneColorViewport.Rect.Size();
+		TextureDesc.ClearValue = FClearValueBinding(FLinearColor::Transparent);
+		FRDGTextureRef RescaledTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("QxRescaledSceneColor"));
+
+		
+		TShaderMapRef<FQxRescaleShader> PixelShader(ViewInfo.ShaderMap);
+
+		FQxRescaleShader::FParameters* PassParams = GraphBuilder.AllocParameters<FQxRescaleShader::FParameters>();
+		PassParams->Pass.InputTexture = SceneColor.Texture;
+		PassParams->Pass.InputTextureSampler = BilinearClampSampler;
+		PassParams->Pass.RenderTargets[0] = FRenderTargetBinding(RescaledTexture, ERenderTargetLoadAction::ENoAction);
+		PassParams->InputViewportSize = SceneColorViewportSize;
+		
+		
+		FPixelShaderUtils::AddFullscreenPass(
+			GraphBuilder,
+			ViewInfo.ShaderMap,
+			RDG_EVENT_NAME("QxRescalePass"),
+			PixelShader,
+			PassParams,
+			SceneColorViewport.Rect
+			);
+
+		SceneColor.Texture = RescaledTexture;
+		SceneColor.ViewRect = SceneColorViewport.Rect;
+	}
+#endif
+	
+	
 	// 进行一次downsample 给后面的pass用
 	FScreenPassTexture HalResSceneColor;
 	{
