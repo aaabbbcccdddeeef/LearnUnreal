@@ -514,7 +514,7 @@ void UQxRenderBPLib::RenderAverageTexture_WithCS(UTexture2D* InTexture, UTexture
 	
 	
 	// 发送render command
-	ENQUEUE_RENDER_COMMAND(QxAverageCS)(
+	ENQUEUE_RENDER_COMMAND(QxAverageCS_Test1)(
 		[InTexture, InRenderTarget](FRHICommandListImmediate& RHICmdList)
 		{
 			QxRenderUtils::RenderAverageToTarget_RenderThread(RHICmdList, InTexture, InRenderTarget);
@@ -621,7 +621,6 @@ void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 		FTextureRHIRef sceneColorTexRHI1  = SceneRenderTargets.GetSceneColor()->GetRenderTargetItem().ShaderResourceTexture;
 		FTextureRHIRef sceneColorTexRHI = SceneRenderTargets.GetSceneColorTexture();
 		FTextureRHIRef GBufferCRHI = SceneRenderTargets.GBufferC->GetRenderTargetItem().ShaderResourceTexture;
-		FTextureRHIRef TestRHI1 = SceneRenderTargets.GetGBufferATexture();
 		pixelShader->SetTestTexture(RHICmdList, sceneColorTexRHI);
 
 	pixelShader->SetMyUniform(RHICmdList, TestUniformData);

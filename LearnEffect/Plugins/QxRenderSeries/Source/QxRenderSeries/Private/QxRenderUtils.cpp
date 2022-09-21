@@ -7,6 +7,12 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Kismet/KismetSystemLibrary.h"
 
+
+// DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("qx stat count"), STAT_COUNT, STATGROUP_QxRender);
+DECLARE_CYCLE_STAT(TEXT("QxAverageCS"), STAT_QxAverageCS, STATGROUP_QxRender);
+DECLARE_CYCLE_STAT(TEXT("QxAverageCS_RHIWay"), STAT_QxAverageCS_RHI, STATGROUP_QxRender);
+
+
 TArray<FVector> FQxRenderUtils::GetVertexPositonsWS(UStaticMeshComponent* InMeshComponent)
 {
 	TArray<FVector> meshVerticesWS;
@@ -72,12 +78,16 @@ void QxRenderUtils::RenderAverageToTarget_RenderThread(
 	check(IsInRenderingThread());
 	// 确保InRenderTarget的size是InTexture的size / 32
 	check(InTexture->GetSizeX()/32 == InRenderTarget->SizeX);
-	
+
+	// RHICmdList.SetCurrentStat()
+	// RHICmdList.SetCurrentStat()
 	FRDGBuilder GraphBuilder(RHICmdList);
 	// 渲染完成后暂存到这个pooled target 中
 	TRefCountPtr<IPooledRenderTarget> TmpTarget;
 	{
 		// RDG_EVENT_SCOPE(GraphBuilder, "QxTestRDG_GroupEvent");
+		SCOPE_CYCLE_COUNTER(STAT_QxAverageCS);
+		RHICmdList.SetCurrentStat(GET_STATID(STAT_QxAverageCS_RHI));
 		FQxAverageCS::FParameters* PassParams = GraphBuilder.AllocParameters<FQxAverageCS::FParameters>();
 
 		// 分配一个临时rdg texture 作为render target

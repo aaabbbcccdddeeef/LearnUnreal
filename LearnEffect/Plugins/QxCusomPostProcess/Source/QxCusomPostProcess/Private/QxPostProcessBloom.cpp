@@ -92,9 +92,6 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 		PostProcessMaterialInput.GetInput(EPostProcessMaterialInput::SceneColor);
 
 		
-	// Scene Color Rescal passes,
-	// 要处理编辑器viewport的变化
-
 	// Bloom
 	{
 		const bool bShowFlare = QxPostprocessSubsystem->GetBloomSettingAsset()->bEnableQxFlare;
@@ -333,7 +330,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloom(
 FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo,
 	const FScreenPassTexture InputTexture)
 {
-	
+	return InputTexture;
 }
 
 

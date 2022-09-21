@@ -9,6 +9,10 @@
 #include "Renderer/Private/ScreenPass.h"
 #include "UObject/Object.h"
 
+
+//定义命令名称，其中STATGROUP_QxTestGroup是stat命令输入的文字， TEXT内是显示的，STATCAT_Advanced是固定写法
+DECLARE_STATS_GROUP(TEXT("QxRender"), STATGROUP_QxRender, STATCAT_Advanced);
+
 /**
  * 
  */
