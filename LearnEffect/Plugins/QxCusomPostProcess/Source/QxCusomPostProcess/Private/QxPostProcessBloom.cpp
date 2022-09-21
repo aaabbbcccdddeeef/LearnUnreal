@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 
+#include "PixelShaderUtils.h"
 #include "QxBloomSceneViewExtension.h"
 #include "QxLensFlareAsset.h"
 #include "QxPostprocessSubsystem.h"
@@ -53,6 +54,42 @@ namespace
 		}
 	};
 	IMPLEMENT_GLOBAL_SHADER(FQxMixPass, "/QxPPShaders/QxBloomMix.usf", "MixPS", SF_Pixel);
+
+	class FQxFlareChromaPS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FQxFlareChromaPS);
+		SHADER_USE_PARAMETER_STRUCT(FQxFlareChromaPS, FGlobalShader);
+			
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxBloomFlarePassParameters, Pass)
+			SHADER_PARAMETER(float, ChromaShift)
+		END_SHADER_PARAMETER_STRUCT()
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FQxFlareChromaPS, "/QxPPShaders/QxChroma.usf", "ChromaPS", SF_Pixel);
+
+	class FQxFlareGhostPS : public  FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FQxFlareGhostPS);
+		SHADER_USE_PARAMETER_STRUCT(FQxFlareGhostPS, FGlobalShader);
+			
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxBloomFlarePassParameters, Pass)
+			SHADER_PARAMETER_ARRAY(FVector4, GhostColors, [8])
+			SHADER_PARAMETER_ARRAY(float, GhostScales, [8])
+			SHADER_PARAMETER(float, Intensity)
+		END_SHADER_PARAMETER_STRUCT()
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FQxFlareGhostPS, "/QxPPShaders/QxGhosts.usf", "GhostPS", SF_Pixel);
 }
 
 IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/QxScreenPass.usf", "QxScreenPassVS", SF_Vertex);
@@ -330,7 +367,76 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloom(
 FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo,
 	const FScreenPassTexture InputTexture)
 {
-	return InputTexture;
+	RDG_EVENT_SCOPE(GraphBuilder, "QxFlarePasses");
+	FScreenPassTexture OutputTexture = InputTexture;
+
+	// 准备不同尺寸的view rect给后面用
+#pragma region PrepareDiffSizeViewRect
+	const FIntRect ViewRect1 = InputTexture.ViewRect;
+	const FIntRect ViewRect2 = FIntRect(
+		0, 0,
+		ViewRect1.Width() / 2, ViewRect1.Height() / 2
+		); 
+	const FIntRect ViewRect4 = FIntRect(
+		0, 0,
+		ViewRect1.Width() / 4, ViewRect1.Height() / 4
+		);
+#pragma endregion
+	
+	FScreenPassTexture MiediumResult = InputTexture;
+	// 添加色差的pass
+	{
+		const FString PassName("QxFlareChromaGhost");
+
+		// create chroma target texture
+		FRDGTextureDesc TexDesc = InputTexture.Texture->Desc;
+		TexDesc.Reset();
+		TexDesc.Extent = ViewRect2.Size();
+		TexDesc.Format = PF_FloatRGB;
+		TexDesc.ClearValue = FClearValueBinding(FLinearColor::Black);
+
+		FRDGTextureRef ChromaTarget = GraphBuilder.CreateTexture(TexDesc, *PassName);
+
+		FQxFlareChromaPS::FParameters* PassParams = GraphBuilder.AllocParameters<FQxFlareChromaPS::FParameters>();
+		PassParams->Pass.InputTexture = InputTexture.Texture;
+		PassParams->Pass.InputTextureSampler = BilinearBorderSampler;
+		PassParams->Pass.RenderTargets[0] = FRenderTargetBinding(ChromaTarget, ERenderTargetLoadAction::ENoAction);
+		PassParams->ChromaShift = QxPostprocessSubsystem->GetBloomSettingAsset()->GhostChromaShift;
+		
+		TShaderMapRef<FQxFlareChromaPS> PixelShader(ViewInfo.ShaderMap);
+		FPixelShaderUtils::AddFullscreenPass(
+			GraphBuilder,
+			ViewInfo.ShaderMap,
+			RDG_EVENT_NAME("QxFlareChromaGhost"),
+			PixelShader,
+			PassParams,
+			ViewRect2
+			);
+		MiediumResult.Texture = ChromaTarget;
+		MiediumResult.ViewRect = ViewRect2;
+	}
+
+
+	// Flare Ghost Pass
+	{
+		const FString PassName("QxFlareGhosts");
+
+		TShaderMapRef<FQxFlareGhostPS> PixelShader(ViewInfo.ShaderMap);
+
+		FQxFlareGhostPS::FParameters* PassParasms = GraphBuilder.AllocParameters<FQxFlareGhostPS::FParameters>();
+		
+		FPixelShaderUtils::AddFullscreenPass(
+			GraphBuilder,
+			ViewInfo.ShaderMap,
+			RDG_EVENT_NAME("QxFlareGhosts"),
+			PixelShader,
+			PassParasms,
+			ViewRect2
+			);
+	}
+	
+	OutputTexture = MiediumResult;
+	return OutputTexture;
 }
 
 

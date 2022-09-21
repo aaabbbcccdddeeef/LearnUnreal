@@ -24,7 +24,7 @@ float Intensity;
 float ChromaShift;
 
 void HaloPS(
-	int noperspective float4 UVAndScreenPos : TEXCOORD0,
+	in noperspective float4 UVAndScreenPos : TEXCOORD0,
 	out float3 OutColor : SV_TARGET0
 	)
 {
