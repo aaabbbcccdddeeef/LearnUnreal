@@ -7,7 +7,7 @@
 #include "QxLensFlareAsset.h"
 #include "QxPostprocessSubsystem.h"
 #include "Interfaces/IPluginManager.h"
-
+#include "QxRenderUtils.h"
 #include "RenderGraph.h"
 #include "ScreenPass.h"
 #include "SystemTextures.h"
@@ -90,6 +90,77 @@ namespace
 		}
 	};
 	IMPLEMENT_GLOBAL_SHADER(FQxFlareGhostPS, "/QxPPShaders/QxGhosts.usf", "GhostPS", SF_Pixel);
+
+	class FQxHaloPS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FQxHaloPS);
+		SHADER_USE_PARAMETER_STRUCT(FQxHaloPS, FGlobalShader);
+			
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxBloomFlarePassParameters, Pass)
+			SHADER_PARAMETER(float, Width)
+			SHADER_PARAMETER(float, Mask)
+			SHADER_PARAMETER(float, Compression)
+			SHADER_PARAMETER(float, Intensity)
+			SHADER_PARAMETER(float, ChromaShift)
+		END_SHADER_PARAMETER_STRUCT()
+		
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FQxHaloPS, "/QxPPShaders/QxHalo.usf", "HaloPS", SF_Pixel);
+
+#pragma region GlareShaders
+	class FQxGlareVS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FQxGlareVS);
+		SHADER_USE_PARAMETER_STRUCT(FQxGlareVS, FGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FQxBloomFlarePassParameters, Pass)
+			SHADER_PARAMETER(FIntPoint, TileCount)
+			SHADER_PARAMETER(FVector4, PixelSize)
+			SHADER_PARAMETER(FVector2D, BufferSize)
+		END_SHADER_PARAMETER_STRUCT()
+	};
+	IMPLEMENT_GLOBAL_SHADER(FQxGlareVS, "/QxPPShaders/QxGlare.usf", "GlareVS", SF_Vertex);
+
+
+	class FQxGlareGS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FQxGlareGS);
+		SHADER_USE_PARAMETER_STRUCT(FQxGlareGS, FGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER(FVector4, PixelSize)
+			SHADER_PARAMETER(FVector2D, BufferSize)
+			SHADER_PARAMETER(FVector2D, BufferRatio)
+			SHADER_PARAMETER(float, GlareIntensity)
+			SHADER_PARAMETER(float, GlareDivider)
+			SHADER_PARAMETER(FVector4, GlareTint)
+			SHADER_PARAMETER_ARRAY(float, GlareScales, [3])
+		END_SHADER_PARAMETER_STRUCT()
+	};
+	IMPLEMENT_GLOBAL_SHADER(FQxGlareGS, "/QxPPShaders/QxGlare.usf", "GlareGS", SF_Geometry);
+
+	class FQxGlarePS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FQxGlarePS);
+		SHADER_USE_PARAMETER_STRUCT(FQxGlarePS, FGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+			SHADER_PARAMETER_SAMPLER(SamplerState, GlareTextureSampler)
+			SHADER_PARAMETER_TEXTURE(Texture2D, GlareTexture)
+		END_SHADER_PARAMETER_STRUCT()
+	};
+	IMPLEMENT_GLOBAL_SHADER(FQxGlarePS, "/QxPPShaders/QxGlare.usf", "GlarePS", SF_Pixel);
+#pragma endregion
 }
 
 IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/QxScreenPass.usf", "QxScreenPassVS", SF_Vertex);
@@ -105,7 +176,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 	RDG_GPU_STAT_SCOPE(GraphBuilder, PostProcessQx);
 	RDG_EVENT_SCOPE(GraphBuilder, "PostProcessQx");
 
-	const UQxBloomFlareAsset* const BloomSettingAsset = QxPostprocessSubsystem->GetBloomSettingAsset();
+	const UQxBloomFlareAsset* BloomSettingAsset = QxPostprocessSubsystem->GetBloomSettingAsset();
 	check(BloomSettingAsset);
 
 	int32 DownSamplePassNum = BloomSettingAsset->DownSampleCount;
@@ -131,8 +202,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 		
 	// Bloom
 	{
-		const bool bShowFlare = QxPostprocessSubsystem->GetBloomSettingAsset()->bEnableQxFlare;
-		if (bShowFlare)
+		if (BloomSettingAsset->bEnableQxBloom)
 		{
 			BloomTexture = RenderBloom(
 				GraphBuilder,
@@ -141,7 +211,6 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 				DownSamplePassNum
 				);
 		}
-
 	}	
 
 	// Flare
@@ -154,6 +223,15 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 	}
 
 	// Glare
+	if (QxBloomSettingAsset->bEnableGlare)
+	{
+		GlareTexture = RenderGlare(
+			GraphBuilder,
+			ViewInfo,
+			BloomTexture
+			);
+	}
+	
 
 	// Composite Bloom, Flare and Glare together
 
@@ -382,9 +460,12 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBui
 		ViewRect1.Width() / 4, ViewRect1.Height() / 4
 		);
 #pragma endregion
+
+	UQxBloomFlareAsset* QxPostSettings =  QxPostprocessSubsystem->GetBloomSettingAsset();
 	
-	FScreenPassTexture MiediumResult = InputTexture;
+	FScreenPassTexture IntermediateResult = InputTexture;
 	// 添加色差的pass
+	if (QxPostSettings->bEnableQxChroma)
 	{
 		const FString PassName("QxFlareChromaGhost");
 
@@ -412,30 +493,120 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBui
 			PassParams,
 			ViewRect2
 			);
-		MiediumResult.Texture = ChromaTarget;
-		MiediumResult.ViewRect = ViewRect2;
+		IntermediateResult.Texture = ChromaTarget;
+		IntermediateResult.ViewRect = ViewRect2;
 	}
 
-
 	// Flare Ghost Pass
+	if (QxPostSettings->bEnableGhost)
 	{
 		const FString PassName("QxFlareGhosts");
 
+		// 创建一个ghost target texture
+		FRDGTextureDesc TexDesc = InputTexture.Texture->Desc;
+		TexDesc.Reset();
+		TexDesc.Extent = ViewRect2.Size();
+		TexDesc.Format = PF_FloatRGB;
+		TexDesc.ClearValue = FClearValueBinding(FLinearColor::Transparent);
+		FRDGTextureRef GhostTargetTexture = GraphBuilder.CreateTexture(TexDesc, TEXT("QxGhostTargetTexture"));
+
 		TShaderMapRef<FQxFlareGhostPS> PixelShader(ViewInfo.ShaderMap);
 
-		FQxFlareGhostPS::FParameters* PassParasms = GraphBuilder.AllocParameters<FQxFlareGhostPS::FParameters>();
+		FQxFlareGhostPS::FParameters* PassParams = GraphBuilder.AllocParameters<FQxFlareGhostPS::FParameters>();
+		PassParams->Pass.InputTexture = IntermediateResult.Texture;
+		PassParams->Pass.InputTextureSampler = BilinearBorderSampler;
+		PassParams->Pass.RenderTargets[0] = FRenderTargetBinding(GhostTargetTexture, ERenderTargetLoadAction::ENoAction);
+		PassParams->Intensity = QxPostSettings->GhostIntensity;
+		// 设置ghost color 数组和scale 数组,从asset 获取
+		{
+			PassParams->GhostColors[0] = QxPostSettings->Ghost1.Color;
+			PassParams->GhostColors[1] = QxPostSettings->Ghost2.Color;
+			PassParams->GhostColors[2] = QxPostSettings->Ghost3.Color;
+			PassParams->GhostColors[3] = QxPostSettings->Ghost4.Color;
+			PassParams->GhostColors[4] = QxPostSettings->Ghost5.Color;
+			PassParams->GhostColors[5] = QxPostSettings->Ghost6.Color;
+			PassParams->GhostColors[6] = QxPostSettings->Ghost7.Color;
+			PassParams->GhostColors[7] = QxPostSettings->Ghost8.Color;
+
+			PassParams->GhostScales[0] = QxPostSettings->Ghost1.Scale;
+			PassParams->GhostScales[1] = QxPostSettings->Ghost2.Scale;
+			PassParams->GhostScales[2] = QxPostSettings->Ghost3.Scale;
+			PassParams->GhostScales[3] = QxPostSettings->Ghost4.Scale;
+			PassParams->GhostScales[4] = QxPostSettings->Ghost5.Scale;
+			PassParams->GhostScales[5] = QxPostSettings->Ghost6.Scale;
+			PassParams->GhostScales[6] = QxPostSettings->Ghost7.Scale;
+			PassParams->GhostScales[7] = QxPostSettings->Ghost8.Scale;
+		}
+
 		
 		FPixelShaderUtils::AddFullscreenPass(
 			GraphBuilder,
 			ViewInfo.ShaderMap,
 			RDG_EVENT_NAME("QxFlareGhosts"),
 			PixelShader,
-			PassParasms,
+			PassParams,
 			ViewRect2
+			);
+		IntermediateResult.Texture = GhostTargetTexture;
+		IntermediateResult.ViewRect = ViewRect2;
+	}
+
+	// Halo Pass
+	if (QxPostSettings->bEnableHalo)
+	{
+		const FString PassName("QxHaloPass");
+
+		TShaderMapRef<FQxHaloPS> PixelShader(ViewInfo.ShaderMap);
+
+		// 如果前面的pass没有给intermediate 创建临时texture，这里需要创建一个，同一个pass不能同时使用一个texture 作为srv/rtv
+		if (IntermediateResult.Texture == InputTexture.Texture)
+		{
+			FRDGTextureDesc TexDesc = InputTexture.Texture->Desc;
+			TexDesc.Reset();
+			TexDesc.Extent = ViewRect2.Size();
+			TexDesc.Format = PF_FloatRGB;
+			TexDesc.ClearValue = FClearValueBinding(FLinearColor::Transparent);
+			FRDGTextureRef HaloTargetTexture = GraphBuilder.CreateTexture(TexDesc, TEXT("QxHaloTargetTexture"));
+			IntermediateResult.Texture = HaloTargetTexture;
+			IntermediateResult.ViewRect = ViewRect2;
+		}
+		
+		FQxHaloPS::FParameters* PassParams = GraphBuilder.AllocParameters<FQxHaloPS::FParameters>();
+		PassParams->Pass.InputTexture = InputTexture.Texture;
+		PassParams->Pass.InputTextureSampler = BilinearBorderSampler;
+		PassParams->Pass.RenderTargets[0] = FRenderTargetBinding(IntermediateResult.Texture,
+			ERenderTargetLoadAction::ENoAction);
+		PassParams->Compression = QxPostSettings->HaloCompression;
+		PassParams->Intensity = QxPostSettings->HaloIntensity;
+		PassParams->Mask = QxPostSettings->HaloMask;
+		PassParams->Width = QxPostSettings->HaloWidth;
+		PassParams->ChromaShift = QxPostSettings->GhostChromaShift;
+		
+		FRHIBlendState* AdditiveState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
+		FPixelShaderUtils::AddFullscreenPass(
+			GraphBuilder,
+			ViewInfo.ShaderMap,
+			RDG_EVENT_NAME("QxHaloPass"),
+			PixelShader,
+			PassParams,
+			ViewRect2,
+			AdditiveState
+			);
+	}
+
+
+	// Blur pass
+	{
+		const int32 BlurSteps  = 1;
+		IntermediateResult = QxRenderUtils::RenderKawaseBlur(
+			GraphBuilder,
+			ViewInfo,
+			IntermediateResult,
+			BlurSteps
 			);
 	}
 	
-	OutputTexture = MiediumResult;
+	OutputTexture = IntermediateResult;
 	return OutputTexture;
 }
 
@@ -451,4 +622,128 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBui
 	}
 	// check(InputTexture)
 	return FScreenPassTexture();
+}
+
+FScreenPassTexture FQxBloomSceneViewExtension::RenderGlare(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo,
+	const FScreenPassTexture& InputTexture)
+{
+	RDG_EVENT_SCOPE(GraphBuilder, "QxGlarePass");
+	FScreenPassTexture OutputTexture = InputTexture;
+
+	UQxBloomFlareAsset* QxPostSettings = QxPostprocessSubsystem->GetBloomSettingAsset();
+	FIntRect Viewport4 = FIntRect(
+		0, 0,
+		InputTexture.ViewRect.Width() / 4,
+		InputTexture.ViewRect.Height() / 4
+		);
+
+	// 创建target glare texture
+	FRDGTextureDesc TexDesc = InputTexture.Texture->Desc;
+	TexDesc.Reset();
+	TexDesc.Extent = Viewport4.Size();
+	TexDesc.Format = PF_FloatRGB;
+	TexDesc.ClearValue = FClearValueBinding(FLinearColor::Transparent);
+	FRDGTextureRef GlareTexture = GraphBuilder.CreateTexture(TexDesc, TEXT("GlareTargetTexture"));
+
+	FVector4 PixelSize = FVector4(0, 0, 0, 0);
+	PixelSize.X = 1.f / float(Viewport4.Width());
+	PixelSize.Y = 1.f / float(Viewport4.Height());
+	PixelSize.Z = PixelSize.X;
+	PixelSize.W = PixelSize.Y * -1.f;
+
+	FVector2D BufferSize = FVector2D(TexDesc.Extent);
+	
+	if (QxPostSettings->GlareIntensity > SMALL_NUMBER)
+	{
+		// 这里计算 需要绘制的 point 数量
+		// 由于我们需要 2x2对应于1个point ，所以分辨率/2
+		FIntPoint TileCount = Viewport4.Size();
+		TileCount.X = TileCount.X / 2;
+		TileCount.Y = TileCount.Y / 2;
+		const int32 Amount = TileCount.X * TileCount.Y;
+
+		// 计算宽高比以 调整 quad的缩放， 假设宽大于高
+		FVector2D BufferRatio = FVector2D(
+			float(Viewport4.Height()) / float(Viewport4.Width()),
+			1.f
+			);
+		
+#pragma region SetupShaderAndParams
+		FQxBloomFlarePassParameters* PassParameters = GraphBuilder.AllocParameters<FQxBloomFlarePassParameters>();
+		PassParameters->InputTexture = InputTexture.Texture;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(GlareTexture, ERenderTargetLoadAction::ENoAction);
+		PassParameters->InputTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Border>::GetRHI();
+
+		// VS Params
+		FQxGlareVS::FParameters VSParams;
+		VSParams.Pass = *PassParameters;
+		VSParams.PixelSize = PixelSize;
+		VSParams.TileCount = TileCount;
+		VSParams.BufferSize = BufferSize;
+
+		// GS Params
+		FQxGlareGS::FParameters GSParams;
+		GSParams.BufferSize = BufferSize;
+		GSParams.BufferRatio = BufferRatio;
+		GSParams.PixelSize = PixelSize;
+		GSParams.GlareIntensity = QxPostSettings->GlareIntensity;
+		GSParams.GlareTint = QxPostSettings->GlareTint;
+		GSParams.GlareScales[0] = QxPostSettings->GlareScale.X;
+		GSParams.GlareScales[1] = QxPostSettings->GlareScale.Y;
+		GSParams.GlareScales[2] = QxPostSettings->GlareScale.Z;
+		GSParams.GlareDivider = FMath::Max(QxPostSettings->GlareDivider, 0.01f);
+
+		// PS Params
+		FQxGlarePS::FParameters PSParams;
+		PSParams.GlareTexture = GWhiteTexture->TextureRHI;
+		PSParams.GlareTextureSampler = BilinearClampSampler;
+		if (nullptr != QxPostSettings->GlareLineMask)
+		{
+			const FTextureRHIRef TextureRHI = QxPostSettings->GlareLineMask->Resource->TextureRHI;
+			PSParams.GlareTexture = TextureRHI;
+		}
+
+		TShaderMapRef<FQxGlareVS> VertexShader(ViewInfo.ShaderMap);
+		TShaderMapRef<FQxGlarePS> PixelShader(ViewInfo.ShaderMap);
+		TShaderMapRef<FQxGlareGS> GeometryShader(ViewInfo.ShaderMap);
+#pragma endregion
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("QxGlarePass"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[Viewport4, VSParams, GSParams, PSParams,
+				VertexShader, GeometryShader, PixelShader, Amount
+				](FRHICommandListImmediate& RHICmdList)
+			{
+				RHICmdList.SetViewport(Viewport4.Min.X, Viewport4.Min.Y, 0.f,
+					Viewport4.Max.X, Viewport4.Max.Y, 1.f);
+
+				FGraphicsPipelineStateInitializer GraphicPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicPSOInit);
+				GraphicPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
+				GraphicPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+				GraphicPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+				GraphicPSOInit.PrimitiveType = PT_PointList;
+				// 这个draw call中我们不需要input 完全有shader生成,所以用empty layout
+				GraphicPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+				GraphicPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
+				GraphicPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				SetGraphicsPipelineState(RHICmdList, GraphicPSOInit);
+
+				SetShaderParameters(RHICmdList, VertexShader,
+					VertexShader.GetVertexShader(), VSParams);
+				SetShaderParameters(RHICmdList, GeometryShader,
+					GeometryShader.GetGeometryShader(), GSParams);
+				SetShaderParameters(RHICmdList, PixelShader,
+					PixelShader.GetPixelShader(), PSParams);
+
+				RHICmdList.SetStreamSource(0, nullptr, 0);
+				RHICmdList.DrawPrimitive(0, 1, Amount);
+			}
+			);
+	}
+	
+	return OutputTexture;
 }

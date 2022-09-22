@@ -94,6 +94,12 @@ private:
 		const FScreenPassTexture InputTexture
 		);
 
+	FScreenPassTexture RenderGlare(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& ViewInfo,
+		const FScreenPassTexture& InputTexture
+		);
+
 	// 这个是参照文档中COD的filter的特殊down sample
 	FRDGTextureRef RenderCOD_DownSample(FRDGBuilder& GraphBuilder,
 		const FString& PassName,
@@ -140,3 +146,5 @@ private:
 	float LastAverageSceneLuminance = 0.f;
 #pragma endregion
 };
+
+

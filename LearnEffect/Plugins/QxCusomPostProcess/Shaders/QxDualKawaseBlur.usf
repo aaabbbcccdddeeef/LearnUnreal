@@ -1,0 +1,73 @@
+#include "Shared.ush"
+
+// Kawase Dual filter blur 是Masaki Kawase 在GDC上提出的blur方法，自行查找相关文档
+
+float2 BufferSize;
+
+void KawaseBlurDownsamplePS(
+	in noperspective float4 UVAndScreenPos : TEXCOORD0,
+	out float4 OutColor : SV_Target0
+	)
+{
+	float2 UV = UVAndScreenPos.xy;
+	float2 HalfPixel = (1.0 / BufferSize) * 0.5f;
+
+	static const float2 PixelOffset[4] = {
+		float2(-1.0, 1.0),
+		float2(1.0, 1.0),
+		float2(1.0, -1.0),
+		float2(-1.0, -1.0),
+	};
+
+	float3 Color = Texture2DSample(InputTexture, InputTextureSampler, UV).rgb * 4.0f;
+
+	UNROLL_N(4)
+	for (int i = 0; i < 4; ++i)
+	{
+		Color += Texture2DSample(InputTexture, InputTextureSampler, UV + HalfPixel * PixelOffset[i]).rgb;
+	}
+
+	OutColor.rgb = Color / 8.f;
+	OutColor.a = 0.f;
+}
+
+void KawaseBlurUpsamplePS(
+	in noperspective float4 UVAndScreenPos : TEXCOORD0,
+	out float4 OutColor : SV_Target0
+	)
+{
+	float2 UV = UVAndScreenPos.xy;
+	float2 HalfPixel = (1.0 / BufferSize) * 0.5f;
+
+	float3 Color = float3(0, 0, 0);
+
+	// 左上、左下、右上、右下 4个角落的位置
+	static const float2 PixelOffset[4] = {
+		float2(-1.0, 1.0),
+		float2(1.0, 1.0),
+		float2(1.0, -1.0),
+		float2(-1.0, -1.0),
+	};
+
+	UNROLL_N(4)
+	for (int i = 0; i < 4; ++i)
+	{
+		Color += Texture2DSample(InputTexture, InputTextureSampler, UV + PixelOffset[i]).rgb;
+	}
+
+	static const float2 PixelOffsetAxis[4] = {
+		float2(-1.0, 0.0),
+		float2(1.0, 0.0),
+		float2(0.0, 1.0),
+		float2(0.0, -1.0),
+	};
+
+	UNROLL_N(4)
+	for(int i = 0; i < 4; i++)
+	{
+		Color += Texture2DSample(InputTexture, InputTextureSampler, UV + HalfPixel * PixelOffsetAxis[i]).rgb * 2.0;
+	}
+
+	OutColor.rgb = Color / 12.f;
+	OutColor.a = 0.f;
+}

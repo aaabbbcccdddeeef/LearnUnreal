@@ -1,0 +1,237 @@
+#include "Shared.ush"
+
+uint2 TileCount;
+float GlareDivider;
+float GlareIntensity;
+float GlareScales[3];
+float4 GlareTint;
+float2 BufferSize;
+float2 BufferRatio;
+float4 PixelSize;
+Texture2D GlareTexture;
+SamplerState GlareTextureSampler;
+
+struct FVertexToGeometry
+{
+	float4 Position : SV_Position;
+	float3 Color : TEXCOORD0;
+	float Luminance : TEXCOORD1;
+	uint ID : TEXCOORD2;
+};
+
+void GlareVS(
+	uint VId : SV_VertexID,
+	uint IId : SV_InstanceID,
+	out FVertexToGeometry VSOut
+	)
+{
+	// TilePos 根据id 算出来
+	float2 TilePos = float2(IId % TileCount.x, IId / TileCount.x);
+	float2 UV = TilePos / BufferSize * 2.0f;
+
+	// Coords and Weights are local positions and intensities for 
+	// the pixels we are gonna sample. Since we have one point 
+	// for four pixels (two by two) we want to sample multiple 
+	// times the buffer to avoid missing information which 
+	// would create holes or artifacts.
+	// This pattern doesn't sample exactly the 4 pixels in a block
+	// but instead sample in the middle and at the corners to take
+	// advantage of bilinear sampling to average more values.
+	static  const float2 Coords[5] = {
+		float2( -1.0f,  1.0f ),
+	   float2(  1.0f,  1.0f ),
+
+	   float2(  0.0f,  0.0f ),
+
+	   float2( -1.0f, -1.0f ),
+	   float2(  1.0f, -1.0f )
+	};
+
+	const float Weights[5] = {
+		0.175, 0.175,
+		   0.3,
+	   0.175, 0.175
+	};
+
+	// UV 2x2块的右上的中心，offset 这个来得到2x2的中心
+	float2 CenterUV = UV + PixelSize.xy * float2(-0.5f, -0.5f);
+
+	float3 Color = float3(0.f, 0.f, 0.f);
+
+	UNROLL
+	for (int i = 0; i < 5; ++i)
+	{
+		float2 CurrentUV = CenterUV + Coords[i] * PixelSize.xy * 1.5f;
+		Color += Weights[i] * Texture2DSampleLevel(InputTexture, InputTextureSampler, CurrentUV, 0).rgb;
+	}
+
+	VSOut.Luminance = dot(Color.rgb, 1.0f);
+	VSOut.ID = IId;
+	VSOut.Color = Color;
+	VSOut.Position = float4(TilePos.x, TilePos.y, 0.0f, 1.0f);
+}
+
+struct FGeometryToPixel
+{
+	float4 Position : SV_POSITION;
+	float2 UV : TEXCOORD0;
+	float3 Color : TEXCOORD1;
+};
+
+
+//#TODO 没明白这个函数的用途完成流程后调试来理解
+// This function goal is to figure out the actual position
+// (in range 0-1) of a given vertex based on the original
+// point position. This function also take into account
+// the angle and scale of the quad to compute the target
+// position of the final vertex.
+float4 ComputePosition(float2 TilePos, float2 UV, float2 Scale, float Angle)
+{
+	// Compute the position of the quad based on the ID
+	// Some multiply/divide by two magic to get the proper coordinates
+	float2 BufferPosition = (TilePos - float2(0.25f, 0.25f)) / BufferSize;
+	BufferPosition = 4.0f * BufferPosition - 1.0f;
+
+	// Center the quad in the middle of the screen
+	float2 NewPosition = 2.0f * (UV - 0.5f);
+
+	// Scale the quad
+	NewPosition *= Scale;
+
+	// Rotate th equad
+	float Sinus         = sin( Angle );
+	float Cosinus       = cos( Angle );
+	float2 RotatedPosition = float2(
+		(NewPosition.x * Cosinus) - (NewPosition.y * Sinus),
+		(NewPosition.x * Sinus)   + (NewPosition.y * Cosinus)
+	);
+
+	// Scale quad to compensate the buffer ratio
+	RotatedPosition *= BufferRatio;
+
+	// Position quad where pixel is in the buffer
+	RotatedPosition += BufferPosition * float2(1.0f, -1.0f);
+
+	// Build final vertex position
+	float4 OutPosition = float4( RotatedPosition.x, RotatedPosition.y,0,1);
+
+	return OutPosition;
+}
+
+
+// 产出3个quad，每个quad 4个顶点
+[maxvertexcount(12)]
+void GlareGS(
+	point  FVertexToGeometry Inputs[1],
+	inout TriangleStream<FGeometryToPixel> OutStream
+	)
+{
+	FVertexToGeometry Input = Inputs[0];
+
+	// 这里到底应该用Branch 还是flatten,预期中大部分点的luminance应该大于0.1
+	// #TODO
+	BRANCH
+	if (Input.Luminance > 0.1f)
+	{
+		float2 PointUV = Input.Position.xy / BufferSize * 2.f;
+		float MaxSize = max(BufferSize.x, BufferSize.y);
+
+		// final quad color
+		float3 Color = Input.Color * GlareTint.rgb * GlareTint.a * GlareIntensity;
+
+		float LuminanceScale = saturate(Input.Luminance / GlareDivider);
+
+		// #TODO 验证并记录下面的pattern
+		// screen mask to  make the glare shrink at screen boarders
+		float Mask = distance(PointUV - 0.5f, float2(0, 0));
+		Mask = 1.f - saturate(Mask * 2.f);
+		Mask = Mask * 0.6f + 0.4f;
+
+		float2 Scale = float2(
+			LuminanceScale * Mask,
+			(1.f / min(BufferSize.x, BufferSize.y)) * 4.f
+			);
+
+		// setup rotation angle
+		const float Angle30 = 0.523599f;
+		const float Angle60 = 1.047197f;
+		const float Angle90 = 1.570796f;
+		const float Angle150 = 2.617994f;
+
+		float AngleOffset = (PointUV.x * 2.0f - 1.0f) * Angle30;
+
+		float AngleBase[3] = {
+			AngleOffset + Angle90,
+			AngleOffset + Angle30, // 90 -60
+			AngleOffset + Angle150 // 90 + 60
+		};
+
+		// Quad UV coordinates of each vertex
+		// Used as well to know which vertex of the quad is
+		// being computed (by its position).
+		// The order is important to ensure the triangles
+		// will be front facing and therefore visible.
+		static const float2 QuadCoords[4] = {
+			float2(  0.0f,  0.0f ),
+			float2(  1.0f,  0.0f ),
+			float2(  1.0f,  1.0f ),
+			float2(  0.0f,  1.0f )
+		};
+
+		// 生成3个quad
+		UNROLL
+		for (int i = 0; i < 3; ++i)
+		{
+			// 产生4个顶点
+			if (GlareScales[i] > 0.0001f)
+			{
+				float2 QuadScale = Scale * GlareScales[i];
+				float QuadAngle = AngleBase[i];
+
+				FGeometryToPixel Vertex0;
+				FGeometryToPixel Vertex1;
+				FGeometryToPixel Vertex2;
+				FGeometryToPixel Vertex3;
+
+				Vertex0.UV = QuadCoords[0];
+				Vertex1.UV = QuadCoords[1];
+				Vertex2.UV = QuadCoords[2];
+				Vertex3.UV = QuadCoords[3];
+
+				Vertex0.Color = Color;
+				Vertex1.Color = Color;
+				Vertex2.Color = Color;
+				Vertex3.Color = Color;
+
+				Vertex0.Position = ComputePosition( Input.Position.xy, Vertex0.UV, QuadScale, QuadAngle );
+				Vertex1.Position = ComputePosition( Input.Position.xy, Vertex1.UV, QuadScale, QuadAngle );
+				Vertex2.Position = ComputePosition( Input.Position.xy, Vertex2.UV, QuadScale, QuadAngle );
+				Vertex3.Position = ComputePosition( Input.Position.xy, Vertex3.UV, QuadScale, QuadAngle );
+				
+				// Produce a strip of Polygon. A triangle is
+				// just 3 vertex produced in a row which end-up
+				// connected, the last vertex re-use two previous
+				// ones to build the second triangle.
+				// This is why Vertex3 is not the last one, to ensure
+				// the triangle is built with the right points.
+				OutStream.Append(Vertex0);
+				OutStream.Append(Vertex1);
+				OutStream.Append(Vertex3);
+				OutStream.Append(Vertex2);
+				
+				// 完成一个quad 2个triangle strip的生成
+				OutStream.RestartStrip();
+			}
+		}
+	}
+}
+
+void GlarePS(
+	in FGeometryToPixel PSInput,
+	out float4 OutColor : SV_Target0
+	)
+{
+	float3 Mask = Texture2DSample(GlareTexture, GlareTextureSampler, PSInput.UV).rgb;
+	OutColor.rgb = Mask * PSInput.Color.rgb;
+	OutColor.a = 1.f;
+}
