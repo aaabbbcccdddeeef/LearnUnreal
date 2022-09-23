@@ -5,13 +5,32 @@
 
 #include "MeshMaterialShader.h"
 
+static uint32 Clipping_Volumn_Max = 16;
+
 // 保存所有作为use data传入FQProceduralVertexFactoryParameters的数据
 struct FQxProceduralMeshBatchElementUserData
 {
+	FQxProceduralMeshBatchElementUserData()
+		: NumClipNums(0)
+		, bStartClipped(false)
+	{
+		for (int32 i = 0; i < Clipping_Volumn_Max; ++i)
+		{
+			ClipVolumns[i] = FMatrix(
+				FPlane(FVector::ZeroVector, 0),
+				FPlane(FVector::ForwardVector, FLT_MAX),
+				FPlane(FVector::RightVector, FLT_MAX),
+				FPlane(FVector::UpVector, FLT_MAX)
+				);
+		}
+	}
 	FRHIShaderResourceView* ClippingVolumeBuffer;
 	FVector Tint;
 	FVector4 Contrast;
 	FVector4 Saturation;
+	FMatrix ClipVolumns[Clipping_Volumn_Max];
+	uint32 NumClipNums;
+	uint32 bStartClipped;
 };
 
 class FQProceduralVertexFactoryParameters : public FVertexFactoryShaderParameters
@@ -24,6 +43,8 @@ public:
 		Contrast.Bind(ParameterMap, TEXT("Contrast"));
 		Saturation.Bind(ParameterMap, TEXT("Saturation"));
 		ClippingVolumeBuffer.Bind(ParameterMap, TEXT("ClippingVolumeBuffer"));
+		NumClippoingVolumes.Bind(ParameterMap, TEXT("NumClippoingVolumes"));
+		bStartClipped.Bind(ParameterMap, TEXT("bStartClipped"));
 	}
 
 	void GetElementShaderBindings(const class FSceneInterface* Scene, const FSceneView* View, const FMeshMaterialShader* Shader, const EVertexInputStreamType InputStreamType, ERHIFeatureLevel::Type FeatureLevel,
@@ -48,12 +69,18 @@ public:
 		{
 			ShaderBindings.Add(ClippingVolumeBuffer, UserData->ClippingVolumeBuffer);
 		}
+		if (NumClippoingVolumes.IsBound())
+		{
+			ShaderBindings.Add(NumClippoingVolumes, UserData.)
+		}
 	}
 	
 	LAYOUT_FIELD(FShaderParameter, Tint);
 	LAYOUT_FIELD(FShaderParameter, Contrast);
 	LAYOUT_FIELD(FShaderParameter, Saturation);
 	LAYOUT_FIELD(FShaderResourceParameter, ClippingVolumeBuffer);
+	LAYOUT_FIELD(FShaderParameter, NumClippoingVolumes);
+	LAYOUT_FIELD(FShaderParameter, bStartClipped);
 };
 
 
@@ -219,7 +246,7 @@ public:
 			uint32* Data = (uint32*)Buffer;
 
 			// PointDataIndex 是在数据中的index，IdxInGPU是产出的index buffer的index的key，
-			for (uint32 PointDataIndex = 0, IdxInGPU = 0; PointDataIndex < PointsDataSP->Num(); ++PointDataIndex)
+			for (uint32 PointDataIndex = 0, IdxInGPU = 0; PointDataIndex < static_cast<uint32>(PointsDataSP->Num()); ++PointDataIndex)
 			{
 				const uint32 v = PointDataIndex *  4;
 

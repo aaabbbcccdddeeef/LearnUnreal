@@ -1,0 +1,18 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/VertexFactoryCommon.ush"
+
+half3 Tint;
+half4 Contrast;
+half4 Saturation;
+
+/**
+ * [Tx, Ty, Tz, Invert]
+ * [Fx, Fy, Fz, Ex]
+ * [Rx, Ry, Rz, Ey]
+ * [Ux, Uy, Uz, Ez]
+ */
+float4x4 ClippingVolumeBuffer[16];
+uint NumClippoingVolumes;
+uint bStartClipped;
+
+
