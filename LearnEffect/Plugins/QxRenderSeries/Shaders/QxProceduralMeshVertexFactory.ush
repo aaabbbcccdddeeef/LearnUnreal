@@ -15,4 +15,51 @@ float4x4 ClippingVolumeBuffer[16];
 uint NumClippoingVolumes;
 uint bStartClipped;
 
+struct FVertexFactoryInput
+{
+ float4 Position : ATTRIBUTE0;
+ half4 Color : ATTRIBUTE1;
+ uint MetaData : ATTRIBUTE2;
+ uint VertexId : SV_VertexId;
+};
+
+struct FPositionOnlyVertexFactoryInput
+{
+ float4 Position : ATTRIBUTE0;
+ uint VertexId : SV_VertexId;
+};
+
+struct FVertexAndNormalOnlyVertexFactoryInput
+{
+ float4 Position : ATTRIBUTE0;
+ float4 Normal : ATTRIBUTE1;
+ uint VertexId : SV_VertexId;
+};
+
+struct FVertexFactoryInterpolantsVSToPS
+{
+ TANGENTTOWORLD_INTERPOLATOR_BLOCK // 这先参照点云的vf加了tangents，但qx procedural mesh未必需要
+ half4 Color : COLOR0;
+ float2 TexCoords : TEXCOORD0;
+};
+
+struct FVertexFactoryIntermediates
+{
+ half3x3 TangentToLocal;
+ half3x3 TangentToWorld;
+ half4 Color;
+ float3 Position;
+ half2 Scale;
+ float SpriteSize;
+};
+
+struct FQxProceduralIntanceData
+{
+ float3 Position;
+ uint Color;
+ uint bSelected;
+ half3x3 TangentToLocal;
+ float SpriteSize;
+};
+
 
