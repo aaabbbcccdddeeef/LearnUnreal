@@ -500,14 +500,17 @@ void UQxRenderBPLib::RenderTexture_WithCSRDG(UTextureRenderTarget2D* InRenderTar
 	);
 	
 }
-static const uint32 TGSize = 16;
+// static const uint32 TGSize = 16;
 
-void UQxRenderBPLib::RenderAverageTexture_WithCS(UTexture2D* InTexture, UTextureRenderTarget2D* InRenderTarget)
+void UQxRenderBPLib::RenderAverageTexture_WithCS(UTexture2D* InTexture, UTextureRenderTarget2D* InRenderTarget,
+	int32 ThreadGroupWidth)
 {
-	if (!InTexture || !InRenderTarget)
+	if (!InTexture || !InRenderTarget || (ThreadGroupWidth <= 0))
 	{
 		return;
 	}
+	 // const uint32 TGSize = static_cast<uint32>( ThreadGroupWidth);
+	const int32 TGSize = FQxAverageCS::TGSize_;
 	// 调整render target 尺寸
 	uint32 OutSize =  FMath::Max<uint32>(InTexture->GetSizeX() / (TGSize * 2), 1);
 	InRenderTarget->ResizeTarget(OutSize, OutSize);

@@ -4,8 +4,9 @@
 
 DEFINE_LOG_CATEGORY(QxCustomUpscaler);
 
-static TAutoConsoleVariable<int32> CVarQxUpscalerEnable(
-	TEXT("r.QxUpscaler.Enable"), 1,
+static TAutoConsoleVariable<bool> CVarQxUpscalerEnable(
+	TEXT("r.QxUpscaler.Enable"),
+	false,
 	TEXT("Wheather use qx upscaler "),
 	ECVF_Default);
 

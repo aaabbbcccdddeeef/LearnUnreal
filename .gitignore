@@ -50,3 +50,5 @@ LearnEffect/Content/LearnGamePlay/LearnLoadingScreen/
 *.mp4
 LearnEditorEx/Content/TestGame/
 LearnEffect/Content/RenderProgramming/LearnEditor/EBP/LearnDataLoad/DataTables/
+LearnEffect/Content/RenderProgramming/LearnComputeShader/T_Wood_Oak_D_2.uasset
+*.ipch

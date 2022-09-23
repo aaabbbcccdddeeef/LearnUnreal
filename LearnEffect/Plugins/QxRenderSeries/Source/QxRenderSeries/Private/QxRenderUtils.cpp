@@ -77,7 +77,7 @@ void QxRenderUtils::RenderAverageToTarget_RenderThread(
 {
 	check(IsInRenderingThread());
 	// 确保InRenderTarget的size是InTexture的size / 32
-	check(InTexture->GetSizeX()/32 == InRenderTarget->SizeX);
+	// check(InTexture->GetSizeX()/32 == InRenderTarget->SizeX);
 
 	// RHICmdList.SetCurrentStat()
 	// RHICmdList.SetCurrentStat()

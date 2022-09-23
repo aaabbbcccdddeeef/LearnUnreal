@@ -32,7 +32,7 @@ public class QxCustomUpscaler : ModuleRules
 			EngineDirectory + "/Source/Runtime/Renderer/Private"		
 		});
  
-		PublicIncludePaths.AddRange(new string[] {"QxCustomUpscaler/Public"});
+		// PublicIncludePaths.AddRange(new string[] {"QxCustomUpscaler/Public"});
 		PrivateIncludePaths.AddRange(new string[] {"QxCustomUpscaler/Private"});
 		
 		OptimizeCode = CodeOptimization.Never;

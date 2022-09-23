@@ -197,6 +197,8 @@ public:
 class FQxAverageCS : public FGlobalShader
 {
 public:
+	static constexpr int32 TGSize_ = 16;
+public:
 	DECLARE_GLOBAL_SHADER(FQxAverageCS)
 	SHADER_USE_PARAMETER_STRUCT(FQxAverageCS, FGlobalShader);
 
@@ -215,7 +217,9 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		// OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
-		// OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 16);
-		OutEnvironment.SetDefine(TEXT("TGSize_"), 16);
+		// 注意：测试，理论上来说1024会比用16要差，但实际中差不多，可能是数量级不够????
+		// OutEnvironment.SetDefine(TEXT("TGSize_"), 16);
+		// OutEnvironment.SetDefine(TEXT("TGSize_"), 1024);
+		OutEnvironment.SetDefine(TEXT("TGSize_"), TGSize_);
 	}
 };

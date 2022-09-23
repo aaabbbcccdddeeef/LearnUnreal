@@ -32,6 +32,11 @@
 			"Name": "QxDeform",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"name": "QxCustomMeshes",
+			"type": "Runtime",
+			"loadingPhase": "Default"
 		}
 	]
 }

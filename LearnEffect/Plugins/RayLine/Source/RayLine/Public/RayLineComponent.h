@@ -56,7 +56,6 @@ private:
 	//~ End UActorComponent Interface;
 
 
-
 #pragma endregion
 
 public:

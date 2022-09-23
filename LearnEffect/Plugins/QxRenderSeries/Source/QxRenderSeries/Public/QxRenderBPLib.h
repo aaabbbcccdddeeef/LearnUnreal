@@ -66,7 +66,8 @@ public:
 	 * @param InRenderTarget 
 	 */
 	UFUNCTION(BlueprintCallable, Category="QxRender")
-	static void RenderAverageTexture_WithCS(UTexture2D* InTexture, UTextureRenderTarget2D* InRenderTarget);
+	static void RenderAverageTexture_WithCS(UTexture2D* InTexture, UTextureRenderTarget2D* InRenderTarget,
+		int32 ThreadGroupWidth =16);
 
 	UFUNCTION(BlueprintCallable, Category = "QxRender")
 	static TArray<FVector> GetMeshVerticesWS(UStaticMeshComponent* InMeshComponent);
