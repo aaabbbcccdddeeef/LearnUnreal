@@ -4,8 +4,32 @@
 #include "QxProceduralMeshComponent.h"
 
 #include "MeshMaterialShader.h"
+#include "Components/BrushComponent.h"
 
-static uint32 Clipping_Volumn_Max = 16;
+static constexpr  uint32 Clipping_Volumn_Max = 16;
+
+#pragma region RenderBuffers
+// Base base for qx procedural vertex / index buffer
+class FQxProceduralBuffer
+{
+public:
+	FQxProceduralBuffer(uint32 InCapacity)
+		: Capacity(InCapacity)
+	{  }
+
+	FQxProceduralBuffer()
+		: FQxProceduralBuffer(100000)
+	{
+	}
+
+	virtual void Resize(const uint32 RequestedCapacity) =  0;
+
+	FORCEINLINE uint32 GetCapacity() const {return Capacity;}
+protected:
+	uint32 Capacity;
+};
+
+#pragma endregion
 
 // 保存所有作为use data传入FQProceduralVertexFactoryParameters的数据
 struct FQxProceduralMeshBatchElementUserData
@@ -31,6 +55,8 @@ struct FQxProceduralMeshBatchElementUserData
 	FMatrix ClipVolumns[Clipping_Volumn_Max];
 	uint32 NumClipNums;
 	uint32 bStartClipped;
+	FVector ViewRightVector = FVector(0, 1, 0);
+	FVector ViewUpVector = FVector(0, 0, 1);
 };
 
 class FQProceduralVertexFactoryParameters : public FVertexFactoryShaderParameters
@@ -43,12 +69,17 @@ public:
 		Contrast.Bind(ParameterMap, TEXT("Contrast"));
 		Saturation.Bind(ParameterMap, TEXT("Saturation"));
 		ClippingVolumeBuffer.Bind(ParameterMap, TEXT("ClippingVolumeBuffer"));
-		NumClippoingVolumes.Bind(ParameterMap, TEXT("NumClippoingVolumes"));
+		NumClippingVolumes.Bind(ParameterMap, TEXT("NumClippingVolumes"));
 		bStartClipped.Bind(ParameterMap, TEXT("bStartClipped"));
+		ViewRightVector.Bind(ParameterMap, TEXT("ViewRightVector"));
+		ViewUpVector.Bind(ParameterMap, TEXT("ViewUpVector"));
 	}
 
-	void GetElementShaderBindings(const class FSceneInterface* Scene, const FSceneView* View, const FMeshMaterialShader* Shader, const EVertexInputStreamType InputStreamType, ERHIFeatureLevel::Type FeatureLevel,
-	const FVertexFactory* VertexFactory, const FMeshBatchElement& BatchElement, class FMeshDrawSingleShaderBindings& ShaderBindings, FVertexInputStreamArray& VertexStreams) const
+	void GetElementShaderBindings(const class FSceneInterface* Scene,
+		const FSceneView* View, const FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType, ERHIFeatureLevel::Type FeatureLevel,
+	const FVertexFactory* VertexFactory, const FMeshBatchElement& BatchElement,
+	class FMeshDrawSingleShaderBindings& ShaderBindings, FVertexInputStreamArray& VertexStreams) const
 	{
 		const FQxProceduralMeshBatchElementUserData* UserData =
 			static_cast<const FQxProceduralMeshBatchElementUserData*>(BatchElement.UserData);
@@ -69,9 +100,21 @@ public:
 		{
 			ShaderBindings.Add(ClippingVolumeBuffer, UserData->ClippingVolumeBuffer);
 		}
-		if (NumClippoingVolumes.IsBound())
+		if (NumClippingVolumes.IsBound())
 		{
-			ShaderBindings.Add(NumClippoingVolumes, UserData.)
+			ShaderBindings.Add(NumClippingVolumes, UserData->NumClipNums);
+		}
+		if (bStartClipped.IsBound())
+		{
+			ShaderBindings.Add(bStartClipped, UserData->bStartClipped);
+		}
+		if (ViewRightVector.IsBound())
+		{
+			ShaderBindings.Add(ViewRightVector, UserData->ViewRightVector);
+		}
+		if (ViewUpVector.IsBound())
+		{
+			ShaderBindings.Add(ViewUpVector, UserData->ViewUpVector);
 		}
 	}
 	
@@ -79,8 +122,10 @@ public:
 	LAYOUT_FIELD(FShaderParameter, Contrast);
 	LAYOUT_FIELD(FShaderParameter, Saturation);
 	LAYOUT_FIELD(FShaderResourceParameter, ClippingVolumeBuffer);
-	LAYOUT_FIELD(FShaderParameter, NumClippoingVolumes);
+	LAYOUT_FIELD(FShaderParameter, NumClippingVolumes);
 	LAYOUT_FIELD(FShaderParameter, bStartClipped);
+	LAYOUT_FIELD(FShaderParameter, ViewRightVector);
+	LAYOUT_FIELD(FShaderParameter, ViewUpVector);
 };
 
 
@@ -156,7 +201,7 @@ public:
 	}
 
 	// 主要是初始化vertex buffer的数据
-	void Initialized(FQxProceduralUpdateData* NewData)
+	void Initialized_RenderThread(FQxProceduralRenderData* NewData)
 	{
 		if (IsInitialized())
 		{
@@ -165,6 +210,7 @@ public:
 
 		TSharedPtr<TArray<FQxProceduralPoint>> PointsDataSP = MakeShareable(&(NewData->PointsData));
 		VertexBuffer.PointsDataWPtr  = PointsDataSP;
+		VertexBuffer.InitResource();
 		InitResource();
 	}
 	
@@ -196,7 +242,15 @@ public:
 };
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FQxProceduralVertexFactory, SF_Vertex, FQProceduralVertexFactoryParameters);
-IMPLEMENT_VERTEX_FACTORY_TYPE(FQxProceduralVertexFactory, "/QxShaders/QxProceduralMeshVertexFactory.ush", /* bUsedWithMaterials */ true, /* bSupportsStaticLighting */ false, /* bSupportsDynamicLighting */ true, /* bPrecisePrevWorldPos */ false, /* bSupportsPositionOnly */ true);
+IMPLEMENT_VERTEX_FACTORY_TYPE(FQxProceduralVertexFactory, "/QxMeshShaders/QxProceduralMeshVertexFactory.ush", /* bUsedWithMaterials */ true, /* bSupportsStaticLighting */ false, /* bSupportsDynamicLighting */ true, /* bPrecisePrevWorldPos */ false, /* bSupportsPositionOnly */ true);
+
+
+class FQxProceduralOneFrameResource : public FOneFrameResource
+{
+public:
+	FQxProceduralMeshBatchElementUserData Payload;
+	~FQxProceduralOneFrameResource() {  }
+};
 
 class FQxProceduralMeshProxy : public FPrimitiveSceneProxy
 {
@@ -217,10 +271,10 @@ public:
 	{
 		IndexBuffer.ReleaseResource();
 		VertexFactory.ReleaseResource();
-		if (DynamicData != nullptr)
+		if (RenderData != nullptr)
 		{
-			delete DynamicData;
-			DynamicData =  nullptr;
+			delete RenderData;
+			RenderData =  nullptr;
 		}
 	}
 
@@ -229,15 +283,12 @@ public:
 	public:
 		virtual void InitRHI() override
 		{
-			check(PointsDataWPtr.IsValid());
-			TSharedPtr<TArray<FQxProceduralPoint>> PointsDataSP = PointsDataWPtr.Pin();
-			
 			FRHIResourceCreateInfo CreatInfo;
 			void* Buffer = nullptr;
-			const int32 BufferSize = sizeof(int32) * PointsDataSP->Num() * PointsDataSP->GetTypeSize() * 6;
+			const int32 BufferSize = sizeof(int32) * PointsNums *  6;  // 这里x6是因为一个点的位置产生2个三角形,6个index
 			IndexBufferRHI = RHICreateAndLockIndexBuffer(
 				sizeof(int32),
-				BufferSize, // 这里x6是因为一个点的位置产生2个三角形,6个index
+				BufferSize,
 				BUF_Dynamic,
 				CreatInfo,
 				Buffer
@@ -246,7 +297,7 @@ public:
 			uint32* Data = (uint32*)Buffer;
 
 			// PointDataIndex 是在数据中的index，IdxInGPU是产出的index buffer的index的key，
-			for (uint32 PointDataIndex = 0, IdxInGPU = 0; PointDataIndex < static_cast<uint32>(PointsDataSP->Num()); ++PointDataIndex)
+			for (uint32 PointDataIndex = 0, IdxInGPU = 0; PointDataIndex < static_cast<uint32>(PointsNums); ++PointDataIndex)
 			{
 				const uint32 v = PointDataIndex *  4;
 
@@ -269,13 +320,35 @@ public:
 
 		virtual void ReleaseResource() override
 		{
-			PointsDataWPtr.Reset();
 			FIndexBuffer::ReleaseResource();
 		}
 		
-		TWeakPtr< TArray<FQxProceduralPoint> > PointsDataWPtr;
+		// TWeakPtr< TArray<FQxProceduralPoint> > PointsDataWPtr;
+		// 实际用的顶点的数量, FQxProceduralPoint 的index buffer内容和vertex buffer无关，只需要points nums决定输出的长度
+		int32 PointsNums;
 	};
-	
+
+
+	FQxProceduralMeshBatchElementUserData BuildQxProceduralUserDataElment(
+		const FSceneView* View,
+		const FQxProceduralRenderData* InRenderData
+		) const
+	{
+		FQxProceduralMeshBatchElementUserData UserDataElement;
+
+		const bool bUseSprites = InRenderData->PointSize > 0;
+
+		UserDataElement.Contrast = InRenderData->Contrast;
+		UserDataElement.Saturation = InRenderData->Saturation;
+		UserDataElement.Tint = InRenderData->ColorTint;
+		// UserDataElement.bStartClipped = 
+		UserDataElement.ViewRightVector = View->GetViewRight();
+		UserDataElement.ViewUpVector = View->GetViewUp();
+		UserDataElement.bStartClipped = false;
+		// UserDataElement.NumClipNums = InRenderData.
+		
+		return UserDataElement;
+	}
 	
 	virtual void GetDynamicMeshElements(
 		const TArray<const FSceneView*>& Views,
@@ -290,6 +363,8 @@ public:
 			if (IsShown(View) &&
 				(VisibilityMap & (1 << ViewIndex)))
 			{
+				FQxProceduralMeshBatchElementUserData& UseData =
+					Collector.AllocateOneFrameResource<FQxProceduralOneFrameResource>().Payload;
 				FMeshBatch& MeshBatch = Collector.AllocateMesh();
 
 				// 设置Mesh Batch
@@ -305,8 +380,10 @@ public:
 				FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
 				BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 				BatchElement.FirstIndex = 0;
-				BatchElement.NumPrimitives = DynamicData->PointsData.Num() * 2; // 一个点产生2个三角形
-				
+				BatchElement.NumPrimitives = RenderData->PointsData.Num() * 2; // 一个点产生2个三角形
+
+				UseData = BuildQxProceduralUserDataElment(View, RenderData);
+				BatchElement.UserData =  &UseData;
 
 				Collector.AddMesh(ViewIndex, MeshBatch);
 			}
@@ -346,20 +423,49 @@ public:
 	}
 #pragma endregion
 
-	void SetDynamicData_RenderThread(FQxProceduralUpdateData* NewDynamicData)
+	void SetDynamicData_RenderThread(FQxProceduralRenderData* NewDynamicData)
 	{
 		check(IsInRenderingThread());
 		check(NewDynamicData);
 
 		// 删除已经存在的dynamic data
-		if (DynamicData != nullptr)
+		if (RenderData != nullptr)
 		{
-			delete DynamicData;
-			DynamicData = nullptr;
+			delete RenderData;
+			RenderData = nullptr;
 		}
+		RenderData = NewDynamicData;
 
-		VertexFactory.Initialized(NewDynamicData);
+		// 创建和初始化Index buffer，更合理的做法应该是在ctor中，先这么做
+		{
+			CreateAndInitIndexBuffer();
+		}
+		
+		// vertex factory 也包括了vertex buffer
+		VertexFactory.Initialized_RenderThread(NewDynamicData);
 	}
+
+	
+	int32 GetRequiredVertexCount() const
+	{
+		return  100000;
+	}
+
+private:
+	// 创建和初始化Index buffer
+	void CreateAndInitIndexBuffer()
+	{
+		IndexBuffer.PointsNums = RenderData->PointsData.Num();
+		if (IsInRenderingThread())
+		{
+			IndexBuffer.InitResource();
+		}
+		else
+		{
+			BeginInitResource(&IndexBuffer);
+		}
+	}
+	
 private:
 	UMaterialInterface* Material;
 	FMaterialRelevance MaterialRelevance;
@@ -369,9 +475,33 @@ private:
 	FQxProceduralVertexFactory VertexFactory;
 
 	// #TODO 这里改成智能指针
-	FQxProceduralUpdateData* DynamicData = nullptr;
+	FQxProceduralRenderData* RenderData = nullptr;
 };
 
+
+AQxClippingVolume::AQxClippingVolume()
+{
+	bColored = true;
+	BrushColor.R = 0;
+	BrushColor.G = 128;
+	BrushColor.B = 128;
+	BrushColor.A = 255;
+
+	GetBrushComponent()->SetMobility(EComponentMobility::Movable);
+	
+	SetActorScale3D(FVector(50));
+}
+
+FQxProceduralClippingVolumeParams::FQxProceduralClippingVolumeParams(const AQxClippingVolume* ClippingVolume)
+{
+	const FVector Extent = ClippingVolume->GetActorScale3D() * 100;
+	PackedShaderData = FMatrix(
+		FPlane(ClippingVolume->GetActorLocation(), Mode  == EQxClippingVolumeMode::ClipInside),
+		FPlane(ClippingVolume->GetActorForwardVector(), Extent.X),
+		FPlane(ClippingVolume->GetActorRightVector(), Extent.Y),
+		FPlane(ClippingVolume->GetActorUpVector(), Extent.Z)
+		);
+}
 
 // Sets default values for this component's properties
 UQxProceduralMeshComponent::UQxProceduralMeshComponent()
@@ -401,6 +531,22 @@ void UQxProceduralMeshComponent::TickComponent(float DeltaTime, ELevelTick TickT
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	// ...
+	PointsData.Reset();
+
+	// 先参照ray line 的实现生成一系列line的点
+	// 这里的位置计算时以local space为准，计算的
+	FVector RayOrigin = FVector::ZeroVector;
+	FVector RayDirection = FVector(1.f, 0.f, 0.f);
+	PointsData.AddUninitialized(PointsNums);
+	PointsData[0].Position = RayOrigin;
+	PointsData[0].Color = FColor::Red;
+	
+	for (int32 i = 1; i < PointsNums; ++i)
+	{
+		PointsData[i].Position = RayOrigin + i * RayDirection * PointsDistance;
+	}
+
+	MarkRenderDynamicDataDirty();
 }
 
 FPrimitiveSceneProxy* UQxProceduralMeshComponent::CreateSceneProxy()
@@ -428,10 +574,29 @@ void UQxProceduralMeshComponent::OnRegister()
 void UQxProceduralMeshComponent::SendRenderDynamicData_Concurrent()
 {
 	Super::SendRenderDynamicData_Concurrent();
+
+	if (SceneProxy)
+	{
+		// auto ProceduralRenderData = MakeUnique<FQxProceduralRenderData>();
+		FQxProceduralRenderData* ProceduralRenderData = new FQxProceduralRenderData;
+		ProceduralRenderData->ColorTint = FVector(Tint);
+		ProceduralRenderData->PointsData = PointsData; // 注意这里是个深拷贝
+		ProceduralRenderData->PointSize = PointSize;
+
+		FQxProceduralMeshProxy* ProceduralMeshProxy = static_cast<FQxProceduralMeshProxy*>(SceneProxy);
+		
+		ENQUEUE_RENDER_COMMAND(QxUpdateProcedurlRenderData)(
+			[ProceduralRenderData, ProceduralMeshProxy](FRHICommandListImmediate& RHICmdList)
+			{
+				ProceduralMeshProxy->SetDynamicData_RenderThread(ProceduralRenderData);
+			}
+			);
+	}
 }
 
 void UQxProceduralMeshComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	Super::CreateRenderState_Concurrent(Context);
+	SendRenderDynamicData_Concurrent();
 }
 

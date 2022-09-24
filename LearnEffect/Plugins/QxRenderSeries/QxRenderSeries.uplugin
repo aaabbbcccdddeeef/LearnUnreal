@@ -36,7 +36,7 @@
 		{
 			"name": "QxCustomMeshes",
 			"type": "Runtime",
-			"loadingPhase": "Default"
+			"loadingPhase": "PostConfigInit"
 		}
 	]
 }

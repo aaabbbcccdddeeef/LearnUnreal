@@ -34,15 +34,53 @@ public:
 	uint8 bSelected : 1 ;
 };
 
+UENUM(BlueprintType)
+enum class EQxClippingVolumeMode : uint8
+{
+	ClipInside,
+	ClipOutside
+};
+
+
+
+UCLASS()
+class AQxClippingVolume : public AVolume
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clipping Volume")
+	bool bEnabled = false;
+
+	/** Affects how this volume affects points */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clipping Volume")
+	EQxClippingVolumeMode Mode = EQxClippingVolumeMode::ClipInside;
+
+	AQxClippingVolume();
+};
+
+struct FQxProceduralClippingVolumeParams
+{
+	EQxClippingVolumeMode Mode;
+
+	FMatrix PackedShaderData;
+
+	FQxProceduralClippingVolumeParams(const AQxClippingVolume* ClippingVolume);
+};
+
 // 包括所有需要构建上传到gpu的数据，包括buffers/shader parameters
-struct FQxProceduralUpdateData
+struct FQxProceduralRenderData
 {
 
 	TArray<FQxProceduralPoint> PointsData;
 
-	float PointSize;
+	float PointSize = 1.f;
 
-	FVector ColorTint;
+	FVector ColorTint = FVector(FLinearColor::Green);
+	FVector4 Contrast;
+	FVector4 Saturation;
+
+	TArray<FQxProceduralClippingVolumeParams>  ClippingVolumes;
+	
 };
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -77,4 +115,20 @@ public:
 	
 	UPROPERTY(VisibleAnywhere)
 	TArray<FQxProceduralPoint> PointsData;
+
+protected:
+
+	// 生成的不同点的间距
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="QxProcedural")
+	float PointsDistance = 100.f;
+	
+	// 用来控制生成的点的多少
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="QxProcedural")
+	int32 PointsNums = 100;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="QxProcedural")
+	FLinearColor Tint = FLinearColor::Blue;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="QxProcedural")
+	float PointSize = 1.f;
 };
