@@ -22,6 +22,7 @@ public:
 	int32 HitPointIndex;
 };
 
+
 /**
  * 
  */

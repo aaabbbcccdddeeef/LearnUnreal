@@ -48,7 +48,7 @@ struct FQxProceduralMeshBatchElementUserData
 				);
 		}
 	}
-	FRHIShaderResourceView* ClippingVolumeBuffer;
+	FRHIShaderResourceView* QxClippingVolumeSB;
 	FVector Tint;
 	FVector4 Contrast;
 	FVector4 Saturation;
@@ -57,11 +57,12 @@ struct FQxProceduralMeshBatchElementUserData
 	uint32 bStartClipped;
 	FVector ViewRightVector = FVector(0, 1, 0);
 	FVector ViewUpVector = FVector(0, 0, 1);
+	
 };
 
-class FQProceduralVertexFactoryParameters : public FVertexFactoryShaderParameters
+class FQxProceduralVertexFactoryParameters : public FVertexFactoryShaderParameters
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FQProceduralVertexFactoryParameters, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FQxProceduralVertexFactoryParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -128,6 +129,43 @@ public:
 	LAYOUT_FIELD(FShaderParameter, ViewUpVector);
 };
 
+class FQxProceduralVertexFactoryParametersPS : public FVertexFactoryShaderParameters
+{
+	DECLARE_INLINE_TYPE_LAYOUT(FQxProceduralVertexFactoryParametersPS, NonVirtual);
+public:
+	void Bind(const FShaderParameterMap& ParameterMap)
+	{
+		Tint.Bind(ParameterMap, TEXT("Tint"));
+		QxClippingVolumeSB.Bind(ParameterMap, TEXT("QxClippingVolumeSB"));
+	}
+	
+	void GetElementShaderBindings(
+		const FSceneInterface* Scene,
+		const FSceneView* View,
+		const FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const
+	{
+		const FQxProceduralMeshBatchElementUserData* UserData =
+			static_cast<const FQxProceduralMeshBatchElementUserData*>(BatchElement.UserData);
+		if (Tint.IsBound())
+		{
+			ShaderBindings.Add(Tint, UserData->Tint);
+		}
+
+		if (UserData->QxClippingVolumeSB && QxClippingVolumeSB.IsBound())
+		{
+			ShaderBindings.Add(QxClippingVolumeSB, UserData->QxClippingVolumeSB);
+		}
+	}
+	
+	LAYOUT_FIELD(FShaderParameter, Tint);
+	LAYOUT_FIELD(FShaderResourceParameter, QxClippingVolumeSB);
+};
 
 class FQxProceduralVertexFactory : public FVertexFactory
 {
@@ -229,6 +267,16 @@ public:
 		// VertexBuffer.PointsDataWPtr  = PointsDataSP;
 		VertexBuffer.PointsDataWPtr = &NewData->PointsData;
 		// VertexBuffer.InitResource();
+		FRHIResourceCreateInfo ResourceCI;
+		
+		
+		QxClippingVolumesBuffer = RHICreateStructuredBuffer(
+			sizeof(FMatrix),
+			sizeof(FMatrix) * NewData->ClippingVolumes.Num(),
+			BUF_ShaderResource,
+			ResourceCI
+			);
+		
 		InitResource();
 	}
 	
@@ -236,6 +284,8 @@ public:
 	{
 		VertexBuffer.InitResource();
 		check(VertexBuffer.IsInitialized());
+
+		
 
 		FVertexDeclarationElementList Elements;
 		Elements.Add(AccessStreamComponent(
@@ -252,15 +302,23 @@ public:
 	}
 	virtual void ReleaseRHI() override
 	{
-		FVertexFactory::ReleaseRHI();
 		VertexBuffer.ReleaseRHI();
+		QxClippingVolumesBuffer.SafeRelease();
+		QxClippingVolumesSRV.SafeRelease();
+		FVertexFactory::ReleaseRHI();
 	}
 
 public:
 	FQxProceduralPointVertexBuffer VertexBuffer;
+
+	// clipping volume buffer的gpu buffer
+	FStructuredBufferRHIRef QxClippingVolumesBuffer;
+	
+	FShaderResourceViewRHIRef QxClippingVolumesSRV;
 };
 
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FQxProceduralVertexFactory, SF_Vertex, FQProceduralVertexFactoryParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FQxProceduralVertexFactory, SF_Vertex, FQxProceduralVertexFactoryParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FQxProceduralVertexFactory, SF_Pixel, FQxProceduralVertexFactoryParametersPS);
 IMPLEMENT_VERTEX_FACTORY_TYPE(FQxProceduralVertexFactory, "/QxMeshShaders/QxProceduralMeshVertexFactory.ush", /* bUsedWithMaterials */ true, /* bSupportsStaticLighting */ false, /* bSupportsDynamicLighting */ true, /* bPrecisePrevWorldPos */ false, /* bSupportsPositionOnly */ true);
 
 

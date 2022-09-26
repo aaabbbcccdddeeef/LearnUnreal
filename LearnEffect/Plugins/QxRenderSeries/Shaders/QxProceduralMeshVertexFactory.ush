@@ -10,6 +10,9 @@ half3 Tint;
 half4 Contrast;
 half4 Saturation;
 
+
+
+
 /**
  * [Tx, Ty, Tz, Invert]
  * [Fx, Fy, Fz, Ex]
@@ -17,8 +20,16 @@ half4 Saturation;
  * [Ux, Uy, Uz, Ez]
  */
 float4x4 ClippingVolumeBuffer[16];
+
+// 这个和上面的作用一样，不同的实现形式，之后用条件编译分离
+StructuredBuffer<float4x4> QxClippingVolumeSB;
+
 uint NumClippingVolumes;
-uint bStartClipped;
+
+
+
+
+uint bStartClipped; //是否启用clip
 
 // Needed for WPO calculations
 float3 ViewRightVector;
@@ -310,7 +321,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(
     Result.TwoSidedSign = 1;
     // Result.VertexColor = Interpolants.Color;
     Result.VertexColor.rgb = Tint; // 这种做法ue4 不会自动绑定，不可行
-    Result.VertexColor = Interpolants.Color * Interpolants.Contrast;
+    // Result.VertexColor = Interpolants.Color * Interpolants.Contrast;
     Result.VertexColor.a = lerp(1, 1 - distance(Interpolants.TexCoords, 0.5), Interpolants.Color.a);
     
     
