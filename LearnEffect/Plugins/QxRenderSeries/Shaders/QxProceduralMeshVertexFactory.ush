@@ -51,6 +51,7 @@ struct FVertexFactoryInterpolantsVSToPS
     TANGENTTOWORLD_INTERPOLATOR_BLOCK // 这先参照点云的vf加了tangents，但qx procedural mesh未必需要
     half4 Color : COLOR0;
     float2 TexCoords : TEXCOORD0;
+    half4 Contrast : TEXCOORD1; // 现在还不知道怎样将参数传递到pixel shader先尝试放到这里
 };
 
 struct FVertexFactoryIntermediates
@@ -134,31 +135,8 @@ half3x3 CalcTangentToWorldNoScale(in half3x3 TangentToLocal)
 
 float CalcSpriteSize(float3 Position)
 {
-    return  100; //#TODO 
-}
-
-FVertexFactoryIntermediates GetFVertexFactoryIntermediates(FVertexFactoryInput Input)
-{
-    half3 Color;
-    half Intensity;
-    float SpriteSize;
-    
-    FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0; // 之前看到yanvilee 渲染编程系列推荐这种初始化方式
-    Intermediates.Position = CalcPosition(Input.Position.xyz);
-    Intermediates.TangentToLocal = CalcTangentToLocal(Input.MetaData);
-    
-    uint MetaData = 0x000000FF & (Input.MetaData >> 24);
-    SpriteSize = CalcSpriteSize(Intermediates.Position);
-
-    Color = Input.Color.rgb;
-    Intensity = Input.Color.a;
-    Intermediates.SpriteSize = SpriteSize;
-
-    Intermediates.SpriteSize = SpriteSize;
-    Intermediates.Scale = PrecomputedUV_Quad[Input.VertexId % 4];
-    Intermediates.TangentToWorldSign = Primitive.InvNonUniformScaleAndDeterminantSign.w;
-    Intermediates.TangentToWorld = CalcTangentToWorldNoScale(Intermediates.TangentToLocal);
-    Intermediates.Color = half4(1.f, 0.f, 0.f, 1.f);
+    // return  100; //#TODO
+    return  30.0f;
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(
@@ -180,7 +158,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(
     Intermediates.Scale = PrecomputedUV_Quad[Input.VertexId % 4];
     Intermediates.TangentToWorldSign = Primitive.InvNonUniformScaleAndDeterminantSign.w;
     Intermediates.TangentToWorld = CalcTangentToWorldNoScale(Intermediates.TangentToLocal);
-    Intermediates.Color = half4(1, 0, 0, 1); 
+    // Intermediates.Color = half4(1, 0, 0, 1);
+    Intermediates.Color.rgb = Input.Color.rgb * Tint;
+    Intermediates.Color.a = 1.f;
     
     return Intermediates;
 }
@@ -195,6 +175,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(
     Interpolants.TangentToWorld2 = float4(Intermediates.TangentToLocal[2], Intermediates.TangentToWorldSign);
     Interpolants.Color = VertexParameters.VertexColor;
     Interpolants.TexCoords = PrecomputedUV_Quad[Input.VertexId % 4 + 4];
+    Interpolants.Contrast = Contrast;
 
     return  Interpolants;
 }
@@ -311,6 +292,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(
     Result.WorldPosition = WorldPosition;
     Result.TangentToWorld = Intermediates.TangentToWorld;
     Result.VertexColor = Intermediates.Color;
+    // Result.VertexColor.rgb = float3(0, 1, 0);
 
     return Result;
 }
@@ -322,11 +304,16 @@ FMaterialPixelParameters GetMaterialPixelParameters(
 {
     FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
 
-    Result.Particle.Color = half4(1, 1, 1, 1);
+    // Result.Particle.Color = half4(1, 1, 1, 1);
+    // 测试
+    Result.Particle.Color = Interpolants.Contrast;
     Result.TwoSidedSign = 1;
-    Result.VertexColor = Interpolants.Color;
+    // Result.VertexColor = Interpolants.Color;
+    Result.VertexColor.rgb = Tint; // 这种做法ue4 不会自动绑定，不可行
+    Result.VertexColor = Interpolants.Color * Interpolants.Contrast;
     Result.VertexColor.a = lerp(1, 1 - distance(Interpolants.TexCoords, 0.5), Interpolants.Color.a);
-
+    
+    
     
     return Result;
 }

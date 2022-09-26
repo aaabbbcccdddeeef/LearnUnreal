@@ -12,10 +12,21 @@
 
 // qxProceduralMeshComponent使用的顶点cpu定义,vertex declaration要和这个一致
 // 这个结构参考FLidarPointCloudPoint
+// 注意：由于pading/alignment问题，这个结构实际占用20个字节
 USTRUCT(BlueprintType)
 struct FQxProceduralPoint
 {
 	GENERATED_BODY()
+	FQxProceduralPoint()
+	{
+		bVisible = 1;
+		ClassificationID = 0;
+		bSelected = 0;
+		bTest = 0;
+		Padding1 = 0;
+		Padding2 = 0;
+		Padding3 = 0;
+	}
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "QxProcedural")
 	FVector Position = FVector::ZeroVector;
@@ -23,7 +34,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "QxProcedural")
 	FColor Color = FColor::White;
 
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QxProcedural")
 	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QxProcedural")
 	uint8 bVisible : 1;
 
@@ -32,6 +45,14 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QxProcedural")
 	uint8 bSelected : 1 ;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QxProcedural")
+	uint8 bTest : 1;
+	
+	// 下面3个是为了站位，对齐到4字节
+	uint8 Padding1 = 0;
+	uint8 Padding2 = 0;
+	uint8 Padding3 = 0;
 };
 
 UENUM(BlueprintType)
@@ -76,8 +97,8 @@ struct FQxProceduralRenderData
 	float PointSize = 1.f;
 
 	FVector ColorTint = FVector(FLinearColor::Green);
-	FVector4 Contrast;
-	FVector4 Saturation;
+	FVector4 Contrast = FVector4(1, 0, 0, 0);
+	FVector4 Saturation = FVector4(1, 0, 0, 0);
 
 	TArray<FQxProceduralClippingVolumeParams>  ClippingVolumes;
 	
@@ -112,10 +133,18 @@ public:
 	virtual void SendRenderDynamicData_Concurrent() override;
 
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="QxProcedural")
 	TArray<FQxProceduralPoint> PointsData;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="QxProcedural")
+	FColor TestVertexColor;
+	
+private:
+	void GeneratePointsData();
+	
 protected:
 
 	// 生成的不同点的间距
@@ -124,11 +153,17 @@ protected:
 	
 	// 用来控制生成的点的多少
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="QxProcedural")
-	int32 PointsNums = 100;
+	int32 PointsNums = 10;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="QxProcedural")
 	FLinearColor Tint = FLinearColor::Blue;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="QxProcedural")
 	float PointSize = 1.f;
+
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Color Adjustment", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", ColorGradingMode = "contrast", ShiftMouseMovePixelPerDelta = "10"))
+	FVector4 Contrast;
+
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Color Adjustment", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", ColorGradingMode = "saturation", ShiftMouseMovePixelPerDelta = "10"))
+	FVector4 Saturation;
 };

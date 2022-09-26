@@ -135,8 +135,8 @@ void RenderMyTest1(FRHICommandListImmediate& RHICmdList,
 	graphicPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 	graphicPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 	graphicPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	// graphicPSOInit.PrimitiveType = PT_TriangleList;
-	graphicPSOInit.PrimitiveType = PT_PointList;
+	graphicPSOInit.PrimitiveType = PT_TriangleList;
+	// graphicPSOInit.PrimitiveType = PT_PointList;
 	
 	//设置顶点声明
 	graphicPSOInit.BoundShaderState.VertexDeclarationRHI = GQxTestVertexDeclaration.VertexDeclarationRHI;

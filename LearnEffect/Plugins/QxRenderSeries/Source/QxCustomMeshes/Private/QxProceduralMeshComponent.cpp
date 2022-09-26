@@ -134,28 +134,42 @@ class FQxProceduralVertexFactory : public FVertexFactory
 public:
 	DECLARE_VERTEX_FACTORY_TYPE(FQxProceduralVertexFactory)
 
+	~FQxProceduralVertexFactory()
+	{
+		if (VertexBuffer.IsInitialized())
+		{
+			VertexBuffer.ReleaseResource();
+		}
+	}
+
 	class FQxProceduralPointVertexBuffer : public FVertexBuffer
 	{
-		TWeakPtr< TArray<FQxProceduralPoint> > PointsDataWPtr;
+		// TWeakPtr< TArray<FQxProceduralPoint> > PointsDataWPtr;
+		TArray<FQxProceduralPoint>* PointsDataWPtr;
+
 
 		virtual void InitRHI() override
 		{
-			check(PointsDataWPtr.IsValid());
-			TSharedPtr<TArray<FQxProceduralPoint>> PointsDataSP = PointsDataWPtr.Pin();
+			// check(PointsDataWPtr.IsValid());
+			// TSharedPtr<TArray<FQxProceduralPoint>> PointsDataSP = PointsDataWPtr.Pin();
+			check(PointsDataWPtr);
 			
 			FRHIResourceCreateInfo CreateInfo;
 			void* Buffer = nullptr;
 			VertexBufferRHI = RHICreateAndLockVertexBuffer(
-				PointsDataSP->Num() * 4 * sizeof(FQxProceduralPoint), // 这里的4是参照点云，故意复制成4个点
+				PointsDataWPtr->Num() * 4 * sizeof(FQxProceduralPoint), // 这里的4是参照点云，故意复制成4个点
 				BUF_Static, // #TODO 这里我是希望实时更新的，但现在先用static的 
 				CreateInfo,
 				Buffer
 				);
 
 			uint8* Dest = (uint8*)Buffer;
-			for (int32 i = 0; i < PointsDataSP->Num(); ++i)
+			for (int32 i = 0; i < PointsDataWPtr->Num(); ++i)
 			{
-				FQxProceduralPoint& PointData = PointsDataSP.Get()->operator[](i);
+				FQxProceduralPoint& PointData = PointsDataWPtr->operator[](i);
+				// FQxProceduralPoint PointData;
+				// PointData.Position = FVector(100, 200, 300);
+				// PointData.Color = FColor::Green;
 				FMemory::Memcpy(Dest, &PointData, sizeof(FQxProceduralPoint));
 				Dest += sizeof(FQxProceduralPoint);
 				FMemory::Memcpy(Dest, &PointData, sizeof(FQxProceduralPoint));
@@ -172,7 +186,8 @@ public:
 
 		virtual void ReleaseResource() override
 		{
-			PointsDataWPtr.Reset();
+			// PointsDataWPtr.Reset();
+			PointsDataWPtr = nullptr;
 			FVertexBuffer::ReleaseResource();
 		}
 
@@ -189,6 +204,8 @@ public:
 		bSupportsManualVertexFetch = false;
 	}
 
+	// 注意vertex shader 不加过滤直接return true的情况下会有大量的permutation需要编译，
+	// 这里尽量约束需要的范围
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 	{
 		if ((Parameters.MaterialParameters.MaterialDomain == MD_Surface
@@ -208,26 +225,28 @@ public:
 			ReleaseResource();	
 		}
 
-		TSharedPtr<TArray<FQxProceduralPoint>> PointsDataSP = MakeShareable(&(NewData->PointsData));
-		VertexBuffer.PointsDataWPtr  = PointsDataSP;
-		VertexBuffer.InitResource();
+		// TSharedPtr<TArray<FQxProceduralPoint>> PointsDataSP = MakeShareable(&(NewData->PointsData));
+		// VertexBuffer.PointsDataWPtr  = PointsDataSP;
+		VertexBuffer.PointsDataWPtr = &NewData->PointsData;
+		// VertexBuffer.InitResource();
 		InitResource();
 	}
 	
 	virtual void InitRHI() override
 	{
 		VertexBuffer.InitResource();
+		check(VertexBuffer.IsInitialized());
 
 		FVertexDeclarationElementList Elements;
 		Elements.Add(AccessStreamComponent(
-			FVertexStreamComponent(&VertexBuffer, 0,sizeof(FQxProceduralPointVertexBuffer), VET_Float3),
+			FVertexStreamComponent(&VertexBuffer, 0,sizeof(FQxProceduralPoint), VET_Float3),
 			0));
 		Elements.Add(AccessStreamComponent(
-			FVertexStreamComponent(&VertexBuffer, 12,sizeof(FQxProceduralPointVertexBuffer), VET_Color),
-			2));
+			FVertexStreamComponent(&VertexBuffer, 12,sizeof(FQxProceduralPoint), VET_Color),
+			1));
 		Elements.Add(AccessStreamComponent(
-			FVertexStreamComponent(&VertexBuffer, 16,sizeof(FQxProceduralPointVertexBuffer), VET_UInt),
-			3));
+			FVertexStreamComponent(&VertexBuffer, 16,sizeof(FQxProceduralPoint), VET_UInt),
+			2));
 		
 		InitDeclaration(Elements);
 	}
@@ -271,6 +290,7 @@ public:
 	{
 		IndexBuffer.ReleaseResource();
 		VertexFactory.ReleaseResource();
+		Material =  nullptr;
 		if (RenderData != nullptr)
 		{
 			delete RenderData;
@@ -381,6 +401,7 @@ public:
 				BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 				BatchElement.FirstIndex = 0;
 				BatchElement.NumPrimitives = RenderData->PointsData.Num() * 2; // 一个点产生2个三角形
+				BatchElement.IndexBuffer = &IndexBuffer;
 
 				UseData = BuildQxProceduralUserDataElment(View, RenderData);
 				BatchElement.UserData =  &UseData;
@@ -442,7 +463,7 @@ public:
 		}
 		
 		// vertex factory 也包括了vertex buffer
-		VertexFactory.Initialized_RenderThread(NewDynamicData);
+		VertexFactory.Initialized_RenderThread(RenderData);
 	}
 
 	
@@ -530,23 +551,10 @@ void UQxProceduralMeshComponent::TickComponent(float DeltaTime, ELevelTick TickT
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// ...
-	PointsData.Reset();
-
-	// 先参照ray line 的实现生成一系列line的点
-	// 这里的位置计算时以local space为准，计算的
-	FVector RayOrigin = FVector::ZeroVector;
-	FVector RayDirection = FVector(1.f, 0.f, 0.f);
-	PointsData.AddUninitialized(PointsNums);
-	PointsData[0].Position = RayOrigin;
-	PointsData[0].Color = FColor::Red;
-	
-	for (int32 i = 1; i < PointsNums; ++i)
-	{
-		PointsData[i].Position = RayOrigin + i * RayDirection * PointsDistance;
-	}
-
-	MarkRenderDynamicDataDirty();
+	// GeneratePointsData();
+	//
+	// MarkRenderDynamicDataDirty();
+	UE_LOG(LogTemp, Warning, TEXT("FQxProceduralPoint type size = %d"), sizeof(FQxProceduralPoint));
 }
 
 FPrimitiveSceneProxy* UQxProceduralMeshComponent::CreateSceneProxy()
@@ -569,6 +577,8 @@ FBoxSphereBounds UQxProceduralMeshComponent::CalcLocalBounds() const
 void UQxProceduralMeshComponent::OnRegister()
 {
 	Super::OnRegister();
+	GeneratePointsData();
+	MarkRenderDynamicDataDirty();
 }
 
 void UQxProceduralMeshComponent::SendRenderDynamicData_Concurrent()
@@ -582,6 +592,8 @@ void UQxProceduralMeshComponent::SendRenderDynamicData_Concurrent()
 		ProceduralRenderData->ColorTint = FVector(Tint);
 		ProceduralRenderData->PointsData = PointsData; // 注意这里是个深拷贝
 		ProceduralRenderData->PointSize = PointSize;
+		ProceduralRenderData->Contrast = Contrast;
+		ProceduralRenderData->Saturation = Saturation;
 
 		FQxProceduralMeshProxy* ProceduralMeshProxy = static_cast<FQxProceduralMeshProxy*>(SceneProxy);
 		
@@ -598,5 +610,38 @@ void UQxProceduralMeshComponent::CreateRenderState_Concurrent(FRegisterComponent
 {
 	Super::CreateRenderState_Concurrent(Context);
 	SendRenderDynamicData_Concurrent();
+}
+
+FBoxSphereBounds UQxProceduralMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
+{
+	// 先给一个极大的bounds #TODO 之后优化
+	FBoxSphereBounds TestBounds;
+	TestBounds.Origin = FVector::ZeroVector;
+	TestBounds.BoxExtent = FVector(HALF_WORLD_MAX, HALF_WORLD_MAX, HALF_WORLD_MAX);
+	TestBounds.SphereRadius = HALF_WORLD_MAX;
+	return  TestBounds;	
+	// return Super::CalcBounds(LocalToWorld);
+}
+
+void UQxProceduralMeshComponent::GeneratePointsData()
+{
+	// ...
+	PointsData.Reset();
+	
+	// 先参照ray line 的实现生成一系列line的点
+	// 这里的位置计算时以local space为准，计算的
+	FVector RayOrigin = FVector::ZeroVector;
+	FVector RayDirection = FVector(1.f, 0.f, 0.f);
+	// PointsData.AddUninitialized(PointsNums);
+	PointsData.AddDefaulted(PointsNums);
+	PointsData[0].Position = RayOrigin;
+	PointsData[0].Color = TestVertexColor;
+	
+	
+	for (int32 i = 1; i < PointsNums; ++i)
+	{
+		PointsData[i].Position = RayOrigin + i * RayDirection * PointsDistance;
+		PointsData[i].Color = TestVertexColor;
+	}
 }
 
