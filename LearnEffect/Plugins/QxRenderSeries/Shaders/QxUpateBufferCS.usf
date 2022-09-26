@@ -1,0 +1,25 @@
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+
+#define THREAD_GROUP_SIZE 16
+
+// 用一个sin wave 更新位置
+// #TODO 测试QxClippingVolumeBuffer长度的影响
+RWStructuredBuffer<float4x4> QxClippingVolumeBuffer; 
+float RotateSpeed;
+float DeltaTime;
+float VolumeNum;
+
+[numthreads(THREAD_GROUP_SIZE, THREAD_GROUP_SIZE, 1)]
+void MainCompute(uint3 GroupID : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	// 当前thread index,在所有thread group中的
+	uint ThreadIndex; 
+
+	float4 CenterPosition = QxClippingVolumeBuffer[ThreadIndex][0];
+
+	float4 transformedCenter = CenterPosition;
+	QxClippingVolumeBuffer[ThreadIndex][0] = transformedCenter;
+}

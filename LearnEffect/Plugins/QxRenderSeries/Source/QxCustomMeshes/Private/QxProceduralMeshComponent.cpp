@@ -3,10 +3,44 @@
 
 #include "QxProceduralMeshComponent.h"
 
+#include <stdexcept>
+
 #include "MeshMaterialShader.h"
 #include "Components/BrushComponent.h"
 
 static constexpr  uint32 Clipping_Volumn_Max = 16;
+
+static constexpr  int32 QX_THREAD_GROUP_SIIZE = 16;
+
+namespace 
+{
+	class FQxUpateBufferCS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FQxUpateBufferCS);
+
+		// 下面这段是RDG shader参数定义的标准格式
+		SHADER_USE_PARAMETER_STRUCT(FQxUpateBufferCS, FGlobalShader)
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,) 
+			SHADER_PARAMETER_UAV(RWStructuredBuffer<float4x4>, QxClippingVolumeBuffer)//这里要和hlsl shader中的参数完全对应
+			SHADER_PARAMETER(float, RotateSpeed)
+			SHADER_PARAMETER(float, DeltaTime)
+			SHADER_PARAMETER(float, VolumeNum)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+		{
+			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			OutEnvironment.SetDefine(TEXT("THREAD_GROUP_SIZE"), QX_THREAD_GROUP_SIIZE);
+		}
+	}; 
+	IMPLEMENT_GLOBAL_SHADER(FQxUpateBufferCS, "/QxMeshShaders/QxUpateBufferCS.ush", "MainCompute", SF_Compute);
+}
 
 #pragma region RenderBuffers
 // Base base for qx procedural vertex / index buffer
@@ -267,15 +301,9 @@ public:
 		// VertexBuffer.PointsDataWPtr  = PointsDataSP;
 		VertexBuffer.PointsDataWPtr = &NewData->PointsData;
 		// VertexBuffer.InitResource();
-		FRHIResourceCreateInfo ResourceCI;
 		
 		
-		QxClippingVolumesBuffer = RHICreateStructuredBuffer(
-			sizeof(FMatrix),
-			sizeof(FMatrix) * NewData->ClippingVolumes.Num(),
-			BUF_ShaderResource,
-			ResourceCI
-			);
+
 		
 		InitResource();
 	}
@@ -303,18 +331,14 @@ public:
 	virtual void ReleaseRHI() override
 	{
 		VertexBuffer.ReleaseRHI();
-		QxClippingVolumesBuffer.SafeRelease();
-		QxClippingVolumesSRV.SafeRelease();
+		
 		FVertexFactory::ReleaseRHI();
 	}
 
 public:
 	FQxProceduralPointVertexBuffer VertexBuffer;
 
-	// clipping volume buffer的gpu buffer
-	FStructuredBufferRHIRef QxClippingVolumesBuffer;
 	
-	FShaderResourceViewRHIRef QxClippingVolumesSRV;
 };
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FQxProceduralVertexFactory, SF_Vertex, FQxProceduralVertexFactoryParameters);
@@ -348,6 +372,11 @@ public:
 	{
 		IndexBuffer.ReleaseResource();
 		VertexFactory.ReleaseResource();
+
+		
+		QxClippingVolumesBuffer.SafeRelease();
+		QxClippingVolumesSRV.SafeRelease();
+		
 		Material =  nullptr;
 		if (RenderData != nullptr)
 		{
@@ -424,6 +453,7 @@ public:
 		UserDataElement.ViewUpVector = View->GetViewUp();
 		UserDataElement.bStartClipped = false;
 		// UserDataElement.NumClipNums = InRenderData.
+		UserDataElement.QxClippingVolumeSB = QxClippingVolumesSRV;
 		
 		return UserDataElement;
 	}
@@ -519,9 +549,85 @@ public:
 		{
 			CreateAndInitIndexBuffer();
 		}
+
+		
+		{
+			if (QxClippingVolumesBuffer.IsValid())
+			{
+				QxClippingVolumesBuffer.SafeRelease();
+			}
+			if (QxClippingVolumesSRV.IsValid())
+			{
+				QxClippingVolumesSRV.SafeRelease();
+			}
+			
+			// TResourceArray 是渲染资源的array，一般情况和tarray相同，UMA的情况下不同
+			TResourceArray<FMatrix>* ResourceArray = new TResourceArray<FMatrix>(true);
+			// 预期回先用compute shader更新这个buffer，再渲染
+			FRHIResourceCreateInfo ResourceCI;
+			ResourceArray->Append(RenderData->ClippingVolumes);
+			ResourceCI.ResourceArray = ResourceArray;
+			ResourceCI.DebugName = TEXT("QxClippingVolumesSB");
+			
+			QxClippingVolumesBuffer = RHICreateStructuredBuffer(
+				sizeof(FMatrix),
+				sizeof(FMatrix) * RenderData->ClippingVolumes.Num(),
+				BUF_ShaderResource | BUF_Dynamic | BUF_UnorderedAccess,
+				ResourceCI
+				);
+
+			QxClippingVolumesSRV = RHICreateShaderResourceView(
+				QxClippingVolumesBuffer
+				);
+
+			QxClippingVoluesUAV =
+				RHICreateUnorderedAccessView(QxClippingVolumesBuffer, false, false);
+		}
+
 		
 		// vertex factory 也包括了vertex buffer
 		VertexFactory.Initialized_RenderThread(RenderData);
+	}
+
+
+	void UpdateClippingVolumes_RenderThread(
+		FRHICommandListImmediate& RHICmdList,
+		float InRotateSpeed)
+	{
+		check(IsInRenderingThread());
+		check(RenderData);
+		FRDGBuilder GraphBuilder(RHICmdList);
+		
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "RDG_UpdateClipVolumes");
+			TShaderMapRef<FQxUpateBufferCS> BufferUpdateCS(GetGlobalShaderMap(GetScene().GetFeatureLevel()));
+
+			FQxUpateBufferCS::FParameters* PassParams = GraphBuilder.AllocParameters<FQxUpateBufferCS::FParameters>();
+			// PassParams->DeltaTime = GetScene().tim
+			PassParams->QxClippingVolumeBuffer = QxClippingVoluesUAV;
+			PassParams->RotateSpeed = InRotateSpeed;
+			PassParams->VolumeNum = RenderData->ClippingVolumes.Num();
+			// PassParams->DeltaTime = 
+			PassParams->DeltaTime = 1.f/30.f; //#TODO 得到时间传过来
+
+			int32 ThreadGroupNum = RenderData->ClippingVolumes.Num() / (QX_THREAD_GROUP_SIIZE * QX_THREAD_GROUP_SIIZE);
+			FIntVector GroupCount = FIntVector(ThreadGroupNum, 1, 1);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("QxUpdateVolumeBufferPass"),
+				ERDGPassFlags::Compute,
+				BufferUpdateCS,
+				PassParams,
+				GroupCount
+				);
+		}
+		// QxClippingVolumesBuffer
+		// GraphBuilder.AddPass(
+		// 	RDG_EVENT_NAME("QxUpdateClippingVolumeRDG"),
+		// 	
+		// 	);
+		
+		GraphBuilder.Execute();
 	}
 
 	
@@ -555,6 +661,13 @@ private:
 
 	// #TODO 这里改成智能指针
 	FQxProceduralRenderData* RenderData = nullptr;
+
+	// clipping volume buffer的gpu buffer
+	FStructuredBufferRHIRef QxClippingVolumesBuffer;
+	
+	FShaderResourceViewRHIRef QxClippingVolumesSRV;
+
+	FUnorderedAccessViewRHIRef QxClippingVoluesUAV;
 };
 
 
@@ -612,6 +725,8 @@ void UQxProceduralMeshComponent::TickComponent(float DeltaTime, ELevelTick TickT
 	// GeneratePointsData();
 	//
 	// MarkRenderDynamicDataDirty();
+	UpdateClipVolume_CS();
+	
 	UE_LOG(LogTemp, Warning, TEXT("FQxProceduralPoint type size = %d"), sizeof(FQxProceduralPoint));
 }
 
@@ -700,6 +815,22 @@ void UQxProceduralMeshComponent::GeneratePointsData()
 	{
 		PointsData[i].Position = RayOrigin + i * RayDirection * PointsDistance;
 		PointsData[i].Color = TestVertexColor;
+	}
+}
+
+void UQxProceduralMeshComponent::UpdateClipVolume_CS()
+{
+	if (SceneProxy)
+	{
+		FQxProceduralMeshProxy* ProceduralMeshProxy = static_cast<FQxProceduralMeshProxy*>(SceneProxy);
+		float lRotateSpeed = RotationSpeed;
+		
+		ENQUEUE_RENDER_COMMAND(QxUpdateClipVolumes)(
+			[ProceduralMeshProxy, lRotateSpeed](FRHICommandListImmediate& RHICmdList)
+			{
+				ProceduralMeshProxy->UpdateClippingVolumes_RenderThread(RHICmdList, lRotateSpeed);
+			}
+			);
 	}
 }
 

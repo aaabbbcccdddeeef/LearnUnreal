@@ -144,6 +144,9 @@ public:
 	
 private:
 	void GeneratePointsData();
+
+	// 用compute shader 更新clipping volumes的buffer
+	void UpdateClipVolume_CS();
 	
 protected:
 
@@ -166,4 +169,11 @@ protected:
 
 	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Color Adjustment", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", ColorGradingMode = "saturation", ShiftMouseMovePixelPerDelta = "10"))
 	FVector4 Saturation;
+
+
+#pragma region ClippingVolumesParams
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="ComputeShader", meta = (UIMin = "0.0", UIMax = "10.0"))
+	float RotationSpeed = 1.f;
+#pragma endregion
 };

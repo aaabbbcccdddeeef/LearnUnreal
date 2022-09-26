@@ -75,6 +75,8 @@ namespace QxRenderUtils
 
 	void RenderAverageToTarget_RenderThread(FRHICommandListImmediate& RHICmdList, UTexture2D* InTexture,
 		UTextureRenderTarget2D* InRenderTarget);
+
+
 }
 
 // 这个namespace 的方法不是直接用的，用来作为实现的参考

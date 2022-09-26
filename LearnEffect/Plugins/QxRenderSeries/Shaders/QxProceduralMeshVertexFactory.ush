@@ -2,6 +2,9 @@
 #include "/Engine/Private/VertexFactoryCommon.ush"
 // 当前文件的实现大部分是参考LidarPointCloudVertexFactory.ush
 
+#define NormalFaceCamera 1
+#define NormalFaceWorldUp 0
+
 // First half is normal, second half has inverted V
 static float2 PrecomputedUV_Quad[8] = { float2(-0.5, -0.5), float2(0.5, -0.5), float2(0.5, 0.5), float2(-0.5, 0.5), float2(0, 1), float2(1, 1), float2(1, 0), float2(0, 0) };
 
@@ -22,7 +25,7 @@ half4 Saturation;
 float4x4 ClippingVolumeBuffer[16];
 
 // 这个和上面的作用一样，不同的实现形式，之后用条件编译分离
-StructuredBuffer<float4x4> QxClippingVolumeSB;
+RWStructuredBuffer<float4x4> QxClippingVolumeSB;
 
 uint NumClippingVolumes;
 
@@ -111,8 +114,11 @@ float3 ApplyClipping(float3 Position)
     }
 
     // 这里参考LidarPointCloudFactory的Apply Clipping的方法， 下面的0/0的意图不太明确 #TODO
+    // 这里的意思好像是故意用Nan表示被clip，为什么这样做/??
     return bClip ? (0.0f / 0) : Position;
 }
+
+
 
 float3 CalcPosition(float3 Position)
 {
@@ -216,8 +222,16 @@ float3 ProcessPosition(
     )
 {
     half3x3 TangentToLocal;
+
+#if NormalFaceCamera
     TangentToLocal[0] = ViewRightVector;
     TangentToLocal[1] = ViewUpVector;
+#else
+    TangentToLocal[0] = float3(1.f, 0.f, 0.f);
+    TangentToLocal[1] = float3(0.f, 1.f, 0.f);
+#endif
+    
+    
     return ProcessPosition(Position, TangentToLocal, Scale, CalcSpriteSize(Position));
 }
 
