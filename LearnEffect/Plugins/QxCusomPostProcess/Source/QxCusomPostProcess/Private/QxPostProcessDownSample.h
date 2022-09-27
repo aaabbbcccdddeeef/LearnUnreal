@@ -63,7 +63,7 @@ struct FQxDownSampleInputs
 };
 
 
-namespace QxRenderUtils
+namespace QxRenderPPUtils
 {
 	FScreenPassTexture AddQxDownSamplePass(
 		FRDGBuilder& GraphBuilder,

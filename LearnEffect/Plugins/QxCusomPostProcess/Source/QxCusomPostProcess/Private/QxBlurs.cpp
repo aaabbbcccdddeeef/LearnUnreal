@@ -2,6 +2,8 @@
 
 #include "PixelShaderUtils.h"
 #include "QxCommonShaders.h"
+#include "QxPostProcessBloom.h"
+#include "QxRenderPPUtils.h"
 
 namespace 
 {
@@ -44,7 +46,7 @@ namespace
 	IMPLEMENT_GLOBAL_SHADER(FQxKawaseBlurUpPS, "/QxPPShaders/QxDualKawaseBlur.usf", "KawaseBlurUpsamplePS", SF_Pixel);
 }
 
-FScreenPassTexture QxRenderUtils::RenderKawaseBlur(
+FScreenPassTexture QxRenderPPUtils::RenderKawaseBlur(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& ViewInfo,
 	const FScreenPassTexture& InputTexture,
@@ -117,10 +119,17 @@ FScreenPassTexture QxRenderUtils::RenderKawaseBlur(
 			PassDownParameters->Pass.InputTextureSampler   = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp>::GetRHI();
 			PassDownParameters->BufferSize              = ViewportResolution;
 
-			FPixelShaderUtils::AddFullscreenPass(
+			// FPixelShaderUtils::AddFullscreenPass(
+			// 	GraphBuilder,
+			// 	ViewInfo.ShaderMap,
+			// 	RDG_EVENT_NAME("%s", *PassName),
+			// 	KawaseDownPS,
+			// 	PassDownParameters,
+			// 	ViewRects[i]
+			// 	);
+			QxRenderPPUtils::QxDrawScreenPass(
 				GraphBuilder,
-				ViewInfo.ShaderMap,
-				RDG_EVENT_NAME("%s", *PassName),
+				PassName,
 				KawaseDownPS,
 				PassDownParameters,
 				ViewRects[i]
@@ -134,10 +143,17 @@ FScreenPassTexture QxRenderUtils::RenderKawaseBlur(
 			PassDownParameters->Pass.InputTextureSampler   = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp>::GetRHI();
 			PassDownParameters->BufferSize              = ViewportResolution;
 
-			FPixelShaderUtils::AddFullscreenPass(
+			// FPixelShaderUtils::AddFullscreenPass(
+			// 	GraphBuilder,
+			// 	ViewInfo.ShaderMap,
+			// 	RDG_EVENT_NAME("%s", *PassName),
+			// 	KawaseUpPS,
+			// 	PassDownParameters,
+			// 	ViewRects[i]
+			// 	);
+			QxRenderPPUtils::QxDrawScreenPass(
 				GraphBuilder,
-				ViewInfo.ShaderMap,
-				RDG_EVENT_NAME("%s", *PassName),
+				PassName,
 				KawaseUpPS,
 				PassDownParameters,
 				ViewRects[i]

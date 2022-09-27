@@ -190,14 +190,15 @@ namespace
 FScreenPassTexture FQxBloomSceneViewExtension::RenderEyeAdaptation(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& ViewInfo,
-	const FPostProcessMaterialInputs& PostProcessMaterialInput,
+	const FScreenPassTexture& SceneColor,
 	const FScreenPassTexture& InHalfTexture)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "QxEyeAdaptation");
 	const EQxAutoExposureMethod AutoExposureMethod = QxPostprocessSubsystem->GetBloomSettingAsset()->AutoExposureMethod;
 	if (AutoExposureMethod == EQxAutoExposureMethod::AEM_None)
 	{
-		return PostProcessMaterialInput.GetInput(EPostProcessMaterialInput::SceneColor);
+		// return PostProcessMaterialInput.GetInput(EPostProcessMaterialInput::SceneColor);
+		return SceneColor;
 	}
 	
 	// ResEyeTexture.ViewRect
@@ -296,9 +297,9 @@ FRDGTextureRef FQxBloomSceneViewExtension::AddQxBasicEyeAdaptationPass(
 }
 
 
-namespace QxRenderUtils
+namespace QxRenderPPUtils
 {
-	FScreenPassTexture QxRenderUtils::AddBasicEyeAdaptationSetupPass(
+	FScreenPassTexture QxRenderPPUtils::AddBasicEyeAdaptationSetupPass(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		const FQxEyeAdaptationParameters& EyeAdaptationParameters,

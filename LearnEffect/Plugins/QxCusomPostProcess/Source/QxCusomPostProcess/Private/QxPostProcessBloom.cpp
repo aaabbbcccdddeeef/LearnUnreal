@@ -7,10 +7,12 @@
 #include "QxLensFlareAsset.h"
 #include "QxPostprocessSubsystem.h"
 #include "Interfaces/IPluginManager.h"
-#include "QxRenderUtils.h"
+#include "QxRenderPPUtils.h"
 #include "RenderGraph.h"
 #include "ScreenPass.h"
 #include "SystemTextures.h"
+
+using QxRenderPPUtils::FQxScreenPassVS;
 
 DECLARE_GPU_STAT(PostProcessQx);
 TAutoConsoleVariable<int32> CVarQxBloomPassAmount(
@@ -163,11 +165,11 @@ namespace
 #pragma endregion
 }
 
-IMPLEMENT_GLOBAL_SHADER(FQxScreenPassVS, "/QxPPShaders/QxScreenPass.usf", "QxScreenPassVS", SF_Vertex);
+
 
 
 FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo,
-	const FPostProcessMaterialInputs& PostProcessMaterialInput, const UQxBloomFlareAsset* QxBloomSettingAsset)
+	const FScreenPassTexture& SceneColor, const UQxBloomFlareAsset* QxBloomSettingAsset)
 {
 	bool bSupportHDROutput = GRHISupportsHDROutput;
 	UE_LOG(LogTemp, Warning, TEXT("support hdr: %s"), (bSupportHDROutput ? TEXT("true") : TEXT("false")));
@@ -197,7 +199,8 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 	FScreenPassTexture FlareTexture;
 	FScreenPassTexture GlareTexture;
 	FScreenPassTexture SceneColorTexture =
-		PostProcessMaterialInput.GetInput(EPostProcessMaterialInput::SceneColor);
+		SceneColor;
+		
 
 		
 	// Bloom
@@ -237,10 +240,16 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 
 	
 	FRDGTextureRef MixTexture;
+	// FIntRect MixViewport(
+	// 	0, 0,
+	// 	ViewInfo.ViewRect.Width() / 2,
+	// 	ViewInfo.ViewRect.Height() / 2
+	// 	);
+	// 这里应该用half 分辨率比较好，但由于插件的形式不太容易改tonemapping的输入，先用全分辨率
 	FIntRect MixViewport(
 		0, 0,
-		ViewInfo.ViewRect.Width() / 2,
-		ViewInfo.ViewRect.Height() / 2
+		ViewInfo.ViewRect.Width() ,
+		ViewInfo.ViewRect.Height() 
 		);
 	// Render Mix Pass
 	{
@@ -324,7 +333,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 		ClearUnusedGraphResources(PixelShader, PassParams);
 		
 		// Render
-		DrawShaderpass(
+		QxDrawScreenPass(
 			GraphBuilder,
 			PassName,
 			PassParams,
@@ -485,10 +494,17 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBui
 		PassParams->ChromaShift = QxPostprocessSubsystem->GetBloomSettingAsset()->GhostChromaShift;
 		
 		TShaderMapRef<FQxFlareChromaPS> PixelShader(ViewInfo.ShaderMap);
-		FPixelShaderUtils::AddFullscreenPass(
+		// FPixelShaderUtils::AddFullscreenPass(
+		// 	GraphBuilder,
+		// 	ViewInfo.ShaderMap,
+		// 	RDG_EVENT_NAME("QxFlareChromaGhost"),
+		// 	PixelShader,
+		// 	PassParams,
+		// 	ViewRect2
+		// 	);
+		QxRenderPPUtils::QxDrawScreenPass(
 			GraphBuilder,
-			ViewInfo.ShaderMap,
-			RDG_EVENT_NAME("QxFlareChromaGhost"),
+			TEXT("QxFlareChromaGhost"),
 			PixelShader,
 			PassParams,
 			ViewRect2
@@ -539,10 +555,17 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBui
 		}
 
 		
-		FPixelShaderUtils::AddFullscreenPass(
+		// FPixelShaderUtils::AddFullscreenPass(
+		// 	GraphBuilder,
+		// 	ViewInfo.ShaderMap,
+		// 	RDG_EVENT_NAME("QxFlareGhosts"),
+		// 	PixelShader,
+		// 	PassParams,
+		// 	ViewRect2
+		// 	);
+		QxRenderPPUtils::QxDrawScreenPass(
 			GraphBuilder,
-			ViewInfo.ShaderMap,
-			RDG_EVENT_NAME("QxFlareGhosts"),
+			TEXT("QxFlareGhosts"),
 			PixelShader,
 			PassParams,
 			ViewRect2
@@ -583,10 +606,18 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBui
 		PassParams->ChromaShift = QxPostSettings->GhostChromaShift;
 		
 		FRHIBlendState* AdditiveState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
-		FPixelShaderUtils::AddFullscreenPass(
+		// FPixelShaderUtils::AddFullscreenPass(
+		// 	GraphBuilder,
+		// 	ViewInfo.ShaderMap,
+		// 	RDG_EVENT_NAME("QxHaloPass"),
+		// 	PixelShader,
+		// 	PassParams,
+		// 	ViewRect2,
+		// 	AdditiveState
+		// 	);
+		QxRenderPPUtils::QxDrawScreenPass(
 			GraphBuilder,
-			ViewInfo.ShaderMap,
-			RDG_EVENT_NAME("QxHaloPass"),
+			TEXT("QxHaloPass"),
 			PixelShader,
 			PassParams,
 			ViewRect2,
@@ -598,7 +629,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderFlare(FRDGBuilder& GraphBui
 	// Blur pass
 	{
 		const int32 BlurSteps  = 1;
-		IntermediateResult = QxRenderUtils::RenderKawaseBlur(
+		IntermediateResult = QxRenderPPUtils::RenderKawaseBlur(
 			GraphBuilder,
 			ViewInfo,
 			IntermediateResult,

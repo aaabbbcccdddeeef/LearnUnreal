@@ -5,7 +5,9 @@
 #include "PixelShaderUtils.h"
 #include "QxBloomSceneViewExtension.h"
 #include "QxPostProcessBloom.h"
+#include "QxRenderPPUtils.h"
 
+using QxRenderPPUtils::FQxScreenPassVS;
 
 namespace 
 {
@@ -77,7 +79,7 @@ FRDGTextureRef FQxBloomSceneViewExtension::RenderCOD_DownSample(
 	PassParams->Pass.InputTextureSampler = BilinearBorderSampler;
 	PassParams->InputSize = FVector2D(Viewport.Size());
 
-	DrawShaderpass(
+	QxDrawScreenPass(
 	GraphBuilder,
 	PassName,
 	PassParams,
@@ -119,7 +121,7 @@ FRDGTextureRef FQxBloomSceneViewExtension::RenderUpsampleCombine(FRDGBuilder& Gr
 	PassParams->PreviousTexture = PreviousTexture.Texture;
 
 	// render shader
-	DrawShaderpass(
+	QxDrawScreenPass(
 		GraphBuilder,
 		PassName,
 		PassParams,
@@ -132,7 +134,7 @@ FRDGTextureRef FQxBloomSceneViewExtension::RenderUpsampleCombine(FRDGBuilder& Gr
 	return  TargetTexture;
 }
 
-namespace QxRenderUtils
+namespace QxRenderPPUtils
 {
 
 	FQxDownsampleParameters GetDownSampleParameter(
@@ -198,15 +200,27 @@ namespace QxRenderUtils
 		PermutationVector.Set<FQxNormalDownSamplePS::FDownsampleQualityDimension>(DownSampleInputs.Quality);
 
 		FQxNormalDownSamplePS::FParameters* PassParams = GraphBuilder.AllocParameters<FQxNormalDownSamplePS::FParameters>();
-		PassParams->Common = QxRenderUtils::GetDownSampleParameter(ViewInfo, Output,DownSampleInputs.SceneColor, DownSampleInputs.Quality);
+		PassParams->Common = QxRenderPPUtils::GetDownSampleParameter(ViewInfo, Output,DownSampleInputs.SceneColor, DownSampleInputs.Quality);
 		PassParams->RenderTargets[0] = Output.GetRenderTargetBinding();
 		
 		TShaderMapRef<FQxNormalDownSamplePS> PixelShader(ViewInfo.ShaderMap, PermutationVector);
 		
-		FPixelShaderUtils::AddFullscreenPass(
+		// FPixelShaderUtils::AddFullscreenPass(
+		// 	GraphBuilder,
+		// 	ViewInfo.ShaderMap,
+		// 	RDG_EVENT_NAME("QxDownsample %s %dx%d", DownSampleInputs.Name, DownSampleInputs.SceneColor.ViewRect.Width(), DownSampleInputs.SceneColor.ViewRect.Height()),
+		// 	PixelShader,
+		// 	PassParams,
+		// 	OutputViewport.Rect
+		// 	);
+		const FString passName = FString::Printf(
+			TEXT("QxDownsample %s %dx%d"),
+			DownSampleInputs.Name,
+			DownSampleInputs.SceneColor.ViewRect.Width(),
+			DownSampleInputs.SceneColor.ViewRect.Height());
+		QxRenderPPUtils::QxDrawScreenPass(
 			GraphBuilder,
-			ViewInfo.ShaderMap,
-			RDG_EVENT_NAME("QxDownsample %s %dx%d", DownSampleInputs.Name, DownSampleInputs.SceneColor.ViewRect.Width(), DownSampleInputs.SceneColor.ViewRect.Height()),
+			passName,
 			PixelShader,
 			PassParams,
 			OutputViewport.Rect
@@ -250,7 +264,7 @@ void FQxDownSampleChain::Init(FRDGBuilder& GraphBuilder,
 		DownSampleInputs.Quality = DownampleQuality;
 		DownSampleInputs.SceneColor = Textures[PreviousStageIndex];
 		
-		Textures[StageIndex] =  QxRenderUtils::AddQxDownSamplePass(
+		Textures[StageIndex] =  QxRenderPPUtils::AddQxDownSamplePass(
 			GraphBuilder,
 			View,
 			DownSampleInputs);
@@ -259,7 +273,7 @@ void FQxDownSampleChain::Init(FRDGBuilder& GraphBuilder,
 		{
 			bLogLumaInAlpha = false;
 
-			Textures[StageIndex] = QxRenderUtils::AddBasicEyeAdaptationSetupPass(
+			Textures[StageIndex] = QxRenderPPUtils::AddBasicEyeAdaptationSetupPass(
 				GraphBuilder,
 				View,
 				EyeAdaptationParameters,

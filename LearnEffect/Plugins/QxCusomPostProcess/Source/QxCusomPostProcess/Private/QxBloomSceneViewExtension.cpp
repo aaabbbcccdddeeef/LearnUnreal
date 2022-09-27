@@ -9,6 +9,7 @@
 #include "QxLensFlareAsset.h"
 #include "QxPostProcessBloom.h"
 #include "QxPostprocessSubsystem.h"
+#include "QxRenderPPUtils.h"
 #include "RenderTargetPool.h"
 #include "ScreenPass.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -134,14 +135,22 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 		PassParams->InputViewportSize = SceneColorViewportSize;
 		
 		
-		FPixelShaderUtils::AddFullscreenPass(
+		// FPixelShaderUtils::AddFullscreenPass(
+		// 	GraphBuilder,
+		// 	ViewInfo.ShaderMap,
+		// 	RDG_EVENT_NAME("QxRescalePass"),
+		// 	PixelShader,
+		// 	PassParams,
+		// 	SceneColorViewport.Rect
+		// 	);
+		QxRenderPPUtils::QxDrawScreenPass(
 			GraphBuilder,
-			ViewInfo.ShaderMap,
-			RDG_EVENT_NAME("QxRescalePass"),
+			TEXT("QxRescalePass"),
 			PixelShader,
 			PassParams,
 			SceneColorViewport.Rect
 			);
+		
 
 		SceneColor.Texture = RescaledTexture;
 		SceneColor.ViewRect = SceneColorViewport.Rect;
@@ -157,7 +166,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 		DownSampleInputs.SceneColor = SceneColor;
 		DownSampleInputs.Quality = EQxDownampleQuality::High;
 		DownSampleInputs.FormatOverride = PF_FloatRGB;
-		HalResSceneColor = QxRenderUtils::AddQxDownSamplePass(
+		HalResSceneColor = QxRenderPPUtils::AddQxDownSamplePass(
 			GraphBuilder,
 			ViewInfo,
 			DownSampleInputs
@@ -166,7 +175,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	FScreenPassTexture EyeAdaptationTexture = RenderEyeAdaptation(
 		GraphBuilder,
 		ViewInfo,
-		PPMaterialInputs,
+		SceneColor,
 		HalResSceneColor
 		);
 
@@ -199,7 +208,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	FScreenPassTexture BloomTexture = RenderBloomFlare(
 		GraphBuilder,
 		ViewInfo,
-		PPMaterialInputs,
+		SceneColor,
 		QxPostprocessSubsystem->GetBloomSettingAsset());
 	
 	DownSampleTextures.Empty();

@@ -2,7 +2,7 @@
 #include "ScreenPass.h"
 
 
-namespace QxRenderUtils
+namespace QxRenderPPUtils
 {
 	
 	/**

@@ -5,9 +5,11 @@ void RescalePS(
 	out float4 OutColor : SV_Target0
 	)
 {
+	// float2 UV = UVAndScreenPs.xy * InputViewportSize;
 	float2 UV = UVAndScreenPs.xy * InputViewportSize;
 	OutColor.rgb = Texture2DSample(
 		InputTexture, InputTextureSampler, UV
 		).rgb;
+	// OutColor.rgb = float3(0, 1, 0);
 	OutColor.a = 1;
 }

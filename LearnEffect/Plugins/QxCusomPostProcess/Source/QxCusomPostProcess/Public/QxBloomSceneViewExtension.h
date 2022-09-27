@@ -48,7 +48,8 @@ private:
 	
 	FScreenPassTexture RenderBloomFlare(FRDGBuilder& GraphBuilder,
 		const FViewInfo& ViewInfo,
-		const FPostProcessMaterialInputs& PostProcessMaterialInput,
+		// const FPostProcessMaterialInputs& PostProcessMaterialInput,
+		const FScreenPassTexture& SceneColor,
 		const UQxBloomFlareAsset* QxBloomSettingAsset);
 
 	
@@ -63,7 +64,7 @@ private:
 	FScreenPassTexture RenderEyeAdaptation(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& ViewInfo,
-		const FPostProcessMaterialInputs& PostProcessMaterialInput,
+		const FScreenPassTexture& SceneColor,
 		const FScreenPassTexture& InHalfTexture);
 
 	

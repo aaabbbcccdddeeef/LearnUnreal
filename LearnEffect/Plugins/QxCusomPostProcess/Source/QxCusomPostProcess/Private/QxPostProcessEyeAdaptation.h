@@ -29,7 +29,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FQxEyeAdaptationParameters,)
 	SHADER_PARAMETER_SAMPLER(SamplerState, MeterMaskTextureSampler)
 END_SHADER_PARAMETER_STRUCT()
 
-namespace QxRenderUtils
+namespace QxRenderPPUtils
 {
 	FScreenPassTexture AddBasicEyeAdaptationSetupPass(
 		FRDGBuilder& GraphBuilder,
