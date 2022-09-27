@@ -22,14 +22,17 @@ half4 Saturation;
  * [Rx, Ry, Rz, Ey]
  * [Ux, Uy, Uz, Ez]
  */
-float4x4 ClippingVolumeBuffer[16];
+float4x4 ClippingVolumes[16];
 
 // 这个和上面的作用一样，不同的实现形式，之后用条件编译分离
-RWStructuredBuffer<float4x4> QxClippingVolumeSB;
+StructuredBuffer<float4x4> QxClippingVolumeSB;
+
+// 这个会用compute shader更新
+StructuredBuffer<float4> DynamicPointsSB;
 
 uint NumClippingVolumes;
 
-
+uint UseClippingVolumeSB;
 
 
 uint bStartClipped; //是否启用clip
@@ -93,11 +96,21 @@ float3 ApplyClipping(float3 Position)
     bool bClip = bStartClipped;
     for (uint i = 0; i < NumClippingVolumes; ++i)
     {
-        float3 DeltaPosition = TransformLocalToWorld(Position).xyz - ClippingVolumeBuffer[i][0].xyz; // 这里是定制化的矩阵，第一行用来表示center
-        bool bInsideClippingBox = abs(dot(DeltaPosition, ClippingVolumeBuffer[i][1].xyz)) <= ClippingVolumeBuffer[i][1].w
-            && abs(dot(DeltaPosition, ClippingVolumeBuffer[i][2].xyz)) <= ClippingVolumeBuffer[i][2].w
-            && abs(dot(DeltaPosition, ClippingVolumeBuffer[i][3].xyz)) <= ClippingVolumeBuffer[i][3].w;
-        if (ClippingVolumeBuffer[i][0][3] == 1) // 用这个数值表示是不是inverset clipping
+        float4x4 ClippingVolume = ClippingVolumes[i];
+        if (UseClippingVolumeSB)
+        {
+            ClippingVolume = QxClippingVolumeSB[i];
+        }
+        else
+        {
+            ClippingVolume = ClippingVolumes[i];
+        }
+        
+        float3 DeltaPosition = TransformLocalToWorld(Position).xyz - ClippingVolume[0].xyz; // 这里是定制化的矩阵，第一行用来表示center
+        bool bInsideClippingBox = abs(dot(DeltaPosition, ClippingVolume[1].xyz)) <= ClippingVolume[1].w
+            && abs(dot(DeltaPosition, ClippingVolume[2].xyz)) <= ClippingVolume[2].w
+            && abs(dot(DeltaPosition, ClippingVolume[3].xyz)) <= ClippingVolume[3].w;
+        if (ClippingVolume[0][3] == 1) // 用这个数值表示是不是inverset clipping
         {
             if (bInsideClippingBox)
             {
@@ -336,6 +349,8 @@ FMaterialPixelParameters GetMaterialPixelParameters(
     // Result.VertexColor = Interpolants.Color;
     Result.VertexColor.rgb = Tint; // 这种做法ue4 不会自动绑定，不可行
     // Result.VertexColor = Interpolants.Color * Interpolants.Contrast;
+    Result.VertexColor.rgb = DynamicPointsSB[1] * Tint;
+    
     Result.VertexColor.a = lerp(1, 1 - distance(Interpolants.TexCoords, 0.5), Interpolants.Color.a);
     
     

@@ -86,6 +86,11 @@ struct FQxProceduralClippingVolumeParams
 	FMatrix PackedShaderData;
 
 	FQxProceduralClippingVolumeParams(const AQxClippingVolume* ClippingVolume);
+	FQxProceduralClippingVolumeParams()
+	{
+		Mode = EQxClippingVolumeMode::ClipInside;
+		PackedShaderData = FMatrix::Identity;
+	}
 };
 
 // 包括所有需要构建上传到gpu的数据，包括buffers/shader parameters
@@ -96,12 +101,16 @@ struct FQxProceduralRenderData
 
 	float PointSize = 1.f;
 
+	// 实际起作用的clipping volume 数量，这个应该小于ClippingVolumes.Num，用这个的原因是clipping volume不一定全部起效
+	int32 EffecticeClippingVolumeNum = 0;
+
 	FVector ColorTint = FVector(FLinearColor::Green);
 	FVector4 Contrast = FVector4(1, 0, 0, 0);
 	FVector4 Saturation = FVector4(1, 0, 0, 0);
 
 	TArray<FQxProceduralClippingVolumeParams>  ClippingVolumes;
-	
+
+	TArray<FVector> DynamicPoints;
 };
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -147,7 +156,10 @@ private:
 
 	// 用compute shader 更新clipping volumes的buffer
 	void UpdateClipVolume_CS();
-	
+
+	void FillClippingVolumes(TArray<FQxProceduralClippingVolumeParams>& OutClippingVolumes);
+
+	void InitRenderData(FQxProceduralRenderData* OutRenderData);
 protected:
 
 	// 生成的不同点的间距
@@ -173,7 +185,10 @@ protected:
 
 #pragma region ClippingVolumesParams
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="ComputeShader", meta = (UIMin = "0.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="ClippingVolume", meta = (UIMin = "0.0", UIMax = "10.0"))
 	float RotationSpeed = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="ClippingVolume", meta = (UIMin = "0.0", UIMax = "10.0"))
+	int32 EffectiveVolumeNum = 0;
 #pragma endregion
 };

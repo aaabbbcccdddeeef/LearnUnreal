@@ -22,10 +22,12 @@ namespace
 		// 下面这段是RDG shader参数定义的标准格式
 		SHADER_USE_PARAMETER_STRUCT(FQxUpateBufferCS, FGlobalShader)
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters,) 
-			SHADER_PARAMETER_UAV(RWStructuredBuffer<float4x4>, QxClippingVolumeBuffer)//这里要和hlsl shader中的参数完全对应
+			// SHADER_PARAMETER_UAV(RWStructuredBuffer<float4x4>, QxClippingVolumeBuffer)//这里要和hlsl shader中的参数完全对应
+			SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, QxDynamicPointsSB)
+			SHADER_PARAMETER(FVector, RotateCenter)
 			SHADER_PARAMETER(float, RotateSpeed)
 			SHADER_PARAMETER(float, DeltaTime)
-			SHADER_PARAMETER(float, VolumeNum)
+			// SHADER_PARAMETER(float, VolumeNum)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -39,7 +41,7 @@ namespace
 			OutEnvironment.SetDefine(TEXT("THREAD_GROUP_SIZE"), QX_THREAD_GROUP_SIIZE);
 		}
 	}; 
-	IMPLEMENT_GLOBAL_SHADER(FQxUpateBufferCS, "/QxMeshShaders/QxUpateBufferCS.ush", "MainCompute", SF_Compute);
+	IMPLEMENT_GLOBAL_SHADER(FQxUpateBufferCS, "/QxMeshShaders/QxUpateBufferCS.usf", "MainCompute", SF_Compute);
 }
 
 #pragma region RenderBuffers
@@ -69,7 +71,7 @@ protected:
 struct FQxProceduralMeshBatchElementUserData
 {
 	FQxProceduralMeshBatchElementUserData()
-		: NumClipNums(0)
+		: ClppingVolumeNum(0)
 		, bStartClipped(false)
 	{
 		for (int32 i = 0; i < Clipping_Volumn_Max; ++i)
@@ -83,15 +85,16 @@ struct FQxProceduralMeshBatchElementUserData
 		}
 	}
 	FRHIShaderResourceView* QxClippingVolumeSB;
+	FRHIShaderResourceView* DynamicPointsSB;
 	FVector Tint;
 	FVector4 Contrast;
 	FVector4 Saturation;
 	FMatrix ClipVolumns[Clipping_Volumn_Max];
-	uint32 NumClipNums;
+	uint32 ClppingVolumeNum;
 	uint32 bStartClipped;
 	FVector ViewRightVector = FVector(0, 1, 0);
 	FVector ViewUpVector = FVector(0, 0, 1);
-	
+	uint32 UseClippingVolumeSB = 1;
 };
 
 class FQxProceduralVertexFactoryParameters : public FVertexFactoryShaderParameters
@@ -103,11 +106,14 @@ public:
 		Tint.Bind(ParameterMap, TEXT("Tint"));
 		Contrast.Bind(ParameterMap, TEXT("Contrast"));
 		Saturation.Bind(ParameterMap, TEXT("Saturation"));
-		ClippingVolumeBuffer.Bind(ParameterMap, TEXT("ClippingVolumeBuffer"));
+		QxClippingVolumeSB.Bind(ParameterMap, TEXT("QxClippingVolumeSB"));
 		NumClippingVolumes.Bind(ParameterMap, TEXT("NumClippingVolumes"));
 		bStartClipped.Bind(ParameterMap, TEXT("bStartClipped"));
 		ViewRightVector.Bind(ParameterMap, TEXT("ViewRightVector"));
 		ViewUpVector.Bind(ParameterMap, TEXT("ViewUpVector"));
+		ClippingVolumes.Bind(ParameterMap, TEXT("ClippingVolumes"));
+		DynamicPointsSB.Bind(ParameterMap, TEXT("DynamicPointsSB"));
+		UseClippingVolumeSB.Bind(ParameterMap, TEXT("UseClippingVolumeSB"));
 	}
 
 	void GetElementShaderBindings(const class FSceneInterface* Scene,
@@ -130,14 +136,14 @@ public:
 		{
 			ShaderBindings.Add(Tint, UserData->Tint);
 		}
-		if (UserData->ClippingVolumeBuffer &&
-			ClippingVolumeBuffer.IsBound())
+		if (UserData->QxClippingVolumeSB &&
+			QxClippingVolumeSB.IsBound())
 		{
-			ShaderBindings.Add(ClippingVolumeBuffer, UserData->ClippingVolumeBuffer);
+			ShaderBindings.Add(QxClippingVolumeSB, UserData->QxClippingVolumeSB);
 		}
 		if (NumClippingVolumes.IsBound())
 		{
-			ShaderBindings.Add(NumClippingVolumes, UserData->NumClipNums);
+			ShaderBindings.Add(NumClippingVolumes, UserData->ClppingVolumeNum);
 		}
 		if (bStartClipped.IsBound())
 		{
@@ -151,16 +157,32 @@ public:
 		{
 			ShaderBindings.Add(ViewUpVector, UserData->ViewUpVector);
 		}
+		if (ClippingVolumes.IsBound())
+		{
+			ShaderBindings.Add(ClippingVolumes, UserData->ClipVolumns);
+		}
+		if (DynamicPointsSB.IsBound())
+		{
+			ShaderBindings.Add(DynamicPointsSB, UserData->DynamicPointsSB);
+		}
+		if (UseClippingVolumeSB.IsBound())
+		{
+			ShaderBindings.Add(UseClippingVolumeSB, UserData->UseClippingVolumeSB);
+		}
 	}
 	
 	LAYOUT_FIELD(FShaderParameter, Tint);
 	LAYOUT_FIELD(FShaderParameter, Contrast);
 	LAYOUT_FIELD(FShaderParameter, Saturation);
-	LAYOUT_FIELD(FShaderResourceParameter, ClippingVolumeBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, QxClippingVolumeSB);
+	LAYOUT_FIELD(FShaderParameter, ClippingVolumes);
 	LAYOUT_FIELD(FShaderParameter, NumClippingVolumes);
 	LAYOUT_FIELD(FShaderParameter, bStartClipped);
 	LAYOUT_FIELD(FShaderParameter, ViewRightVector);
 	LAYOUT_FIELD(FShaderParameter, ViewUpVector);
+	LAYOUT_FIELD(FShaderParameter, UseClippingVolumeSB);
+	LAYOUT_FIELD(FShaderResourceParameter, DynamicPointsSB);
+	
 };
 
 class FQxProceduralVertexFactoryParametersPS : public FVertexFactoryShaderParameters
@@ -171,6 +193,7 @@ public:
 	{
 		Tint.Bind(ParameterMap, TEXT("Tint"));
 		QxClippingVolumeSB.Bind(ParameterMap, TEXT("QxClippingVolumeSB"));
+		DynamicPointsSB.Bind(ParameterMap, TEXT("DynamicPointsSB"));
 	}
 	
 	void GetElementShaderBindings(
@@ -195,10 +218,15 @@ public:
 		{
 			ShaderBindings.Add(QxClippingVolumeSB, UserData->QxClippingVolumeSB);
 		}
+		if (UserData->DynamicPointsSB && DynamicPointsSB.IsBound())
+		{
+			ShaderBindings.Add(DynamicPointsSB, UserData->DynamicPointsSB);
+		}
 	}
 	
 	LAYOUT_FIELD(FShaderParameter, Tint);
 	LAYOUT_FIELD(FShaderResourceParameter, QxClippingVolumeSB);
+	LAYOUT_FIELD(FShaderResourceParameter, DynamicPointsSB);
 };
 
 class FQxProceduralVertexFactory : public FVertexFactory
@@ -454,6 +482,10 @@ public:
 		UserDataElement.bStartClipped = false;
 		// UserDataElement.NumClipNums = InRenderData.
 		UserDataElement.QxClippingVolumeSB = QxClippingVolumesSRV;
+		UserDataElement.ClppingVolumeNum = InRenderData->EffecticeClippingVolumeNum;
+
+		check(QxDynamicPointsSRV.IsValid());
+		UserDataElement.DynamicPointsSB = QxDynamicPointsSRV;
 		
 		return UserDataElement;
 	}
@@ -550,7 +582,8 @@ public:
 			CreateAndInitIndexBuffer();
 		}
 
-		
+
+		// 创建volume buffer resources
 		{
 			if (QxClippingVolumesBuffer.IsValid())
 			{
@@ -563,16 +596,24 @@ public:
 			
 			// TResourceArray 是渲染资源的array，一般情况和tarray相同，UMA的情况下不同
 			TResourceArray<FMatrix>* ResourceArray = new TResourceArray<FMatrix>(true);
+			// ResourceArray->Reserve(RenderData->ClippingVolumes.Num());
+			// ResourceArray->Append(RenderData->ClippingVolumes);
+			ResourceArray->AddUninitialized(RenderData->ClippingVolumes.Num());
+			for (int32 i = 0; i < RenderData->ClippingVolumes.Num(); ++i)
+			{
+				ResourceArray->operator[](i) = RenderData->ClippingVolumes[i].PackedShaderData;
+			}
+			
 			// 预期回先用compute shader更新这个buffer，再渲染
 			FRHIResourceCreateInfo ResourceCI;
-			ResourceArray->Append(RenderData->ClippingVolumes);
+			
 			ResourceCI.ResourceArray = ResourceArray;
 			ResourceCI.DebugName = TEXT("QxClippingVolumesSB");
 			
 			QxClippingVolumesBuffer = RHICreateStructuredBuffer(
 				sizeof(FMatrix),
 				sizeof(FMatrix) * RenderData->ClippingVolumes.Num(),
-				BUF_ShaderResource | BUF_Dynamic | BUF_UnorderedAccess,
+				BUF_ShaderResource | BUF_Dynamic,
 				ResourceCI
 				);
 
@@ -580,8 +621,46 @@ public:
 				QxClippingVolumesBuffer
 				);
 
-			QxClippingVoluesUAV =
-				RHICreateUnorderedAccessView(QxClippingVolumesBuffer, false, false);
+		}
+
+		// 创建dynamic points buffers 
+		{
+			if (QxDynamicPointsSB.IsValid())
+			{
+				QxDynamicPointsSB.SafeRelease();
+			}
+			if (QxDynamicPointsSRV.IsValid())
+			{
+				QxDynamicPointsSRV.SafeRelease();
+			}
+			if (QxDynamicPointsUAV.IsValid())
+			{
+				QxDynamicPointsUAV.SafeRelease();
+			}
+
+			// TResourceArray 是渲染资源的array，一般情况和tarray相同，UMA的情况下不同
+			TResourceArray<FVector>* ResourceArray = new TResourceArray<FVector>(true);
+			ResourceArray->Append(RenderData->DynamicPoints);
+			
+			// 预期回先用compute shader更新这个buffer，再渲染
+			FRHIResourceCreateInfo ResourceCI;
+			
+			ResourceCI.ResourceArray = ResourceArray;
+			ResourceCI.DebugName = TEXT("QxDynamicPointsSB");
+			
+			QxDynamicPointsSB = RHICreateStructuredBuffer(
+				sizeof(FVector),
+				sizeof(FVector) * RenderData->DynamicPoints.Num(),
+				BUF_ShaderResource |  BUF_UnorderedAccess,
+				ResourceCI
+				);
+
+			QxDynamicPointsSRV = RHICreateShaderResourceView(
+				QxDynamicPointsSB
+				);
+
+			QxDynamicPointsUAV =
+				RHICreateUnorderedAccessView(QxDynamicPointsSB, false, false);
 		}
 
 		
@@ -590,7 +669,7 @@ public:
 	}
 
 
-	void UpdateClippingVolumes_RenderThread(
+	void UpdateDynamicPoints_RenderThread(
 		FRHICommandListImmediate& RHICmdList,
 		float InRotateSpeed)
 	{
@@ -603,15 +682,14 @@ public:
 			TShaderMapRef<FQxUpateBufferCS> BufferUpdateCS(GetGlobalShaderMap(GetScene().GetFeatureLevel()));
 
 			FQxUpateBufferCS::FParameters* PassParams = GraphBuilder.AllocParameters<FQxUpateBufferCS::FParameters>();
-			// PassParams->DeltaTime = GetScene().tim
-			PassParams->QxClippingVolumeBuffer = QxClippingVoluesUAV;
 			PassParams->RotateSpeed = InRotateSpeed;
-			PassParams->VolumeNum = RenderData->ClippingVolumes.Num();
-			// PassParams->DeltaTime = 
+			PassParams->RotateCenter = FVector::ZeroVector;
+			PassParams->QxDynamicPointsSB = QxDynamicPointsUAV;
 			PassParams->DeltaTime = 1.f/30.f; //#TODO 得到时间传过来
 
-			int32 ThreadGroupNum = RenderData->ClippingVolumes.Num() / (QX_THREAD_GROUP_SIIZE * QX_THREAD_GROUP_SIIZE);
-			FIntVector GroupCount = FIntVector(ThreadGroupNum, 1, 1);
+			// int32 ThreadGroupNum = / (QX_THREAD_GROUP_SIIZE );
+			FIntVector GroupCount = 
+				FComputeShaderUtils::GetGroupCount( RenderData->DynamicPoints.Num(), QX_THREAD_GROUP_SIIZE);
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("QxUpdateVolumeBufferPass"),
@@ -620,6 +698,8 @@ public:
 				PassParams,
 				GroupCount
 				);
+			RHICmdList.Transition(FRHITransitionInfo(QxDynamicPointsUAV, ERHIAccess::Unknown,
+				ERHIAccess::SRVGraphics));
 		}
 		// QxClippingVolumesBuffer
 		// GraphBuilder.AddPass(
@@ -667,7 +747,11 @@ private:
 	
 	FShaderResourceViewRHIRef QxClippingVolumesSRV;
 
-	FUnorderedAccessViewRHIRef QxClippingVoluesUAV;
+	FStructuredBufferRHIRef QxDynamicPointsSB;
+
+	FShaderResourceViewRHIRef QxDynamicPointsSRV;
+
+	FUnorderedAccessViewRHIRef QxDynamicPointsUAV;
 };
 
 
@@ -762,11 +846,8 @@ void UQxProceduralMeshComponent::SendRenderDynamicData_Concurrent()
 	{
 		// auto ProceduralRenderData = MakeUnique<FQxProceduralRenderData>();
 		FQxProceduralRenderData* ProceduralRenderData = new FQxProceduralRenderData;
-		ProceduralRenderData->ColorTint = FVector(Tint);
-		ProceduralRenderData->PointsData = PointsData; // 注意这里是个深拷贝
-		ProceduralRenderData->PointSize = PointSize;
-		ProceduralRenderData->Contrast = Contrast;
-		ProceduralRenderData->Saturation = Saturation;
+		
+		InitRenderData(ProceduralRenderData);
 
 		FQxProceduralMeshProxy* ProceduralMeshProxy = static_cast<FQxProceduralMeshProxy*>(SceneProxy);
 		
@@ -828,9 +909,52 @@ void UQxProceduralMeshComponent::UpdateClipVolume_CS()
 		ENQUEUE_RENDER_COMMAND(QxUpdateClipVolumes)(
 			[ProceduralMeshProxy, lRotateSpeed](FRHICommandListImmediate& RHICmdList)
 			{
-				ProceduralMeshProxy->UpdateClippingVolumes_RenderThread(RHICmdList, lRotateSpeed);
+				ProceduralMeshProxy->UpdateDynamicPoints_RenderThread(RHICmdList, lRotateSpeed);
 			}
 			);
 	}
 }
+
+void UQxProceduralMeshComponent::FillClippingVolumes(TArray<FQxProceduralClippingVolumeParams>& OutClippingVolumes)
+{
+	OutClippingVolumes.Empty();
+
+	// 先用测试数据填
+
+	for (int32 i = 0; i < (16); ++i)
+	{
+		FQxProceduralClippingVolumeParams tmpParam;
+
+		FVector Extent = FVector::OneVector * 100;
+		tmpParam.Mode = EQxClippingVolumeMode::ClipInside; 
+		tmpParam.PackedShaderData = FMatrix(
+			FPlane(FVector::ZeroVector, 1),
+			FPlane(FVector::ForwardVector, Extent.X),
+			FPlane(FVector::RightVector, Extent.Y),
+			FPlane(FVector::UpVector, Extent.Z)
+			);
+		OutClippingVolumes.Add(tmpParam);
+	}
+}
+
+// 这个调用频率并不低，现在先测试，不考虑性能
+void UQxProceduralMeshComponent::InitRenderData(FQxProceduralRenderData* OutRenderData)
+{
+	OutRenderData->ColorTint = FVector(Tint);
+	OutRenderData->PointsData = PointsData; // 注意这里是个深拷贝
+	OutRenderData->PointSize = PointSize;
+	OutRenderData->Contrast = Contrast;
+	OutRenderData->Saturation = Saturation;
+	FillClippingVolumes(OutRenderData->ClippingVolumes);
+
+	// make test dynamic points
+	constexpr  int32 PointsNum = QX_THREAD_GROUP_SIIZE * QX_THREAD_GROUP_SIIZE * QX_THREAD_GROUP_SIIZE;
+	OutRenderData->DynamicPoints.AddUninitialized(PointsNum);
+	for (int32 i = 0; i < PointsNum; ++i)
+	{
+		OutRenderData->DynamicPoints[i] = FVector(i * 50.f, 0, 0);
+	}
+}
+
+
 

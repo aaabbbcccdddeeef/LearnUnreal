@@ -9,6 +9,6 @@ struct QxCommon
         float scale = length(TransformLocalVectorToWorld(Parameters, float3(1., 0., 0.)).xyz);
         return scale;
     }
-
-
 };
+
+

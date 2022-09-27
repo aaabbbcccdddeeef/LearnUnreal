@@ -5,21 +5,73 @@
 
 // 用一个sin wave 更新位置
 // #TODO 测试QxClippingVolumeBuffer长度的影响
-RWStructuredBuffer<float4x4> QxClippingVolumeBuffer; 
+// 注意这个不是标准的transform矩阵,第一行表示center，234表示rotation，234行最后一列表示extent，
+// RWStructuredBuffer<float4x4> QxClippingVolumeBuffer;
+RWStructuredBuffer<float3> QxDynamicPointsSB;
+float3 RotateCenter;
 float RotateSpeed;
 float DeltaTime;
-float VolumeNum;
+// float VolumeNum;
 
-[numthreads(THREAD_GROUP_SIZE, THREAD_GROUP_SIZE, 1)]
+float3x3 MakeRotationZ(float AngleInRadians)
+{
+	return float3x3(
+			float3(cos(AngleInRadians), -sin(AngleInRadians), 0),
+			float3(sin(AngleInRadians), cos(AngleInRadians), 0),
+			float3(0, 0, 1)
+			); 
+}
+
+// #TODO QxClippingVolumeBuffer 如果buffer数量不够一个thread group，会出现什么情况
+// [numthreads(THREAD_GROUP_SIZE, THREAD_GROUP_SIZE, 1)]
+// void MainCompute(uint3 GroupID : SV_GroupID,
+// 	uint3 DispatchThreadId : SV_DispatchThreadID,
+// 	uint3 GroupThreadId : SV_GroupThreadID)
+// {
+// 	// 当前thread index,在所有thread group中的
+// 	// uint ThreadIndex; 
+//
+// 	// float4 CenterPosition = QxClippingVolumeBuffer[ThreadIndex][0];
+// 	//
+// 	// float4 transformedCenter = CenterPosition;
+// 	// QxClippingVolumeBuffer[ThreadIndex][0] = transformedCenter;
+// 	float4x4 Result = QxClippingVolumeBuffer[DispatchThreadId];
+// 	float3x3 OriginRotation = float3x3(
+// 		(float3)Result[1],
+// 		(float3)Result[2],
+// 		(float3)Result[3]
+// 		);
+// 	float RotateInRadians = RotateSpeed * DeltaTime * (PI / 180.f);
+// 	float3x3 RotateM = MakeRotationZ(RotateInRadians);
+// 	float3x3 RotateRes = mul(OriginRotation, RotateM);
+// 	
+// 	Result[1] = float4(RotateRes[0], Result[0][3]);
+// 	Result[2] = float4(RotateRes[0], Result[0][3]);
+// 	Result[3] = float4(RotateRes[0], Result[0][3]);
+//
+// 	QxClippingVolumeBuffer[DispatchThreadId] = Result;
+// }
+
+// 当前先限定实现在xy平面上
+[numthreads(THREAD_GROUP_SIZE, 1, 1)]
 void MainCompute(uint3 GroupID : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	// 当前thread index,在所有thread group中的
-	uint ThreadIndex; 
+	// uint ThreadIndex;
+	// 这里参考NiagaraGPURayTrancingTransforms.usf
+	uint InstanceIndex = DispatchThreadId.x;
+	
+	float theta = RotateSpeed * DeltaTime * (PI / 180.f);
+	float3 Result = QxDynamicPointsSB[InstanceIndex];
+	float x1 = Result.x;
+	float y1 = Result.y;
+	float x2 = RotateCenter.x;
+	float y2 = RotateCenter.y;
 
-	float4 CenterPosition = QxClippingVolumeBuffer[ThreadIndex][0];
+	Result.x = (x1 - x2) * cos(theta) - (y1 - y2) * sin(theta) + x2;
+	Result.y = (x1 - x2) * sin(theta) + (y1 - y2) * cos(theta) + y2;
 
-	float4 transformedCenter = CenterPosition;
-	QxClippingVolumeBuffer[ThreadIndex][0] = transformedCenter;
+	QxDynamicPointsSB[InstanceIndex] = Result;
 }
