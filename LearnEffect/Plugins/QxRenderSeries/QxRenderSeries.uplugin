@@ -37,6 +37,11 @@
 			"name": "QxCustomMeshes",
 			"type": "Runtime",
 			"loadingPhase": "PostConfigInit"
+		},
+		{
+			"name": "QxClippedStaticMesh",
+			"type": "Runtime",
+			"loadingPhase": "PostConfigInit"
 		}
 	]
 }

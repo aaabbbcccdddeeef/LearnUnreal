@@ -1015,7 +1015,7 @@ FRDGTextureRef UQxPostprocessSubsystem::RenderBlur(FRDGBuilder& GraphBuilder, FR
 		FIntRect NewRect = FIntRect(
 			0,
 			0,
-			Viewpocrt.Width() / Divider,
+			Viewport.Width() / Divider,
 			Viewport.Height() / Divider
 			);
 
