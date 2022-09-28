@@ -24,6 +24,11 @@
 			"name": "QxCustomUpscaler",
 			"type": "Runtime",
 			"loadingPhase": "Default"
+		},
+		{
+			"name": "QxUpScalerRigister",
+			"type": "Runtime",
+			"loadingPhase": "PostEngineInit"
 		}
 	]
 }
