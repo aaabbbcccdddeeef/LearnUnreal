@@ -24,6 +24,11 @@ public class QxClippedStaticMesh : ModuleRules
  
 		// PublicIncludePaths.AddRange(new string[] {"QxClippedStaticMesh/Public"});
 		PrivateIncludePaths.AddRange(new string[] {"QxClippedStaticMesh/Private"});
+		PrivateIncludePaths.AddRange(new string[]
+		{
+			EngineDirectory + "/Source/Runtime/Renderer/Private",
+			EngineDirectory + "/Source/Runtime/Engine/Private"		
+		});
 		OptimizeCode = CodeOptimization.Never;
 	}
 }

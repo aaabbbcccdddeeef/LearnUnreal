@@ -55,8 +55,9 @@ public class QxCusomPostProcess : ModuleRules
 		
 		PrivateIncludePaths.AddRange(new string[]
 		{
-			EngineDirectory + "/Source/Runtime/Renderer/Private"		
+			EngineDirectory + "/Source/Runtime/Renderer/Private"
 		});
+		
 		
 		OptimizeCode = CodeOptimization.Never;
 	}
