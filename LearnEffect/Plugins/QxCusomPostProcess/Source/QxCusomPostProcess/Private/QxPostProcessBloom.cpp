@@ -200,9 +200,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 	FScreenPassTexture GlareTexture;
 	FScreenPassTexture SceneColorTexture =
 		SceneColor;
-		
-
-		
+	
 	// Bloom
 	{
 		if (BloomSettingAsset->bEnableQxBloom)

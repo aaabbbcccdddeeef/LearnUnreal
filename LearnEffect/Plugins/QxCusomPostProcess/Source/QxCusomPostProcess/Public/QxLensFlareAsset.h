@@ -47,6 +47,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="Flags")
 	bool bEnableGlare = true;
+
+	UPROPERTY(EditAnywhere, Category="Flags")
+	bool bEnableCanvasDraw = false;
 #pragma endregion
 
 	

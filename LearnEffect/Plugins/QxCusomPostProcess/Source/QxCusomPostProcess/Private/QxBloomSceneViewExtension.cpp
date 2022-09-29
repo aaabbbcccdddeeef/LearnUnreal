@@ -213,7 +213,43 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	
 	DownSampleTextures.Empty();
 	UpSampleTextures.Empty();
-	
+
+
+	// 测试用Draw Canvas Pass绘制一些内容
+	if (QxPostprocessSubsystem->GetBloomSettingAsset()->bEnableCanvasDraw)
+	{
+		FScreenPassRenderTarget TmpOutPut(BloomTexture, ERenderTargetLoadAction::ENoAction);
+		
+		AddDrawCanvasPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("TestDrawCanvas"),
+			ViewInfo,
+			TmpOutPut,
+			[](FCanvas& DrawCanvas)
+			{
+				float X,Y,SizeX,SizeY;
+				X = Y = 100;
+				SizeX = SizeY = 300;
+				FLinearColor SelectionColor = FLinearColor::Blue;
+				DrawCanvas.DrawTile(X, Y, SizeX, SizeY, 0, 0, 0, 0, SelectionColor);
+			}
+			);
+		//
+		// // FScreenPassTexture CanvasOut = SceneColor;
+		// DrawCanvasPass(
+		// 	GraphBuilder.RHICmdList,
+		// 	ViewInfo,
+		// 	BloomTexture,
+		// 	[](FCanvas& DrawCanvas)
+		// 	{
+		// 		float X,Y,SizeX,SizeY;
+		// 		X = Y = 100;
+		// 		SizeX = SizeY = 300;
+		// 		FLinearColor SelectionColor = FLinearColor::Blue;
+		// 		DrawCanvas.DrawTile(X, Y, SizeX, SizeY, 0, 0, 0, 0, SelectionColor);
+		// 	}
+		// 	);
+	}
 	
 	// #TODO
 	// My Tone Mapping
