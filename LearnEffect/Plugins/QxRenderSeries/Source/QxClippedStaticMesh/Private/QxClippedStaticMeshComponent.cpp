@@ -5,15 +5,136 @@
 
 #include "MeshDrawShaderBindings.h"
 #include "LocalVertexFactory.h"
+#include "MeshMaterialShader.h"
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
+#include "ShaderParameters.h"
 
 class FZZStaticMeshUserData
 {
 public:
-    FRHIShaderResourceView* QxClippingVolumeSB;
+    FRHIShaderResourceView* QxClippingVolumeSB = nullptr;
 };
 
-class FZZVertexFactoryShaderParameters : public FLocalVertexFactoryShaderParametersBase
+/**
+ * Shader parameters for all LocalVertexFactory derived classes.
+ */
+class FZZLocalVertexFactoryShaderParametersBase : public FVertexFactoryShaderParameters
+{
+	DECLARE_TYPE_LAYOUT(FZZLocalVertexFactoryShaderParametersBase, NonVirtual);
+public:
+	void Bind(const FShaderParameterMap& ParameterMap)
+	{
+		LODParameter.Bind(ParameterMap, TEXT("SpeedTreeLODInfo"));
+		bAnySpeedTreeParamIsBound = LODParameter.IsBound() || ParameterMap.ContainsParameterAllocation(TEXT("SpeedTreeData"));
+	}
+
+	void GetElementShaderBindingsBase(
+		const FSceneInterface* Scene,
+		const FSceneView* View,
+		const FMeshMaterialShader* Shader, 
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory, 
+		const FMeshBatchElement& BatchElement,
+		FRHIUniformBuffer* VertexFactoryUniformBuffer,
+		FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams
+	) const
+{
+	const auto* LocalVertexFactory = static_cast<const FLocalVertexFactory*>(VertexFactory);
+	
+	if (LocalVertexFactory->SupportsManualVertexFetch(FeatureLevel) || UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
+	{
+		if (!VertexFactoryUniformBuffer)
+		{
+			// No batch element override
+			VertexFactoryUniformBuffer = LocalVertexFactory->GetUniformBuffer();
+		}
+
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLocalVertexFactoryUniformShaderParameters>(), VertexFactoryUniformBuffer);
+	}
+
+	//@todo - allow FMeshBatch to supply vertex streams (instead of requiring that they come from the vertex factory), and this userdata hack will no longer be needed for override vertex color
+	if (BatchElement.bUserDataIsColorVertexBuffer)
+	{
+		FColorVertexBuffer* OverrideColorVertexBuffer = (FColorVertexBuffer*)BatchElement.UserData;
+		check(OverrideColorVertexBuffer);
+
+		if (!LocalVertexFactory->SupportsManualVertexFetch(FeatureLevel))
+		{
+			LocalVertexFactory->GetColorOverrideStream(OverrideColorVertexBuffer, VertexStreams);
+		}	
+	}
+
+	
+}
+
+	FZZLocalVertexFactoryShaderParametersBase()
+		: bAnySpeedTreeParamIsBound(false)
+	{
+	}
+
+	// SpeedTree LOD parameter
+	LAYOUT_FIELD(FShaderParameter, LODParameter);
+
+	// True if LODParameter is bound, which puts us on the slow path in GetElementShaderBindings
+	LAYOUT_FIELD(bool, bAnySpeedTreeParamIsBound);
+};
+IMPLEMENT_TYPE_LAYOUT(FZZLocalVertexFactoryShaderParametersBase);
+
+
+/** Shader parameter class used by FLocalVertexFactory only - no derived classes. */
+class FZZLocalVertexFactoryShaderParameters : public FZZLocalVertexFactoryShaderParametersBase
+{
+	DECLARE_TYPE_LAYOUT(FZZLocalVertexFactoryShaderParameters, NonVirtual);
+public:
+
+	void Bind(const FShaderParameterMap& ParameterMap)
+	{
+		FZZLocalVertexFactoryShaderParametersBase::Bind(ParameterMap);
+		ZZClipingVolumesSB.Bind(ParameterMap, TEXT("ZZClipingVolumesSB"));
+	}
+	
+	void GetElementShaderBindings(
+		const FSceneInterface* Scene,
+		const FSceneView* View,
+		const FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams
+	) const
+	{
+		// Decode VertexFactoryUserData as VertexFactoryUniformBuffer
+		FRHIUniformBuffer* VertexFactoryUniformBuffer = static_cast<FRHIUniformBuffer*>(BatchElement.VertexFactoryUserData);
+
+		FZZLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(
+			Scene,
+			View,
+			Shader,
+			InputStreamType,
+			FeatureLevel,
+			VertexFactory,
+			BatchElement,
+			VertexFactoryUniformBuffer,
+			ShaderBindings,
+			VertexStreams);
+		const FZZStaticMeshUserData* UserData =
+		   static_cast<const FZZStaticMeshUserData*>(BatchElement.UserData);
+		if (ZZClipingVolumesSB.IsBound() && UserData->QxClippingVolumeSB)
+		{
+			ShaderBindings.Add(ZZClipingVolumesSB, UserData->QxClippingVolumeSB);
+		}
+	}
+
+private:
+	LAYOUT_FIELD(FShaderResourceParameter, ZZClipingVolumesSB);
+};
+IMPLEMENT_TYPE_LAYOUT(FZZLocalVertexFactoryShaderParameters);
+
+class FZZVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
     DECLARE_TYPE_LAYOUT(FZZVertexFactoryShaderParameters, NonVirtual);
 public:
@@ -57,9 +178,12 @@ public:
     }
 };
 
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FZZStaticMeshVertexFactory, SF_Vertex, FLocalVertexFactoryShaderParameters);
+
+// IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FZZStaticMeshVertexFactory, SF_Vertex, FLocalVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FZZStaticMeshVertexFactory, SF_Vertex, FZZLocalVertexFactoryShaderParameters);
 // IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FZZStaticMeshVertexFactory, SF_Pixel, FZZVertexFactoryShaderParameters);
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FZZStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,true);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FZZStaticMeshVertexFactory, SF_Pixel, FZZLocalVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FZZStaticMeshVertexFactory,"/QxClipMeshShaders/ZZLocalVertexFactory.ush",true,true,true,true,true,true,true);
 
 // class FZZStaticMeshRenderData
 // {

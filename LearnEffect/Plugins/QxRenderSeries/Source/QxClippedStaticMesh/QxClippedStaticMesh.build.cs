@@ -6,18 +6,22 @@ public class QxClippedStaticMesh : ModuleRules
 	{
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine"});
+        PublicDependencyModuleNames.AddRange(new string[]
+        {
+	        "Core", "CoreUObject", "Engine",
+	        "CoreUObject",
+	        "Engine",
+	        "Slate",
+	        "SlateCore",
+	        "Renderer",
+	        "RenderCore",
+	        "RHI",
+	        "Projects",
+        });
         PrivateDependencyModuleNames.AddRange(
 	        new string[]
 	        {
-		        "CoreUObject",
-		        "Engine",
-		        "Slate",
-		        "SlateCore",
-		        "Renderer",
-		        "RenderCore",
-		        "RHI",
-		        "Projects",
+		       
 		        // ... add private dependencies that you statically link with here ...	
 	        }
         );
