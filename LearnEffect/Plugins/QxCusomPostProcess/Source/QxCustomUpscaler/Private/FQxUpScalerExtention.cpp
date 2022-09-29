@@ -8,7 +8,7 @@
 
 static TAutoConsoleVariable<bool> CVarQxUpscalerEnable(
     TEXT("r.QxUpscaler.Enable"),
-    true,
+    false,
     TEXT("Wheather use qx upscaler "),
     ECVF_Default);
 

@@ -13,12 +13,14 @@ public:
 	FQxUpscalerExtention(const FAutoRegister& AutoRegister)
 	: FSceneViewExtensionBase(AutoRegister)
 	{
-		// FSceneViewExtensionIsActiveFunctor IsActiveFunctor;
-		// IsActiveFunctor.IsActiveFunction = [](const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context)
-		// {
-		// 	return CVarQxUpscalerEnable.GetValueOnAnyThread();
-		// };
-		// IsActiveThisFrameFunctions.Add(IsActiveFunctor);
+		FSceneViewExtensionIsActiveFunctor IsActiveFunctor;
+		IsActiveFunctor.IsActiveFunction = [](const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context)
+		{
+			IConsoleVariable* CvarQxUpscalerEnable =  IConsoleManager::Get().FindConsoleVariable(TEXT("r.QxUpscaler.Enable"));
+			
+			return CvarQxUpscalerEnable->GetBool();
+		};
+		IsActiveThisFrameFunctions.Add(IsActiveFunctor);
 	}
 
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}

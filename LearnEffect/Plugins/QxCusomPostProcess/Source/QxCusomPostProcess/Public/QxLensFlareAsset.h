@@ -50,6 +50,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="Flags")
 	bool bEnableCanvasDraw = false;
+
+	UPROPERTY(EditAnywhere, Category="Flags")
+	bool bEnableCustomViewport = false;
 #pragma endregion
 
 	

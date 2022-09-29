@@ -11,7 +11,7 @@
 class QXCUSTOMUPSCALER_API FQxSpatialUpscaler : public  ISpatialUpscaler
 {
 public:
-    FScreenPassTexture AddPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FInputs& PassInputs) const override;
+    virtual FScreenPassTexture AddPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FInputs& PassInputs) const override;
 
     const TCHAR* GetDebugName() const override
     {

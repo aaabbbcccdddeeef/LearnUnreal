@@ -253,6 +253,55 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	
 	// #TODO
 	// My Tone Mapping
+
+	// 测试修改view rect 调整view port的位置
+	if (QxPostprocessSubsystem->GetBloomSettingAsset()->bEnableCustomViewport)
+	{
+		const FScreenPassTexture& TargetInputTexture = BloomTexture;
+		FIntRect OriginRect = TargetInputTexture.ViewRect;
+		FIntRect TestViewRect = FIntRect(
+		100, 100,
+		500, 500
+		);
+
+		
+
+		FRDGTextureDesc TexDesc = TargetInputTexture.Texture->Desc;
+		TexDesc.Reset();
+		TexDesc.Extent = FIntPoint(400, 400);
+		FRDGTextureRef tempTex =  GraphBuilder.CreateTexture(TexDesc, TEXT("TempShrinkTexture"));
+
+		AddCopyTexturePass(
+			GraphBuilder,
+			TargetInputTexture.Texture,
+			tempTex,
+			FIntPoint::ZeroValue,
+			FIntPoint::ZeroValue,
+			TexDesc.Extent
+			);
+
+		AddClearRenderTargetPass(
+			GraphBuilder,
+			TargetInputTexture.Texture,
+			FLinearColor::Black
+			);
+		
+		AddDrawTexturePass(
+			GraphBuilder,
+			ViewInfo,
+			tempTex,
+			TargetInputTexture.Texture,
+			FIntPoint::ZeroValue,
+			FIntPoint(100, 100),
+			FIntPoint(400, 400)
+			);
+	}
+	
+	// FIntRect TestViewRect = FIntRect(
+	// 	100, 100,
+	// 	500, 500
+	// 	);
+	// BloomTexture.ViewRect = TestViewRect;
 	return BloomTexture;
 }
 

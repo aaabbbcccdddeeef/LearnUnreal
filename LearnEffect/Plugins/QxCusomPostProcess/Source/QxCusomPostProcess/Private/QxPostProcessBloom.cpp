@@ -200,6 +200,19 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 	FScreenPassTexture GlareTexture;
 	FScreenPassTexture SceneColorTexture =
 		SceneColor;
+
+
+	// Update Global uniform parameter
+	{
+		// FQxTestGlobal TestGlobal;
+		// SetUniformBufferParameter()
+		// AddPass(GraphBuilder,
+		// 	RDG_EVENT_NAME("TestUpdateGlobalUnifrom"),
+		// 	[](FRHICommandListImmediate& RHICmdList)
+		// 	{
+		// 		SetUniformBufferParameterImmediate(RHICmdList, )
+		// 	});
+	}
 	
 	// Bloom
 	{

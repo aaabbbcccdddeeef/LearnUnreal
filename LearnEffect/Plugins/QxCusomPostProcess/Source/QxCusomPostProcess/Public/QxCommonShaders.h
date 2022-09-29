@@ -66,3 +66,7 @@ public:
 
 };
 // IMPLEMENT_GLOBAL_SHADER(FQxRescale, "/QxPPShaders/Rescale.usf", "RescalePS", SF_Pixel);
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FQxTestGlobal, )
+	SHADER_PARAMETER(float, Param1)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
