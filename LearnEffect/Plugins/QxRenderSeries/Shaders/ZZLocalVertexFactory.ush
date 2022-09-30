@@ -85,6 +85,7 @@ float4 SplineParams[10];
 #endif //! MANUAL_VERTEX_FETCH
 
 StructuredBuffer<float4x4> ZZClipingVolumesSB;
+uint ZZClippingVolumeNum;
 
 /**
  * Per-vertex inputs from bound vertex buffers
@@ -446,7 +447,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 
 	Result.VertexColor = GetColor(Interpolants);
 
-	float4x4 TestElement = ZZClipingVolumesSB[0];
+	float4x4 TestElement = ZZClipingVolumesSB[ZZClippingVolumeNum];
 	Result.VertexColor = TestElement[0];
 
 	// Required for previewing materials that use ParticleColor

@@ -8,12 +8,22 @@
 #include "MeshMaterialShader.h"
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
 #include "ShaderParameters.h"
+#include "TessellationRendering.h"
+
+class FMaterial;
+class FMeshDrawSingleShaderBindings;
+class FPrimitiveSceneProxy;
+struct FVertexFactoryShaderPermutationParameters;
 
 class FZZStaticMeshUserData
 {
 public:
     FRHIShaderResourceView* QxClippingVolumeSB = nullptr;
+	uint32 EffectVolumeNum = 0;
 };
+
+// 这里参照static mesh
+static  bool GUseReversedIndexBuffer = true; 
 
 /**
  * Shader parameters for all LocalVertexFactory derived classes.
@@ -93,6 +103,7 @@ public:
 	{
 		FZZLocalVertexFactoryShaderParametersBase::Bind(ParameterMap);
 		ZZClipingVolumesSB.Bind(ParameterMap, TEXT("ZZClipingVolumesSB"));
+		ZZClippingVolumeNum.Bind(ParameterMap, TEXT("ZZClippingVolumeNum"));
 	}
 	
 	void GetElementShaderBindings(
@@ -127,10 +138,15 @@ public:
 		{
 			ShaderBindings.Add(ZZClipingVolumesSB, UserData->QxClippingVolumeSB);
 		}
+		if (ZZClippingVolumeNum.IsBound())
+		{
+			ShaderBindings.Add(ZZClippingVolumeNum, UserData->EffectVolumeNum);
+		}
 	}
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, ZZClipingVolumesSB);
+	LAYOUT_FIELD(FShaderParameter, ZZClippingVolumeNum);
 };
 IMPLEMENT_TYPE_LAYOUT(FZZLocalVertexFactoryShaderParameters);
 
@@ -175,7 +191,13 @@ public:
     FZZStaticMeshVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
     : FLocalVertexFactory(InFeatureLevel, "FZZStaticMeshVertexFactory")
     {
+    	
     }
+
+	using FDataType = FLocalVertexFactory::FDataType;
+
+	// FRHIShaderResourceView* QxClippingVolumeSB = nullptr;
+	// uint32 EffectVolumeNum = 0;
 };
 
 
@@ -185,33 +207,62 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FZZStaticMeshVertexFactory, SF_Vertex, F
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FZZStaticMeshVertexFactory, SF_Pixel, FZZLocalVertexFactoryShaderParameters);
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FZZStaticMeshVertexFactory,"/QxClipMeshShaders/ZZLocalVertexFactory.ush",true,true,true,true,true,true,true);
 
-// class FZZStaticMeshRenderData
-// {
-// public:
-//     FZZStaticMeshRenderData(
-//         UQxClippedStaticMeshComponent* InComponent,
-//         ERHIFeatureLevel::Type InFeatureLevel
-//         )
-//             :Component(InComponent)
-//             , FeatureLevel(InFeatureLevel)
-//     {
-//
-//         // Init Vertex factory
-//         {
-//             
-//         }
-//     }
-//
-// private:
-//     UQxClippedStaticMeshComponent* Component;
-//
-//     ERHIFeatureLevel::Type FeatureLevel;
-//
-//     FStaticMeshLODResources& LODArray;
-//
-//     // 每一个LOD有一个vertexfactory
-//     TIndirectArray<FZZStaticMeshVertexFactory> VertexFactories;
-// };
+class FZZStaticMeshRenderData
+{
+	friend class FZZStaticMeshSceneProxy;
+public:
+    FZZStaticMeshRenderData(
+        UQxClippedStaticMeshComponent* InComponent,
+        ERHIFeatureLevel::Type InFeatureLevel
+        )
+            :Component(InComponent)
+            , FeatureLevel(InFeatureLevel)
+			, LODModels(InComponent->GetStaticMesh()->GetRenderData()->LODResources)
+    {
+
+        InitVertexFactories();
+
+    	InitClippingVolumeBuffers();
+		    	
+    }
+
+public:
+	void ReleaseResources()
+	{
+		for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); ++LODIndex)
+		{
+			VertexFactories[LODIndex].ReleaseResource();
+		}
+		ZZClippingVolumesSB.SafeRelease();
+		ZZClippingVolumesSRV.SafeRelease();
+	}
+
+private:
+	void InitVertexFactories();
+
+	void InitClippingVolumeBuffers();
+private:
+    UQxClippedStaticMeshComponent* Component;
+
+    ERHIFeatureLevel::Type FeatureLevel;
+
+    FStaticMeshLODResourcesArray& LODModels;
+
+
+    // 每一个LOD有一个vertexfactory
+    TIndirectArray<FZZStaticMeshVertexFactory> VertexFactories;
+
+	// FZZStaticMeshRenderData ZZRenderData;
+	// FZZStaticMeshVertexFactory ZZVertexFactory;
+
+#pragma region ClppingDataAndBuffers
+	// 这两个buffer 理论上来说可以引用这个proxy外部的，但现在先每个都创建
+	FStructuredBufferRHIRef ZZClippingVolumesSB;
+
+	FShaderResourceViewRHIRef ZZClippingVolumesSRV;
+#pragma endregion
+
+};
 
 class FZZStaticMeshSceneProxy : public FStaticMeshSceneProxy
 {
@@ -221,7 +272,12 @@ public:
         FStaticMeshSceneProxy(InComponent, bFoolLODsShareStaticLighting)
         , ComponentPtr(InComponent)
         , StaticMesh(InComponent->GetStaticMesh())
+		, ZZRenderData(InComponent, GetScene().GetFeatureLevel())
     {
+    	// Init RenderDatas
+    	{
+    		
+    	}
     };
 
     // void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
@@ -256,20 +312,238 @@ public:
         const FSceneViewFamily& ViewFamily,
         uint32 VisibilityMap,
         FMeshElementCollector& Collector) const override;
+
+	bool GetMeshElementZZ(int32 LODIndex, int32 BatchIndex,
+		int32 ElementIndex, uint8 InDepthPriorityGroup,
+		bool bUseSelectionOutline, bool bAllowPreCulledIndices,
+		FMeshBatch& OutMeshBatch, FMeshElementCollector& Collector) const;
+
+	virtual void DestroyRenderThreadResources() override;
 private:
     UPROPERTY()
     const UStaticMeshComponent* ComponentPtr;
 
     UStaticMesh* StaticMesh;
 
-    // FZZStaticMeshRenderData ZZRenderData;
-
-    // 这两个buffer 理论上来说可以引用这个proxy外部的，但现在先每个都创建
-    FStructuredBufferRHIRef ZZClippingVolumesSB;
-
-    FShaderResourceViewRHIRef ZZClippingVolumesSRV;
+	FZZStaticMeshRenderData ZZRenderData;
 };
 
+class FZZStaticMeshOneFrameResource : public FOneFrameResource
+{
+public:
+	FZZStaticMeshUserData Payload;
+	~FZZStaticMeshOneFrameResource() {  }
+};
+
+
+/** Sets up a FMeshBatch for a specific LOD and element. */
+bool FZZStaticMeshSceneProxy::GetMeshElementZZ(
+	int32 LODIndex, 
+	int32 BatchIndex, 
+	int32 SectionIndex, 
+	uint8 InDepthPriorityGroup, 
+	bool bUseSelectionOutline,
+	bool bAllowPreCulledIndices, 
+	FMeshBatch& OutMeshBatch,
+	FMeshElementCollector& Collector) const
+{
+	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
+	const FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
+	const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
+	const FStaticMeshSection& Section = LOD.Sections[SectionIndex];
+	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
+
+	UMaterialInterface* MaterialInterface = ProxyLODInfo.Sections[SectionIndex].Material;
+	const FMaterialRenderProxy* MaterialRenderProxy = MaterialInterface->GetRenderProxy();
+	const FMaterial& Material = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
+
+	const FVertexFactory* VertexFactory = nullptr;
+
+	FMeshBatchElement& OutMeshBatchElement = OutMeshBatch.Elements[0];
+
+#if WITH_EDITORONLY_DATA
+	// If material is hidden, then skip the draw.
+	if ((MaterialIndexPreview >= 0) && (MaterialIndexPreview != Section.MaterialIndex))
+	{
+		return false;
+	}
+	// If section is hidden, then skip the draw.
+	if ((SectionIndexPreview >= 0) && (SectionIndexPreview != SectionIndex))
+	{
+		return false;
+	}
+
+	OutMeshBatch.bUseSelectionOutline = bPerSectionSelection ? bUseSelectionOutline : true;
+#endif
+
+	// Has the mesh component overridden the vertex color stream for this mesh LOD?
+	if (ProxyLODInfo.OverrideColorVertexBuffer)
+	{
+		// Make sure the indices are accessing data within the vertex buffer's
+		check(Section.MaxVertexIndex < ProxyLODInfo.OverrideColorVertexBuffer->GetNumVertices())
+
+		// Use the instanced colors vertex factory.
+		VertexFactory = &VFs.VertexFactoryOverrideColorVertexBuffer;
+
+		OutMeshBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference();
+		OutMeshBatchElement.UserData = ProxyLODInfo.OverrideColorVertexBuffer;
+		OutMeshBatchElement.bUserDataIsColorVertexBuffer = true;
+	}
+	else
+	{
+		VertexFactory = &VFs.VertexFactory;
+		// Test
+		VertexFactory = &ZZRenderData.VertexFactories[LODIndex];
+		OutMeshBatchElement.VertexFactoryUserData = VFs.VertexFactory.GetUniformBuffer();
+	}
+
+	const bool bWireframe = false;
+
+	// Disable adjacency information when the selection outline is enabled, since tessellation won't be used.
+	const bool bRequiresAdjacencyInformation = !bUseSelectionOutline && RequiresAdjacencyInformation(MaterialInterface, VertexFactory->GetType(), FeatureLevel);
+
+	// Two sided material use bIsFrontFace which is wrong with Reversed Indices. AdjacencyInformation use another index buffer.
+	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && (LOD.bHasReversedIndices != 0) && !bRequiresAdjacencyInformation && !Material.IsTwoSided();
+
+	// No support for stateless dithered LOD transitions for movable meshes
+	const bool bDitheredLODTransition = !IsMovable() && Material.IsDitheredLODTransition();
+
+	const uint32 NumPrimitives = SetMeshElementGeometrySource(LODIndex, SectionIndex, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
+
+	if(NumPrimitives > 0)
+	{
+		OutMeshBatch.SegmentIndex = SectionIndex;
+
+		OutMeshBatch.LODIndex = LODIndex;
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+		OutMeshBatch.VisualizeLODIndex = LODIndex;
+		OutMeshBatch.VisualizeHLODIndex = HierarchicalLODIndex;
+#endif
+		OutMeshBatch.ReverseCulling = IsReversedCullingNeeded(bUseReversedIndices);
+		OutMeshBatch.CastShadow = bCastShadow && Section.bCastShadow;
+#if RHI_RAYTRACING
+		OutMeshBatch.CastRayTracedShadow = OutMeshBatch.CastShadow && bCastDynamicShadow;
+#endif
+		OutMeshBatch.DepthPriorityGroup = (ESceneDepthPriorityGroup)InDepthPriorityGroup;
+		OutMeshBatch.LCI = &ProxyLODInfo;
+		OutMeshBatch.MaterialRenderProxy = MaterialRenderProxy;
+
+		OutMeshBatchElement.MinVertexIndex = Section.MinVertexIndex;
+		OutMeshBatchElement.MaxVertexIndex = Section.MaxVertexIndex;
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+		OutMeshBatchElement.VisualizeElementIndex = SectionIndex;
+#endif
+
+		SetMeshElementScreenSize(LODIndex, bDitheredLODTransition, OutMeshBatch);
+
+		// Test
+		FZZStaticMeshUserData& UserData =
+			Collector.AllocateOneFrameResource<FZZStaticMeshOneFrameResource>().Payload;
+		UserData.EffectVolumeNum = 2;
+		UserData.QxClippingVolumeSB = ZZRenderData.ZZClippingVolumesSRV;
+		OutMeshBatchElement.UserData = &UserData;
+		
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void FZZStaticMeshSceneProxy::DestroyRenderThreadResources()
+{
+	ZZRenderData.ReleaseResources();
+	FStaticMeshSceneProxy::DestroyRenderThreadResources();
+}
+
+void FZZStaticMeshRenderData::InitVertexFactories()
+{
+	// Allocate the vertex factories for each LOD
+	for (int32 LODIndex = 0; LODIndex < LODModels.Num(); LODIndex++)
+	{
+		VertexFactories.Add(new FZZStaticMeshVertexFactory(FeatureLevel));
+	}
+
+	const int32 LightMapCoordinateIndex = Component->GetStaticMesh()->GetLightMapCoordinateIndex();
+	ENQUEUE_RENDER_COMMAND(InstancedStaticMeshRenderData_InitVertexFactories)(
+		[this, LightMapCoordinateIndex](FRHICommandListImmediate& RHICmdList)
+	{
+		for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
+		{
+			const FStaticMeshLODResources* RenderData = &LODModels[LODIndex];
+
+			FZZStaticMeshVertexFactory::FDataType Data;
+			// Assign to the vertex factory for this LOD.
+			FZZStaticMeshVertexFactory& VertexFactory = VertexFactories[LODIndex];
+
+			RenderData->VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&VertexFactory, Data);
+			RenderData->VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(&VertexFactory, Data);
+			RenderData->VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(&VertexFactory, Data);
+			if (LightMapCoordinateIndex < (int32)RenderData->VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() && LightMapCoordinateIndex >= 0)
+			{
+				RenderData->VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(&VertexFactory, Data, LightMapCoordinateIndex);
+			}
+			RenderData->VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
+
+			// check(PerInstanceRenderData);
+			// PerInstanceRenderData->InstanceBuffer.BindInstanceVertexBuffer(&VertexFactory, Data);
+
+			VertexFactory.SetData(Data);
+			VertexFactory.InitResource();
+		}
+	});
+}
+
+void FZZStaticMeshRenderData::InitClippingVolumeBuffers()
+{
+	// 先用测试数据
+	if (ZZClippingVolumesSB.IsValid())
+	{
+		ZZClippingVolumesSB.SafeRelease();
+	}
+	if (ZZClippingVolumesSRV.IsValid())
+	{
+		ZZClippingVolumesSRV.SafeRelease();
+	}
+
+	TArray<FMatrix> TestData;
+	{
+		TestData.AddUninitialized(100);
+		for (int32 i = 0; i < 100; ++i)
+		{
+			FMatrix TestM = FMatrix(
+				FPlane(FVector::OneVector * i, 0),
+				FPlane(FVector::ForwardVector, FLT_MAX),
+				FPlane(FVector::RightVector, FLT_MAX),
+				FPlane(FVector::UpVector, FLT_MAX)
+				);
+			TestData[i] = TestM;
+		}
+	}
+	
+	// TResourceArray 是渲染资源的array，一般情况和tarray相同，UMA的情况下不同
+	TResourceArray<FMatrix>* ResourceArray = new TResourceArray<FMatrix>(true);
+	// ResourceArray->Reserve(RenderData->ClippingVolumes.Num());
+	ResourceArray->Append(TestData);
+			
+	// 预期回先用compute shader更新这个buffer，再渲染
+	FRHIResourceCreateInfo ResourceCI;
+			
+	ResourceCI.ResourceArray = ResourceArray;
+	ResourceCI.DebugName = TEXT("QxClippingVolumesSB");
+			
+	ZZClippingVolumesSB = RHICreateStructuredBuffer(
+		sizeof(FMatrix),
+		sizeof(FMatrix) * TestData.Num(),
+		BUF_ShaderResource | BUF_Dynamic,
+		ResourceCI
+		);
+
+	ZZClippingVolumesSRV = RHICreateShaderResourceView(
+		ZZClippingVolumesSB
+		);
+}
 
 void FZZStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const
 {
@@ -369,7 +643,7 @@ void FZZStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVi
 									bool bSectionIsSelected = false;
 									FMeshBatch& MeshElement = Collector.AllocateMesh();
 
-	#if WITH_EDITOR
+									#if WITH_EDITOR
 									if (GIsEditor)
 									{
 										const FLODInfo::FSectionInfo& Section = LODs[LODIndex].Sections[SectionIndex];
@@ -377,14 +651,16 @@ void FZZStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVi
 										bSectionIsSelected = Section.bSelected || (bIsWireframeView && bProxyIsSelected);
 										MeshElement.BatchHitProxyId = Section.HitProxy ? Section.HitProxy->Id : FHitProxyId();
 									}
-	#endif // WITH_EDITOR
+									#endif // WITH_EDITOR
 								
-									if (GetMeshElement(LODIndex, BatchIndex, SectionIndex, SDPG_World, bSectionIsSelected, true, MeshElement))
+									if (GetMeshElementZZ(LODIndex, BatchIndex,
+										SectionIndex, SDPG_World, bSectionIsSelected,
+										true, MeshElement, Collector))
 									{
 										bool bDebugMaterialRenderProxySet = false;
-#if STATICMESH_ENABLE_DEBUG_RENDERING
+									#if STATICMESH_ENABLE_DEBUG_RENDERING
 
-	#if WITH_EDITOR								
+										#if WITH_EDITOR								
 										if (bProxyIsSelected && EngineShowFlags.PhysicalMaterialMasks && AllowDebugViewmodes())
 										{
 											// Override the mesh's material with our material that draws the physical material masks
@@ -414,7 +690,7 @@ void FZZStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVi
 											}
 										}
 
-	#endif // WITH_EDITOR
+										#endif // WITH_EDITOR
 
 										if (!bDebugMaterialRenderProxySet && bProxyIsSelected && EngineShowFlags.VertexColors && AllowDebugViewmodes())
 										{
@@ -455,8 +731,8 @@ void FZZStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVi
 											bDebugMaterialRenderProxySet = true;
 										}
 
-	#endif // STATICMESH_ENABLE_DEBUG_RENDERING
-	#if WITH_EDITOR
+									#endif // STATICMESH_ENABLE_DEBUG_RENDERING
+									#if WITH_EDITOR
 										if (!bDebugMaterialRenderProxySet && bSectionIsSelected)
 										{
 											// Override the mesh's material with our material that draws the collision color
@@ -465,7 +741,7 @@ void FZZStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVi
 												GetSelectionColor(GEngine->GetSelectedMaterialColor(), bSectionIsSelected, IsHovered())
 											);
 										}
-	#endif
+									#endif
 										if (MeshElement.bDitheredLODTransition && LODMask.IsDithered())
 										{
 

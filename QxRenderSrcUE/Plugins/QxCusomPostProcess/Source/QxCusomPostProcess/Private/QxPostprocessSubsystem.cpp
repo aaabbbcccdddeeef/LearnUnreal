@@ -385,12 +385,12 @@ void UQxPostprocessSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		}
 		);
 
-	ENQUEUE_RENDER_COMMAND(BindRenderThreadDelegates)(
-		[Delegate](FRHICommandListImmediate& RHICmdList)
-		{
-			PP_LensFlares.Add(Delegate);
-		}
-		);
+	// ENQUEUE_RENDER_COMMAND(BindRenderThreadDelegates)(
+	// 	[Delegate](FRHICommandListImmediate& RHICmdList)
+	// 	{
+	// 		PP_LensFlares.Add(Delegate);
+	// 	}
+	// 	);
 
 	// data asset loading
 	// #TODO 这里先朝下，一会改
