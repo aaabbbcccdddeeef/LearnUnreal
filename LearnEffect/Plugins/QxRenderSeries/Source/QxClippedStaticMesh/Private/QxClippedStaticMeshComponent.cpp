@@ -223,7 +223,9 @@ public:
         InitVertexFactories();
 
     	InitClippingVolumeBuffers();
-		    	
+
+    	VolumeRenderData.EffectVolumeNum = 2;
+    	VolumeRenderData.QxClippingVolumeSB = ZZClippingVolumesSRV;
     }
 
 public:
@@ -262,6 +264,8 @@ private:
 	FShaderResourceViewRHIRef ZZClippingVolumesSRV;
 #pragma endregion
 
+	// 需要传递到mesh batch 的user data的数据
+	FZZStaticMeshUserData VolumeRenderData;
 };
 
 class FZZStaticMeshSceneProxy : public FStaticMeshSceneProxy
@@ -289,15 +293,15 @@ public:
         static size_t UniquePointer;
         return reinterpret_cast<size_t>(&UniquePointer);
     }
-    // virtual uint32 GetMemoryFootprint(void) const override
-    // {
-    //     return sizeof(*this) + GetAllocatedSize();
-    // }
-    //
-    // uint32 GetAllocateSize(void) const
-    // {
-    //     return FPrimitiveSceneProxy::GetAllocatedSize();
-    // }
+    virtual uint32 GetMemoryFootprint(void) const override
+    {
+        return sizeof(*this) + GetAllocatedSize();
+    }
+    
+    uint32 GetAllocateSize(void) const
+    {
+        return FPrimitiveSceneProxy::GetAllocatedSize();
+    }
 #pragma endregion
 
     virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
@@ -307,6 +311,8 @@ public:
         return  Relevance;
     }
 
+	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
+	
     virtual  void GetDynamicMeshElements(
         const TArray<const FSceneView*>& Views,
         const FSceneViewFamily& ViewFamily,
@@ -318,6 +324,16 @@ public:
 		bool bUseSelectionOutline, bool bAllowPreCulledIndices,
 		FMeshBatch& OutMeshBatch, FMeshElementCollector& Collector) const;
 
+	/** Sets up a FMeshBatch for a specific LOD and element. */
+	bool GetMeshElementZZ(
+		int32 LODIndex, 
+		int32 BatchIndex, 
+		int32 SectionIndex, 
+		uint8 InDepthPriorityGroup, 
+		bool bUseSelectionOutline,
+		bool bAllowPreCulledIndices, 
+		FMeshBatch& OutMeshBatch) const;
+
 	virtual void DestroyRenderThreadResources() override;
 private:
     UPROPERTY()
@@ -326,6 +342,8 @@ private:
     UStaticMesh* StaticMesh;
 
 	FZZStaticMeshRenderData ZZRenderData;
+
+	
 };
 
 class FZZStaticMeshOneFrameResource : public FOneFrameResource
@@ -451,6 +469,113 @@ bool FZZStaticMeshSceneProxy::GetMeshElementZZ(
 	}
 }
 
+bool FZZStaticMeshSceneProxy::GetMeshElementZZ(int32 LODIndex, int32 BatchIndex, int32 SectionIndex,
+	uint8 InDepthPriorityGroup, bool bUseSelectionOutline, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const
+{
+	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
+	const FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
+	const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
+	const FStaticMeshSection& Section = LOD.Sections[SectionIndex];
+	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
+
+	UMaterialInterface* MaterialInterface = ProxyLODInfo.Sections[SectionIndex].Material;
+	const FMaterialRenderProxy* MaterialRenderProxy = MaterialInterface->GetRenderProxy();
+	const FMaterial& Material = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
+
+	const FVertexFactory* VertexFactory = nullptr;
+
+	FMeshBatchElement& OutMeshBatchElement = OutMeshBatch.Elements[0];
+
+#if WITH_EDITORONLY_DATA
+	// If material is hidden, then skip the draw.
+	if ((MaterialIndexPreview >= 0) && (MaterialIndexPreview != Section.MaterialIndex))
+	{
+		return false;
+	}
+	// If section is hidden, then skip the draw.
+	if ((SectionIndexPreview >= 0) && (SectionIndexPreview != SectionIndex))
+	{
+		return false;
+	}
+
+	OutMeshBatch.bUseSelectionOutline = bPerSectionSelection ? bUseSelectionOutline : true;
+#endif
+
+	// Has the mesh component overridden the vertex color stream for this mesh LOD?
+	if (ProxyLODInfo.OverrideColorVertexBuffer)
+	{
+		// Make sure the indices are accessing data within the vertex buffer's
+		check(Section.MaxVertexIndex < ProxyLODInfo.OverrideColorVertexBuffer->GetNumVertices())
+
+		// Use the instanced colors vertex factory.
+		VertexFactory = &VFs.VertexFactoryOverrideColorVertexBuffer;
+
+		OutMeshBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference();
+		OutMeshBatchElement.UserData = ProxyLODInfo.OverrideColorVertexBuffer;
+		OutMeshBatchElement.bUserDataIsColorVertexBuffer = true;
+	}
+	else
+	{
+		VertexFactory = &VFs.VertexFactory;
+
+		// Test
+		VertexFactory = &ZZRenderData.VertexFactories[LODIndex];
+		OutMeshBatchElement.VertexFactoryUserData = VFs.VertexFactory.GetUniformBuffer();
+	}
+
+	const bool bWireframe = false;
+
+	// Disable adjacency information when the selection outline is enabled, since tessellation won't be used.
+	const bool bRequiresAdjacencyInformation = !bUseSelectionOutline && RequiresAdjacencyInformation(MaterialInterface, VertexFactory->GetType(), FeatureLevel);
+
+	// Two sided material use bIsFrontFace which is wrong with Reversed Indices. AdjacencyInformation use another index buffer.
+	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && (LOD.bHasReversedIndices != 0) && !bRequiresAdjacencyInformation && !Material.IsTwoSided();
+
+	// No support for stateless dithered LOD transitions for movable meshes
+	const bool bDitheredLODTransition = !IsMovable() && Material.IsDitheredLODTransition();
+
+	const uint32 NumPrimitives = SetMeshElementGeometrySource(LODIndex, SectionIndex, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
+
+	if(NumPrimitives > 0)
+	{
+		OutMeshBatch.SegmentIndex = SectionIndex;
+
+		OutMeshBatch.LODIndex = LODIndex;
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+		OutMeshBatch.VisualizeLODIndex = LODIndex;
+		OutMeshBatch.VisualizeHLODIndex = HierarchicalLODIndex;
+#endif
+		OutMeshBatch.ReverseCulling = IsReversedCullingNeeded(bUseReversedIndices);
+		OutMeshBatch.CastShadow = bCastShadow && Section.bCastShadow;
+#if RHI_RAYTRACING
+		OutMeshBatch.CastRayTracedShadow = OutMeshBatch.CastShadow && bCastDynamicShadow;
+#endif
+		OutMeshBatch.DepthPriorityGroup = (ESceneDepthPriorityGroup)InDepthPriorityGroup;
+		OutMeshBatch.LCI = &ProxyLODInfo;
+		OutMeshBatch.MaterialRenderProxy = MaterialRenderProxy;
+
+		OutMeshBatchElement.MinVertexIndex = Section.MinVertexIndex;
+		OutMeshBatchElement.MaxVertexIndex = Section.MaxVertexIndex;
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+		OutMeshBatchElement.VisualizeElementIndex = SectionIndex;
+#endif
+
+		SetMeshElementScreenSize(LODIndex, bDitheredLODTransition, OutMeshBatch);
+
+		// Test
+		// FZZStaticMeshUserData& UserData = VolumeRenderData;
+		// UserData.EffectVolumeNum = 2;
+		// UserData.QxClippingVolumeSB = ZZRenderData.ZZClippingVolumesSRV;
+		OutMeshBatchElement.UserData = &ZZRenderData.VolumeRenderData;
+		
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 void FZZStaticMeshSceneProxy::DestroyRenderThreadResources()
 {
 	ZZRenderData.ReleaseResources();
@@ -544,6 +669,198 @@ void FZZStaticMeshRenderData::InitClippingVolumeBuffers()
 		ZZClippingVolumesSB
 		);
 }
+
+void FZZStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PDI)
+{
+	checkSlow(IsInParallelRenderingThread());
+	if (!HasViewDependentDPG())
+	{
+		// Determine the DPG the primitive should be drawn in.
+		uint8 PrimitiveDPG = GetStaticDepthPriorityGroup();
+		int32 NumLODs = RenderData->LODResources.Num();
+		//Never use the dynamic path in this path, because only unselected elements will use DrawStaticElements
+		bool bIsMeshElementSelected = false;
+		const auto FeatureLevel = GetScene().GetFeatureLevel();
+		const bool IsMobile = IsMobilePlatform(GetScene().GetShaderPlatform());
+		const int32 NumRuntimeVirtualTextureTypes = RuntimeVirtualTextureMaterialTypes.Num();
+
+		//check if a LOD is being forced
+		if (ForcedLodModel > 0) 
+		{
+			int32 LODIndex = FMath::Clamp(ForcedLodModel, ClampedMinLOD + 1, NumLODs) - 1;
+			const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+			// Draw the static mesh elements.
+			for(int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			{
+#if WITH_EDITOR
+				if( GIsEditor )
+				{
+					const FLODInfo::FSectionInfo& Section = LODs[LODIndex].Sections[SectionIndex];
+
+					bIsMeshElementSelected = Section.bSelected;
+					PDI->SetHitProxy(Section.HitProxy);
+				}
+#endif // WITH_EDITOR
+
+				const int32 NumBatches = GetNumMeshBatches();
+				PDI->ReserveMemoryForMeshes(NumBatches * (1 + NumRuntimeVirtualTextureTypes));
+
+				for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+				{
+					FMeshBatch BaseMeshBatch;
+
+					if (GetMeshElementZZ(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, bIsMeshElementSelected, true, BaseMeshBatch))
+					{
+						if (NumRuntimeVirtualTextureTypes > 0)
+						{
+							// Runtime virtual texture mesh elements.
+							FMeshBatch MeshBatch(BaseMeshBatch);
+							// SetupMeshBatchForRuntimeVirtualTexture(MeshBatch);
+							for (ERuntimeVirtualTextureMaterialType MaterialType : RuntimeVirtualTextureMaterialTypes)
+							{
+								MeshBatch.RuntimeVirtualTextureMaterialType = (uint32)MaterialType;
+								PDI->DrawMesh(MeshBatch, FLT_MAX);
+							}
+						}
+						{
+							PDI->DrawMesh(BaseMeshBatch, FLT_MAX);
+						}
+					}
+				}
+			}
+		} 
+		else //no LOD is being forced, submit them all with appropriate cull distances
+		{
+			for(int32 LODIndex = ClampedMinLOD; LODIndex < NumLODs; LODIndex++)
+			{
+				const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+				float ScreenSize = GetScreenSize(LODIndex);
+
+				bool bUseUnifiedMeshForShadow = false;
+				bool bUseUnifiedMeshForDepth = false;
+
+				// 先不处理shadow
+				/*
+				if (GUseShadowIndexBuffer && LODModel.bHasDepthOnlyIndices)
+				{
+					const FLODInfo& ProxyLODInfo = LODs[LODIndex];
+
+					// The shadow-only mesh can be used only if all elements cast shadows and use opaque materials with no vertex modification.
+					// In some cases (e.g. LPV) we don't want the optimization
+					bool bSafeToUseUnifiedMesh = AllowShadowOnlyMesh(FeatureLevel);
+
+					bool bAnySectionUsesDitheredLODTransition = false;
+					bool bAllSectionsUseDitheredLODTransition = true;
+					bool bIsMovable = IsMovable();
+					bool bAllSectionsCastShadow = bCastShadow;
+
+					for (int32 SectionIndex = 0; bSafeToUseUnifiedMesh && SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+					{
+						const FMaterial& Material = ProxyLODInfo.Sections[SectionIndex].Material->GetRenderProxy()->GetIncompleteMaterialWithFallback(FeatureLevel);
+						// no support for stateless dithered LOD transitions for movable meshes
+						bAnySectionUsesDitheredLODTransition = bAnySectionUsesDitheredLODTransition || (!bIsMovable && Material.IsDitheredLODTransition());
+						bAllSectionsUseDitheredLODTransition = bAllSectionsUseDitheredLODTransition && (!bIsMovable && Material.IsDitheredLODTransition());
+						const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+
+						bSafeToUseUnifiedMesh =
+							!(bAnySectionUsesDitheredLODTransition && !bAllSectionsUseDitheredLODTransition) // can't use a single section if they are not homogeneous
+							&& Material.WritesEveryPixel()
+							&& !Material.IsTwoSided()
+							&& !IsTranslucentBlendMode(Material.GetBlendMode())
+							&& !Material.MaterialModifiesMeshPosition_RenderThread()
+							&& Material.GetMaterialDomain() == MD_Surface
+							&& !Material.IsSky()
+							&& !Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
+
+						bAllSectionsCastShadow &= Section.bCastShadow;
+					}
+
+					if (bSafeToUseUnifiedMesh)
+					{
+						bUseUnifiedMeshForShadow = bAllSectionsCastShadow;
+
+						// Depth pass is only used for deferred renderer. The other conditions are meant to match the logic in FDepthPassMeshProcessor::AddMeshBatch.
+						bUseUnifiedMeshForDepth = ShouldUseAsOccluder() && GetScene().GetShadingPath() == EShadingPath::Deferred && !IsMovable();
+
+						if (bUseUnifiedMeshForShadow || bUseUnifiedMeshForDepth)
+						{
+							const int32 NumBatches = GetNumMeshBatches();
+
+							PDI->ReserveMemoryForMeshes(NumBatches);
+
+							for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+							{
+								FMeshBatch MeshBatch;
+
+								if (GetShadowMeshElement(LODIndex, BatchIndex, PrimitiveDPG, MeshBatch, bAllSectionsUseDitheredLODTransition))
+								{
+									bUseUnifiedMeshForShadow = bAllSectionsCastShadow;
+
+									MeshBatch.CastShadow = bUseUnifiedMeshForShadow;
+									MeshBatch.bUseForDepthPass = bUseUnifiedMeshForDepth;
+									MeshBatch.bUseAsOccluder = bUseUnifiedMeshForDepth;
+									MeshBatch.bUseForMaterial = false;
+
+									PDI->DrawMesh(MeshBatch, ScreenSize);
+								}
+							}
+						}
+					}
+				} **/
+
+				// Draw the static mesh elements.
+				for(int32 SectionIndex = 0;SectionIndex < LODModel.Sections.Num();SectionIndex++)
+				{
+#if WITH_EDITOR
+					if( GIsEditor )
+					{
+						const FLODInfo::FSectionInfo& Section = LODs[LODIndex].Sections[SectionIndex];
+
+						bIsMeshElementSelected = Section.bSelected;
+						PDI->SetHitProxy(Section.HitProxy);
+					}
+#endif // WITH_EDITOR
+
+					const int32 NumBatches = GetNumMeshBatches();
+					PDI->ReserveMemoryForMeshes(NumBatches * (1 + NumRuntimeVirtualTextureTypes));
+
+					for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+					{
+						FMeshBatch BaseMeshBatch;
+						if (GetMeshElementZZ(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, bIsMeshElementSelected, true, BaseMeshBatch))
+						{
+							if (NumRuntimeVirtualTextureTypes > 0)
+							{
+								// Runtime virtual texture mesh elements.
+								FMeshBatch MeshBatch(BaseMeshBatch);
+
+								for (ERuntimeVirtualTextureMaterialType MaterialType : RuntimeVirtualTextureMaterialTypes)
+								{
+									MeshBatch.RuntimeVirtualTextureMaterialType = (uint32)MaterialType;
+									PDI->DrawMesh(MeshBatch, ScreenSize);
+								}
+							}
+
+							{
+								// Standard mesh elements.
+								// If we have submitted an optimized shadow-only mesh, remaining mesh elements must not cast shadows.
+								FMeshBatch MeshBatch(BaseMeshBatch);
+								MeshBatch.CastShadow &= !bUseUnifiedMeshForShadow;
+								MeshBatch.bUseAsOccluder &= !bUseUnifiedMeshForDepth;
+								MeshBatch.bUseForDepthPass &= !bUseUnifiedMeshForDepth;
+								PDI->DrawMesh(MeshBatch, ScreenSize);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("ZZClipStaticMesh Drawing"));
+}
+
+
 
 void FZZStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const
 {
