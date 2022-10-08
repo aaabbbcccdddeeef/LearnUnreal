@@ -15,6 +15,8 @@ public:
 
 	void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
 
+	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
+
 private:
 	UPROPERTY()
 	const UStaticMeshComponent* ComponentPtr;
@@ -236,17 +238,203 @@ void FQxStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 	}
 }
 
+void FQxStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
+	const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const
+{
+	// FStaticMeshSceneProxy::GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_StaticMeshSceneProxy_GetMeshElements);
+	checkSlow(IsInRenderingThread());
+
+	const bool bIsLightmapSettingError = HasStaticLighting() && !HasValidSettingsForStaticLighting();
+	const bool bProxyIsSelected = IsSelected();
+	const FEngineShowFlags& EngineShowFlags = ViewFamily.EngineShowFlags;
+
+	bool bDrawSimpleCollision = false, bDrawComplexCollision = false;
+	const bool bInCollisionView = IsCollisionView(EngineShowFlags, bDrawSimpleCollision, bDrawComplexCollision);
+	
+	// Skip drawing mesh normally if in a collision view, will rely on collision drawing code below
+	const bool bDrawMesh = !bInCollisionView && 
+	(	IsRichView(ViewFamily) || HasViewDependentDPG()
+		|| EngineShowFlags.Collision
+		|| EngineShowFlags.Bounds
+		|| bProxyIsSelected 
+		|| IsHovered()
+		|| bIsLightmapSettingError);
+
+	// Draw polygon mesh if we are either not in a collision view, or are drawing it as collision.
+	if (EngineShowFlags.StaticMeshes && bDrawMesh)
+	{
+		// how we should draw the collision for this mesh.
+		const bool bIsWireframeView = EngineShowFlags.Wireframe;
+		const bool bLevelColorationEnabled = EngineShowFlags.LevelColoration;
+		const bool bPropertyColorationEnabled = EngineShowFlags.PropertyColoration;
+		const ERHIFeatureLevel::Type FeatureLevel = ViewFamily.GetFeatureLevel();
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			const FSceneView* View = Views[ViewIndex];
+
+			if (IsShown(View) && (VisibilityMap & (1 << ViewIndex)))
+			{
+				FFrozenSceneViewMatricesGuard FrozenMatricesGuard(*const_cast<FSceneView*>(Views[ViewIndex]));
+
+				FLODMask LODMask = GetLODMask(View);
+
+				for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+				{
+					if (LODMask.ContainsLOD(LODIndex) && LODIndex >= ClampedMinLOD)
+					{
+						const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+						const FLODInfo& ProxyLODInfo = LODs[LODIndex];
+
+						if (AllowDebugViewmodes() && bIsWireframeView && !EngineShowFlags.Materials
+							// If any of the materials are mesh-modifying, we can't use the single merged mesh element of GetWireframeMeshElement()
+							&& !ProxyLODInfo.UsesMeshModifyingMaterials())
+						{
+							FLinearColor ViewWireframeColor( bLevelColorationEnabled ? GetLevelColor() : GetWireframeColor() );
+							if ( bPropertyColorationEnabled )
+							{
+								ViewWireframeColor = GetPropertyColor();
+							}
+
+							auto WireframeMaterialInstance = new FColoredMaterialRenderProxy(
+								GEngine->WireframeMaterial->GetRenderProxy(),
+								GetSelectionColor(ViewWireframeColor,!(GIsEditor && EngineShowFlags.Selection) || bProxyIsSelected, IsHovered(), false)
+								);
+
+							Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
+
+							const int32 NumBatches = GetNumMeshBatches();
+
+							for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+							{
+								//GetWireframeMeshElement will try SetIndexSource at sectionindex 0
+								//and GetMeshElement loops over sections, therefore does not have this issue
+								if (LODModel.Sections.Num() > 0)
+								{
+									FMeshBatch& Mesh = Collector.AllocateMesh();
+
+									if (GetWireframeMeshElement(LODIndex, BatchIndex, WireframeMaterialInstance, SDPG_World, true, Mesh))
+									{
+										// We implemented our own wireframe
+										Mesh.bCanApplyViewModeOverrides = false;
+										Collector.AddMesh(ViewIndex, Mesh);
+										INC_DWORD_STAT_BY(STAT_StaticMeshTriangles, Mesh.GetNumPrimitives());
+									}
+								}
+							}
+						}
+						else
+						{
+							const FLinearColor UtilColor( GetLevelColor() );
+
+							// Draw the static mesh sections.
+							for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+							{
+								const int32 NumBatches = GetNumMeshBatches();
+
+								for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+								{
+									bool bSectionIsSelected = false;
+									FMeshBatch& MeshElement = Collector.AllocateMesh();
+
+#if WITH_EDITOR
+									if (GIsEditor)
+									{
+										const FLODInfo::FSectionInfo& Section = LODs[LODIndex].Sections[SectionIndex];
+
+										bSectionIsSelected = Section.bSelected || (bIsWireframeView && bProxyIsSelected);
+										MeshElement.BatchHitProxyId = Section.HitProxy ? Section.HitProxy->Id : FHitProxyId();
+									}
+#endif // WITH_EDITOR
+								
+									if (GetMeshElement(LODIndex, BatchIndex, SectionIndex, SDPG_World, bSectionIsSelected, true, MeshElement))
+									{
+										bool bDebugMaterialRenderProxySet = false;
+#if WITH_EDITOR
+										if (!bDebugMaterialRenderProxySet && bSectionIsSelected)
+										{
+											// Override the mesh's material with our material that draws the collision color
+											MeshElement.MaterialRenderProxy = new FOverrideSelectionColorMaterialRenderProxy(
+												GEngine->ShadedLevelColorationUnlitMaterial->GetRenderProxy(),
+												GetSelectionColor(GEngine->GetSelectedMaterialColor(), bSectionIsSelected, IsHovered())
+											);
+										}
+#endif
+										if (MeshElement.bDitheredLODTransition && LODMask.IsDithered())
+										{
+
+										}
+										else
+										{
+											MeshElement.bDitheredLODTransition = false;
+										}
+								
+										MeshElement.bCanApplyViewModeOverrides = true;
+										MeshElement.bUseWireframeSelectionColoring = bSectionIsSelected;
+
+										Collector.AddMesh(ViewIndex, MeshElement);
+										INC_DWORD_STAT_BY(STAT_StaticMeshTriangles,MeshElement.GetNumPrimitives());
+
+										// 下面是自己添加的
+										{
+											// FMeshBatch BaseMeshBatch(MeshElement);
+											FMeshBatch& BaseMeshBatch = Collector.AllocateMesh();
+											GetMeshElement(LODIndex, BatchIndex, SectionIndex, SDPG_World, bSectionIsSelected, true, BaseMeshBatch);
+											if (BaseMeshBatch.bDitheredLODTransition && LODMask.IsDithered())
+											{
+
+											}
+											else
+											{
+												BaseMeshBatch.bDitheredLODTransition = false;
+											}
+								
+											BaseMeshBatch.bCanApplyViewModeOverrides = true;
+											BaseMeshBatch.bUseWireframeSelectionColoring = bSectionIsSelected;
+											
+											const FLODInfo& proxyLODInfo = LODs[LODIndex];
+											UMaterialInterface* MaterialInterface = proxyLODInfo.Sections[SectionIndex].Material;
+
+											const UQxStaticMeshComponent* qxStaticMeshComponent = dynamic_cast<const UQxStaticMeshComponent*>(ComponentPtr);
+											if (MaterialInterface == qxStaticMeshComponent->SecondPassMaterial
+												|| qxStaticMeshComponent->SecondPassMaterial == nullptr)
+											{
+												continue;;
+											}
+
+											if (qxStaticMeshComponent->bNeedSecondPass)
+											{
+												BaseMeshBatch.MaterialRenderProxy =
+													qxStaticMeshComponent->SecondPassMaterial->GetRenderProxy();
+
+												// 设置反转剔除
+												BaseMeshBatch.ReverseCulling = true;
+												Collector.AddMesh(ViewIndex, BaseMeshBatch);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 void UQxStaticMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials /*= false*/) const
 {
 	//Super::GetUsedMaterials(OutMaterials, false);
 
-	if (GetStaticMesh() && GetStaticMesh()->RenderData)
+	if (GetStaticMesh() && GetStaticMesh()->GetRenderData())
 	{
 		TMap<int32, UMaterialInterface*> materialMap;
 
-		for (int32 LODIndex = 0; LODIndex < GetStaticMesh()->RenderData->LODResources.Num(); LODIndex++)
+		for (int32 LODIndex = 0; LODIndex < GetStaticMesh()->GetRenderData()->LODResources.Num(); LODIndex++)
 		{
-			FStaticMeshLODResources& lodResources = GetStaticMesh()->RenderData->LODResources[LODIndex];
+			FStaticMeshLODResources& lodResources = GetStaticMesh()->GetRenderData()->LODResources[LODIndex];
 			int32 materialNum = 0;
 			
 			for (int32 SectionIndex = 0; SectionIndex < lodResources.Sections.Num(); SectionIndex++)
