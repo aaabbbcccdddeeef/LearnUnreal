@@ -6,6 +6,8 @@
 #include "EngineUtils.h"
 #include "ZZClippingVolume.h"
 
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FZZClippingVolumeParameters, "ZZClippingVolumeParam");
+
 void FZZCliperRenderData::ReInit(TArray<AZZClippingVolume*>* InClippingVolumes)
 {
     if (static_cast<uint32>(InClippingVolumes->Num()) >NumUploadedVolumes)

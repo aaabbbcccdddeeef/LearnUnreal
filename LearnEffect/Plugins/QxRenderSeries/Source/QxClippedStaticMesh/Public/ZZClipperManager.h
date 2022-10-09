@@ -5,9 +5,22 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Subsystems/EngineSubsystem.h"
+#include "RHI.h"
+#include "RenderResource.h"
+#include "UniformBuffer.h"
+#include "VertexFactory.h"
+#include "Containers/DynamicRHIResourceArray.h"
+#include "SceneManagement.h"
 #include "ZZClipperManager.generated.h"
 
 class AZZClippingVolume;
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FZZClippingVolumeParameters,)
+    SHADER_PARAMETER(uint32, ZZClippingVolumeNum)
+    SHADER_PARAMETER_SRV(StructuredBuffer<float4x4>, ZZClipingVolumesSB)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+
 
 // #TODO 这里需不需要继承render resource
 class FZZCliperRenderData
@@ -15,6 +28,8 @@ class FZZCliperRenderData
 public:
     FStructuredBufferRHIRef ClippingVolumesSB;
     FShaderResourceViewRHIRef ClippingVolumesSRV;
+
+    TUniformBufferRef<FZZClippingVolumeParameters> CachedZZClipVolumeParams;
     
     TArray<FMatrix> ClippingVolumes;
     uint32 NumUploadedVolumes = 0; //实际上传的gpu的volume数据，应该和clippingVolumes的capacity 一致,显示的指明为了可读性
@@ -70,6 +85,8 @@ public:
         ClippingVolumesSRV = RHICreateShaderResourceView(
             ClippingVolumesSB
             );
+
+        CachedZZClipVolumeParams = TUnifor
     }
 };
 
