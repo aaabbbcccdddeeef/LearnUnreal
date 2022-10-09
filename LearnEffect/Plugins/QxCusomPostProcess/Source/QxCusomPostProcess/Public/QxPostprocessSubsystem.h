@@ -35,6 +35,9 @@ public:
 private:
 	TSharedPtr<FQxBloomSceneViewExtension, ESPMode::ThreadSafe> QxBloomSceneViewExtension;
 
+	// #TODO 注意，这个对象再渲染线程中也有访问，需要实现同步
+	// 现在来看，最好的方案是维护一份渲染线程的非UObject类型的拷贝，渲染线程访问拷贝的数据
+	// 如果用标准的互斥锁、读写锁的方式怎样实现保护
 	UPROPERTY(Transient)
 	UQxBloomFlareAsset* PostProcessAsset;
 
