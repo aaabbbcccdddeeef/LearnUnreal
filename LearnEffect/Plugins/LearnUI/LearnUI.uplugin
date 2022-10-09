@@ -19,6 +19,11 @@
 			"Name": "LearnUI",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"name": "LearnCore",
+			"type": "Runtime",
+			"loadingPhase": "Default"
 		}
 	]
 }

@@ -9,6 +9,15 @@
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
 #include "ShaderParameters.h"
 #include "TessellationRendering.h"
+#include "ZZClipperManager.h"
+
+
+TAutoConsoleVariable<int32> CVarQxBloomPassAmount(
+TEXT("r.ZZRender.TestClippVolmuIndex"),
+0,
+TEXT("Test Clipping Volume Index"),
+ECVF_RenderThreadSafe 
+);
 
 class FMaterial;
 class FMeshDrawSingleShaderBindings;
@@ -222,13 +231,30 @@ public:
 
         InitVertexFactories();
 
-    	InitClippingVolumeBuffers();
-
-    	VolumeRenderData.EffectVolumeNum = 2;
-    	VolumeRenderData.QxClippingVolumeSB = ZZClippingVolumesSRV;
+    	
+    	// #TODO 用world subystem 时 ClipperSubsystem 为null
+    	// UZZClipperSubsystem* ClipperSubsystem = InComponent->GetWorld()->GetSubsystem<UZZClipperSubsystem>();
+    	UZZClipperSubsystem* ClipperSubsystem = GEngine->GetEngineSubsystem<UZZClipperSubsystem>();
+    	check(ClipperSubsystem);
+    	ENQUEUE_RENDER_COMMAND(ZZInitVolumeData)(
+    		[this, ClipperSubsystem](FRHICommandListImmediate& RHICmdList)
+    		{
+    			Init_RenderThread(RHICmdList, ClipperSubsystem);
+    		}
+    		);
     }
 
 public:
+	void Init_RenderThread(FRHICommandListImmediate& RHICmdList, const UZZClipperSubsystem* InClipperSubsystem )
+	{
+		// InitClippingVolumeBuffers();
+		// 初始化buffer引用，通过subsystem 
+		GetClippingVolumeBuffers(InClipperSubsystem);
+
+		VolumeRenderData.EffectVolumeNum = static_cast<uint32>(CVarQxBloomPassAmount.GetValueOnRenderThread());
+		VolumeRenderData.QxClippingVolumeSB = ZZClippingVolumesSRV;
+	}
+	
 	void ReleaseResources()
 	{
 		for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); ++LODIndex)
@@ -243,6 +269,8 @@ private:
 	void InitVertexFactories();
 
 	void InitClippingVolumeBuffers();
+
+	void GetClippingVolumeBuffers(const UZZClipperSubsystem* InClipperSubsystem);
 private:
     UQxClippedStaticMeshComponent* Component;
 
@@ -668,6 +696,21 @@ void FZZStaticMeshRenderData::InitClippingVolumeBuffers()
 	ZZClippingVolumesSRV = RHICreateShaderResourceView(
 		ZZClippingVolumesSB
 		);
+}
+
+void FZZStaticMeshRenderData::GetClippingVolumeBuffers(const UZZClipperSubsystem* InClipperSubsystem)
+{
+	check(IsInRenderingThread());
+	check(InClipperSubsystem);
+
+	FZZCliperRenderData* ClipperRenderData = InClipperSubsystem->GetClipperRenderData_RenderThread();
+	check(ClipperRenderData);
+
+	check(ClipperRenderData->ClippingVolumesSB.IsValid());
+	check(ClipperRenderData->ClippingVolumesSRV.IsValid());
+
+	ZZClippingVolumesSB = ClipperRenderData->ClippingVolumesSB;
+	ZZClippingVolumesSRV = ClipperRenderData->ClippingVolumesSRV;
 }
 
 void FZZStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PDI)
