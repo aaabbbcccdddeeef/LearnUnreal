@@ -86,7 +86,12 @@ public:
             ClippingVolumesSB
             );
 
-        CachedZZClipVolumeParams = TUnifor
+        FZZClippingVolumeParameters ZZClippingVolumeParameters;
+        ZZClippingVolumeParameters.ZZClippingVolumeNum = NumClippingVolumes;
+        ZZClippingVolumeParameters.ZZClipingVolumesSB = ClippingVolumesSRV;
+        // CachedZZClipVolumeParams = TUniformBuffer<FZZClippingVolumeParameters>::GetUniformBufferRef()
+        CachedZZClipVolumeParams = TUniformBufferRef<FZZClippingVolumeParameters>::CreateUniformBufferImmediate(
+            ZZClippingVolumeParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
     }
 };
 

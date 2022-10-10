@@ -143,14 +143,24 @@ public:
 			VertexStreams);
 		const FZZStaticMeshUserData* UserData =
 		   static_cast<const FZZStaticMeshUserData*>(BatchElement.UserData);
-		if (ZZClipingVolumesSB.IsBound() && UserData->QxClippingVolumeSB)
-		{
-			ShaderBindings.Add(ZZClipingVolumesSB, UserData->QxClippingVolumeSB);
-		}
-		if (ZZClippingVolumeNum.IsBound())
-		{
-			ShaderBindings.Add(ZZClippingVolumeNum, UserData->EffectVolumeNum);
-		}
+		// if (ZZClipingVolumesSB.IsBound() && UserData->QxClippingVolumeSB)
+		// {
+		// 	ShaderBindings.Add(ZZClipingVolumesSB, UserData->QxClippingVolumeSB);
+		// }
+		// if (ZZClippingVolumeNum.IsBound())
+		// {
+		// 	ShaderBindings.Add(ZZClippingVolumeNum, UserData->EffectVolumeNum);
+		// }
+
+
+		// 先不考虑同步问题
+		UZZClipperSubsystem* ClipperSubsystem = GEngine->GetEngineSubsystem<UZZClipperSubsystem>();
+		check(ClipperSubsystem);
+		TUniformBufferRef<FZZClippingVolumeParameters> Params =
+			ClipperSubsystem->GetClipperRenderData_RenderThread()->CachedZZClipVolumeParams;
+		check(Params.IsValid());
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FZZClippingVolumeParameters>(),
+			Params);
 	}
 
 private:
