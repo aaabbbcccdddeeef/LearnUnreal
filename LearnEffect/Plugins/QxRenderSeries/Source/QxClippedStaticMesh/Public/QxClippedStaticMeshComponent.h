@@ -22,6 +22,9 @@ protected:
     // Called when the game starts
     virtual void BeginPlay() override;
 
+    virtual void OnRegister() override;
+
+    virtual void OnUnregister() override;
 public:
     // Called every frame
     virtual void TickComponent(float DeltaTime, ELevelTick TickType,
@@ -35,4 +38,6 @@ private:
 
     // 这里用一个指针比较合适，但现在先不管#TODO
     TArray<FZZPointCloudClippingVolumeParams> TestClippingVolumes;
+
+    FDelegateHandle ClipperDelegateHandle;
 };

@@ -20,9 +20,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FZZClippingVolumeParameters,)
     SHADER_PARAMETER_SRV(StructuredBuffer<float4x4>, ZZClipingVolumesSB)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-
+DECLARE_MULTICAST_DELEGATE(FOnClippingVolumesUpdate)
 
 // #TODO 这里需不需要继承render resource
+// 现在来看继承FRenderResource应该是更合理的做法, 参考 FHZBOcclusionTester
 class FZZCliperRenderData
 {
 public:
@@ -36,24 +37,35 @@ public:
     uint32 NumClippingVolumes = 0;
     void ReInit(TArray<AZZClippingVolume*>* Array);
 
-    void ReInit(TArray<FMatrix>& InTestMatrix, uint32 InTestNum)
+    // void ReInit(TArray<FMatrix>& InTestMatrix, uint32 InTestNum)
+    // {
+    //     ClippingVolumes = InTestMatrix;
+    //     NumClippingVolumes = InTestNum;
+    //     NumUploadedVolumes = ClippingVolumes.Num();
+    //
+    //     ENQUEUE_RENDER_COMMAND(QxTestUpdateBuffer)(
+    //       [this](FRHICommandListImmediate& RHICmdList)
+    //       {
+    //           ReInit_RenderThread(RHICmdList);
+    //       }
+    //       );
+    // }
+
+    void ReInit_RenderThread(FRHICommandListImmediate& RHICmdList, TArray<FMatrix>& InTestMatrix, uint32 InTestNum)
     {
-        ClippingVolumes = InTestMatrix;
+        ClippingVolumes = MoveTemp(InTestMatrix);
         NumClippingVolumes = InTestNum;
         NumUploadedVolumes = ClippingVolumes.Num();
-
-        ENQUEUE_RENDER_COMMAND(QxTestUpdateBuffer)(
-          [this](FRHICommandListImmediate& RHICmdList)
-          {
-              ReInit_RenderThread(RHICmdList);
-          }
-          );
+        ReInit_RenderThread(RHICmdList);
     }
 
     void ReInit_RenderThread(FRHICommandListImmediate& RHICmdList)
     {
         check(IsInRenderingThread());
 
+        bool IsSBNotEnogh = (ClippingVolumes.Num() * sizeof(FMatrix)) > ClippingVolumesSB->GetSize();
+        
+        
         //#TODO buffer已经分配并且够的情况不需要重新分配
         if (ClippingVolumesSB.IsValid())
         {
@@ -121,11 +133,17 @@ private:
     //     FRHICommandListImmediate& RHICmdList,
     //     TArray<AZZClippingVolume*>* ClippingVolumes);
 
+public:
 
+    // 用来通知volume 数据更新
+    FOnClippingVolumesUpdate OnClippingVolumesUpdate; 
 
 protected:
-    UPROPERTY(EditAnywhere, Category="QxTest")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="QxTest")
     TArray<FMatrix> TestMatrix;
+
+    UPROPERTY(EditAnywhere, Category="QxTest")
+    uint32 NumClippingVolumes = 0;
     
 private:
     UPROPERTY()
@@ -136,6 +154,7 @@ private:
     // 这个render data数据改变时，dynamic path每帧获得更新后的数据
     // static path 可能需要主动mark dirty获得更新后的数据
     // 这个对象一旦创建就不会重新创建,只更新内容
+    // 注意：这个对象是在游戏线程创建的，但由于内部有渲染资源，必须在渲染线程delete
     FZZCliperRenderData* ZZClipperRenderData = nullptr;
 
     FCriticalSection ClipperRenderDataCriticalSection;

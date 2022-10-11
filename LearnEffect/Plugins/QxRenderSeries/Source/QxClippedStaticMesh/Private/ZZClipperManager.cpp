@@ -28,11 +28,19 @@ void UZZClipperSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UZZClipperSubsystem::Deinitialize()
 {
-    if (ZZClipperRenderData)
-    {
-        delete ZZClipperRenderData;
-        ZZClipperRenderData = nullptr;
-    }
+    // 这里参考 FScene::RemovePrimitive，  FScene::RemovePrimitiveSceneInfo_RenderThread对 FPrimitiveSceneProxy的处理
+    // 在渲染线程delete这个对象
+    ENQUEUE_RENDER_COMMAND(DeleteZZRenderData)(
+        [this](FRHICommandListImmediate& RHICmdList)
+        {
+            if (ZZClipperRenderData)
+            {
+                delete ZZClipperRenderData;
+                ZZClipperRenderData = nullptr;
+            }
+        }
+        );
+    
     ZZClippingVolumes.Reset();
     Super::Deinitialize();
 }
@@ -81,7 +89,21 @@ void UZZClipperSubsystem::TestUpdateRenderData()
             TestMatrix[i] = ltestMatrix;
         }
     }
-    ZZClipperRenderData->ReInit(TestMatrix, 10);
+    // ZZClipperRenderData->ReInit(TestMatrix, 10);
+
+    TArray<FMatrix> TmpMatrix = TestMatrix;
+    FZZCliperRenderData* RenderData = ZZClipperRenderData;
+    uint32 TmpNumClippingVolumes = NumClippingVolumes;
+    ENQUEUE_RENDER_COMMAND(QxTestUpdateBuffer)(
+          [RenderData, ClippingMatrix = MoveTemp(TmpMatrix), TmpNumClippingVolumes](FRHICommandListImmediate& RHICmdList)
+          {
+              TArray<FMatrix>& Matrices = const_cast<TArray<FMatrix>&>(ClippingMatrix);
+              RenderData->ReInit_RenderThread(
+                  RHICmdList,Matrices, TmpNumClippingVolumes);
+          }
+          );
+    
+    OnClippingVolumesUpdate.Broadcast();
 }
 
 // void UZZClipperSubsystem::UpdateClipperData_RenderThread(

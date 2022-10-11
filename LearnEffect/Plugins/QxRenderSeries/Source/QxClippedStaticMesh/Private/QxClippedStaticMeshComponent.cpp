@@ -12,6 +12,7 @@
 #include "ZZClipperManager.h"
 
 
+
 TAutoConsoleVariable<int32> CVarQxBloomPassAmount(
 TEXT("r.ZZRender.TestClippVolmuIndex"),
 0,
@@ -153,14 +154,17 @@ public:
 		// }
 
 
+		// UZZClipperSubsystem* ClipperSubsystem = Scene->GetWorld()->GetSubsystem<UZZClipperSubsystem>();
+		// UZZClipperSubsystem* ClipperSubsystem = InComponent->GetWorld()->GetSubsystem<UZZClipperSubsystem>();
 		// 先不考虑同步问题
 		UZZClipperSubsystem* ClipperSubsystem = GEngine->GetEngineSubsystem<UZZClipperSubsystem>();
+		
 		check(ClipperSubsystem);
 		TUniformBufferRef<FZZClippingVolumeParameters> Params =
 			ClipperSubsystem->GetClipperRenderData_RenderThread()->CachedZZClipVolumeParams;
-		check(Params.IsValid());
-		ShaderBindings.Add(Shader->GetUniformBufferParameter<FZZClippingVolumeParameters>(),
-			Params);
+				check(Params.IsValid());
+				ShaderBindings.Add(Shader->GetUniformBufferParameter<FZZClippingVolumeParameters>(),
+					Params);
 	}
 
 private:
@@ -345,7 +349,8 @@ public:
     virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
     {
         FPrimitiveViewRelevance Relevance = FStaticMeshSceneProxy::GetViewRelevance(View);
-        Relevance.bDynamicRelevance = true; //先只考虑dynamic路径
+        Relevance.bDynamicRelevance = false; //先只考虑dynamic路径
+    	Relevance.bStaticRelevance = true;
         return  Relevance;
     }
 
@@ -928,14 +933,21 @@ void FZZStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVi
 	const bool bInCollisionView = IsCollisionView(EngineShowFlags, bDrawSimpleCollision, bDrawComplexCollision);
 	
 	// Skip drawing mesh normally if in a collision view, will rely on collision drawing code below
-	const bool bDrawMesh = !bInCollisionView && 
-	(	IsRichView(ViewFamily) || HasViewDependentDPG()
-		|| EngineShowFlags.Collision
-		|| EngineShowFlags.Bounds
-		|| bProxyIsSelected 
-		|| IsHovered()
-		|| bIsLightmapSettingError);
+	// const bool bDrawMesh = !bInCollisionView && 
+	// (	IsRichView(ViewFamily) || HasViewDependentDPG()
+	// 	|| EngineShowFlags.Collision
+	// 	|| EngineShowFlags.Bounds
+	// 	|| bProxyIsSelected 
+	// 	|| IsHovered()
+	// 	|| bIsLightmapSettingError);
 
+	bool Test1 = IsRichView(ViewFamily);
+	bool Test2 = HasViewDependentDPG();
+	bool Test3 = IsHovered();
+
+	// 对于我自定义的mesh 我希望其显示
+	const bool bDrawMesh = true;
+	
 	// Draw polygon mesh if we are either not in a collision view, or are drawing it as collision.
 	if (EngineShowFlags.StaticMeshes && bDrawMesh)
 	{
@@ -1157,6 +1169,32 @@ void UQxClippedStaticMeshComponent::BeginPlay()
 
     // ...
     
+}
+
+void UQxClippedStaticMeshComponent::OnRegister()
+{
+	Super::OnRegister();
+	UZZClipperSubsystem* ClipperSubsystem = GEngine->GetEngineSubsystem<UZZClipperSubsystem>();
+	// UZZClipperSubsystem* ClipperSubsystem = GetWorld()->GetSubsystem<UZZClipperSubsystem>();
+	check(ClipperSubsystem);
+	ClipperDelegateHandle = ClipperSubsystem->OnClippingVolumesUpdate.AddLambda(
+		[this]()
+		{
+			this->MarkRenderStateDirty();
+		}
+		);
+}
+
+void UQxClippedStaticMeshComponent::OnUnregister()
+{
+	Super::OnUnregister();
+
+	if (ClipperDelegateHandle.IsValid())
+	{
+		GEngine->GetEngineSubsystem<UZZClipperSubsystem>()->OnClippingVolumesUpdate.Remove(ClipperDelegateHandle);
+		// GetWorld()->GetSubsystem<UZZClipperSubsystem>()->OnClippingVolumesUpdate.Remove(ClipperDelegateHandle);
+		ClipperDelegateHandle.Reset();
+	}
 }
 
 
