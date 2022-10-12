@@ -20,6 +20,8 @@ struct FLensFlareGhostSettings
 	float Scale = 1.0f;
 };
 
+// FQxBloomFlareAsset
+
 /**
  * 这个UQxBloomFlareAsset 对象在渲染线程中也有访问，应该是需要考虑线程同步的，
  * 但现在先不处理 #TODO
@@ -28,6 +30,16 @@ UCLASS()
 class QXCUSOMPOSTPROCESS_API UQxBloomFlareAsset : public UDataAsset
 {
 	GENERATED_BODY()
+public:
+
+	
+#if WITH_EDITOR
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+
+	
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	
 public:
 #pragma region EffectFlags
 	UPROPERTY(EditAnywhere, Category="Flags")

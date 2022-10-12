@@ -31,7 +31,11 @@ public:
 	// 用这个来讲eyeAdaptaion Texture 复制下来,主要是为了测试
 	UPROPERTY(EditAnywhere, Category="QxPostProcess")
 	UTextureRenderTarget2D* QxEyeAdaptationDump = nullptr;
-	
+
+	// #TODO  PostProcessAsse可能在主线程修改，而渲染线程访问，
+	// 但现在先不处理线程同步的问题
+	// 访问post prosset asset的锁，这个object的内容可能同时被游戏线程更改和渲染线程读取
+	FCriticalSection PostAssetMutex;
 private:
 	TSharedPtr<FQxBloomSceneViewExtension, ESPMode::ThreadSafe> QxBloomSceneViewExtension;
 
@@ -40,8 +44,4 @@ private:
 	// 如果用标准的互斥锁、读写锁的方式怎样实现保护
 	UPROPERTY(Transient)
 	UQxBloomFlareAsset* PostProcessAsset;
-
-	// #TODO  PostProcessAsse可能在主线程修改，而渲染线程访问，
-	// 但现在先不处理线程同步的问题
-	FCriticalSection RegionAccessCriticalSection;
 };

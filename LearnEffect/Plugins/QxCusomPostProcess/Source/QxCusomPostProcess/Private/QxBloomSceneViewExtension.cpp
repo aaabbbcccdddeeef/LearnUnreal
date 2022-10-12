@@ -105,6 +105,7 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	{
 		return SceneColor;
 	}
+	FScopeLock PostSettingLock(&QxPostprocessSubsystem->PostAssetMutex);
 	// UE_LOG(LogTemp, Warning, TEXT("tEST Qxbloom"));
 	//
 	const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(View);
