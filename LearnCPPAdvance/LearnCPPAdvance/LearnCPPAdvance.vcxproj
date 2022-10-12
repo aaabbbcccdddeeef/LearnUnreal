@@ -144,6 +144,8 @@
     <ClCompile Include="MyAllocator.cpp" />
     <ClCompile Include="Test.cpp" />
     <ClCompile Include="TestMemoryAlignment.cpp" />
+    <ClCompile Include="TestMemoryOrder.cpp" />
+    <ClCompile Include="TestVolatile.cpp" />
     <ClCompile Include="TestWinThread.cpp" />
     <ClCompile Include="TypeTraitsTest.cpp" />
   </ItemGroup>

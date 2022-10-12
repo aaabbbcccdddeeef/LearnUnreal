@@ -9,7 +9,10 @@
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
 #include "ShaderParameters.h"
 #include "TessellationRendering.h"
+#include "Shader.h"
+#include "ShaderParameterStruct.h"
 #include "ZZClipperManager.h"
+
 
 
 
@@ -162,9 +165,10 @@ public:
 		check(ClipperSubsystem);
 		TUniformBufferRef<FZZClippingVolumeParameters> Params =
 			ClipperSubsystem->GetClipperRenderData_RenderThread()->CachedZZClipVolumeParams;
-				check(Params.IsValid());
-				ShaderBindings.Add(Shader->GetUniformBufferParameter<FZZClippingVolumeParameters>(),
-					Params);
+		auto test = GetUniformBufferParameter<FZZClippingVolumeParameters>();
+		check(Params.IsValid());
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FZZClippingVolumeParameters>(),
+			Params);
 	}
 
 private:

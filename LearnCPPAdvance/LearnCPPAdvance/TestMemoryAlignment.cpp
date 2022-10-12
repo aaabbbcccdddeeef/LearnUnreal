@@ -13,9 +13,9 @@ struct{
     char c2;  
 }x2;
 
-int main()
-{
-    printf("%d\n",sizeof(x2));  // 输出和上面的pack配置相关
-    system("pause");
-    return 0;
-}
+//int main()
+//{
+//    printf("%d\n",sizeof(x2));  // 输出和上面的pack配置相关
+//    system("pause");
+//    return 0;
+//}

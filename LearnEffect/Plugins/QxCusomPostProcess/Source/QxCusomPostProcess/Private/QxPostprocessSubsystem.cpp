@@ -17,6 +17,7 @@ void UQxPostprocessSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	FString AssetPath = "QxBloomFlareAsset'/QxCusomPostProcess/DA_QxBloomFlareDefault.DA_QxBloomFlareDefault'";
 	PostProcessAsset = LoadObject<UQxBloomFlareAsset>(nullptr, *AssetPath);
 	checkf(PostProcessAsset, TEXT("Does not find QxBloomFlare setting asset"));
+	// __COMPILE_MEMORY_BARRIER__
 }
 
 void UQxPostprocessSubsystem::Deinitialize()

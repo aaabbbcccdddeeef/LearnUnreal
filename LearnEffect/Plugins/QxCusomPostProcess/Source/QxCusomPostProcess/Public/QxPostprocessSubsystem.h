@@ -22,6 +22,7 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
+	// 注意这个现在只在自定义pp 的extension中用，如果用这个获得assset，要注意进行同步
 	UQxBloomFlareAsset* GetBloomSettingAsset() const
 	{
 		return PostProcessAsset;

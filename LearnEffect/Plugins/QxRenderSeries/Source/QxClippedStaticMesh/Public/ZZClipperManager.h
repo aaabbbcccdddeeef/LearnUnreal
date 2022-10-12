@@ -24,7 +24,7 @@ DECLARE_MULTICAST_DELEGATE(FOnClippingVolumesUpdate)
 
 // #TODO 这里需不需要继承render resource
 // 现在来看继承FRenderResource应该是更合理的做法, 参考 FHZBOcclusionTester
-class FZZCliperRenderData
+class FZZCliperRenderData 
 {
 public:
     FStructuredBufferRHIRef ClippingVolumesSB;
@@ -63,7 +63,7 @@ public:
     {
         check(IsInRenderingThread());
 
-        bool IsSBNotEnogh = (ClippingVolumes.Num() * sizeof(FMatrix)) > ClippingVolumesSB->GetSize();
+        // bool IsSBNotEnogh = (ClippingVolumes.Num() * sizeof(FMatrix)) > ClippingVolumesSB->GetSize();
         
         
         //#TODO buffer已经分配并且够的情况不需要重新分配
