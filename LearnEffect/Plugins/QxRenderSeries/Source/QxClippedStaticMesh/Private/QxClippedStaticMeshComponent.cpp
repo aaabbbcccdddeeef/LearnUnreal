@@ -13,7 +13,18 @@
 #include "ShaderParameterStruct.h"
 #include "ZZClipperManager.h"
 
-
+static UZZClipperSubsystem* GetZZClipperSubsystem(UWorld* InWorld)
+{
+	// UZZClipperSubsystem* ClipperSubsystem = InComponent->GetWorld()->GetSubsystem<UZZClipperSubsystem>();
+	UZZClipperSubsystem* ClipperSubsystem = nullptr;
+#if 1
+	ClipperSubsystem = InWorld->GetSubsystem<UZZClipperSubsystem>();
+#else
+	ClipperSubsystem = GEngine->GetEngineSubsystem<UZZClipperSubsystem>();
+#endif
+	
+	return ClipperSubsystem;
+}
 
 
 TAutoConsoleVariable<int32> CVarQxBloomPassAmount(
@@ -105,6 +116,38 @@ public:
 };
 IMPLEMENT_TYPE_LAYOUT(FZZLocalVertexFactoryShaderParametersBase);
 
+class FDummyFZZClippingVolumeParameters : public FRenderResource
+{
+public:
+	virtual void InitRHI() override
+	{
+		FZZClippingVolumeParameters DummyParams;
+		DummyParams.ZZClippingVolumeNum = 0;
+		FRHIResourceCreateInfo CreateInfo = FRHIResourceCreateInfo();
+		// DummyParams.ZZClipingVolumesSB = 
+		FStructuredBufferRHIRef DummySB =	RHICreateStructuredBuffer(sizeof(FMatrix),
+				sizeof(FMatrix) * 1,
+				BUF_ShaderResource | BUF_Static,
+				CreateInfo);
+		DummyParams.ZZClipingVolumesSB =
+			RHICreateShaderResourceView(DummySB);
+		DummpyParam =
+			TUniformBufferRef<FZZClippingVolumeParameters>::CreateUniformBufferImmediate(DummyParams
+				, EUniformBufferUsage::UniformBuffer_MultiFrame, EUniformBufferValidation::ValidateResources);
+	};
+
+	virtual void ReleaseRHI() override
+	{
+		DummpyParam.SafeRelease();
+	}
+
+public:
+	TUniformBufferRef<FZZClippingVolumeParameters> DummpyParam;
+};
+
+// 这个dummy param的目的是为了在ZZSubsystem 没有初始化的时候，用这个占位
+TGlobalResource<FDummyFZZClippingVolumeParameters> DummyZZClippingParams;
+
 
 /** Shader parameter class used by FLocalVertexFactory only - no derived classes. */
 class FZZLocalVertexFactoryShaderParameters : public FZZLocalVertexFactoryShaderParametersBase
@@ -160,15 +203,23 @@ public:
 		// UZZClipperSubsystem* ClipperSubsystem = Scene->GetWorld()->GetSubsystem<UZZClipperSubsystem>();
 		// UZZClipperSubsystem* ClipperSubsystem = InComponent->GetWorld()->GetSubsystem<UZZClipperSubsystem>();
 		// 先不考虑同步问题
-		UZZClipperSubsystem* ClipperSubsystem = GEngine->GetEngineSubsystem<UZZClipperSubsystem>();
-		
-		check(ClipperSubsystem);
-		TUniformBufferRef<FZZClippingVolumeParameters> Params =
-			ClipperSubsystem->GetClipperRenderData_RenderThread()->CachedZZClipVolumeParams;
-		auto test = GetUniformBufferParameter<FZZClippingVolumeParameters>();
-		check(Params.IsValid());
-		ShaderBindings.Add(Shader->GetUniformBufferParameter<FZZClippingVolumeParameters>(),
-			Params);
+		UZZClipperSubsystem* ClipperSubsystem =
+			GetZZClipperSubsystem(Scene->GetWorld());
+
+		if (ClipperSubsystem)
+		{
+			TUniformBufferRef<FZZClippingVolumeParameters> Params =
+				ClipperSubsystem->GetZZClippingParams();
+			check(Params.IsValid());
+			ShaderBindings.Add(Shader->GetUniformBufferParameter<FZZClippingVolumeParameters>(),
+				Params);
+		}
+		else
+		{
+			ShaderBindings.Add(Shader->GetUniformBufferParameter<FZZClippingVolumeParameters>(),
+				// GetEmptyZZClippingParams());
+				DummyZZClippingParams.DummpyParam);
+		}
 	}
 
 private:
@@ -234,6 +285,8 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FZZStaticMeshVertexFactory, SF_Vertex, F
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FZZStaticMeshVertexFactory, SF_Pixel, FZZLocalVertexFactoryShaderParameters);
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FZZStaticMeshVertexFactory,"/QxClipMeshShaders/ZZLocalVertexFactory.ush",true,true,true,true,true,true,true);
 
+
+
 class FZZStaticMeshRenderData
 {
 	friend class FZZStaticMeshSceneProxy;
@@ -251,15 +304,17 @@ public:
 
     	
     	// #TODO 用world subystem 时 ClipperSubsystem 为null
-    	// UZZClipperSubsystem* ClipperSubsystem = InComponent->GetWorld()->GetSubsystem<UZZClipperSubsystem>();
-    	UZZClipperSubsystem* ClipperSubsystem = GEngine->GetEngineSubsystem<UZZClipperSubsystem>();
-    	check(ClipperSubsystem);
-    	ENQUEUE_RENDER_COMMAND(ZZInitVolumeData)(
-    		[this, ClipperSubsystem](FRHICommandListImmediate& RHICmdList)
-    		{
-    			Init_RenderThread(RHICmdList, ClipperSubsystem);
-    		}
-    		);
+    	UZZClipperSubsystem* ClipperSubsystem = GetZZClipperSubsystem(InComponent->GetWorld());
+        if (ClipperSubsystem)
+        {
+        	ENQUEUE_RENDER_COMMAND(ZZInitVolumeData)(
+				[this, ClipperSubsystem](FRHICommandListImmediate& RHICmdList)
+				{
+					Init_RenderThread(RHICmdList, ClipperSubsystem);
+				}
+				);
+        }
+
     }
 
 public:
@@ -725,11 +780,11 @@ void FZZStaticMeshRenderData::GetClippingVolumeBuffers(const UZZClipperSubsystem
 	FZZCliperRenderData* ClipperRenderData = InClipperSubsystem->GetClipperRenderData_RenderThread();
 	check(ClipperRenderData);
 
-	check(ClipperRenderData->ClippingVolumesSB.IsValid());
-	check(ClipperRenderData->ClippingVolumesSRV.IsValid());
+	check(ClipperRenderData->GetZZClipperRenderResource()->ClippingVolumesSB.IsValid());
+	check(ClipperRenderData->GetZZClipperRenderResource()->ClippingVolumesSRV.IsValid());
 
-	ZZClippingVolumesSB = ClipperRenderData->ClippingVolumesSB;
-	ZZClippingVolumesSRV = ClipperRenderData->ClippingVolumesSRV;
+	ZZClippingVolumesSB = ClipperRenderData->GetZZClipperRenderResource()->ClippingVolumesSB;
+	ZZClippingVolumesSRV = ClipperRenderData->GetZZClipperRenderResource()->ClippingVolumesSRV;
 }
 
 void FZZStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PDI)
@@ -1178,15 +1233,13 @@ void UQxClippedStaticMeshComponent::BeginPlay()
 void UQxClippedStaticMeshComponent::OnRegister()
 {
 	Super::OnRegister();
-	UZZClipperSubsystem* ClipperSubsystem = GEngine->GetEngineSubsystem<UZZClipperSubsystem>();
-	// UZZClipperSubsystem* ClipperSubsystem = GetWorld()->GetSubsystem<UZZClipperSubsystem>();
-	check(ClipperSubsystem);
-	ClipperDelegateHandle = ClipperSubsystem->OnClippingVolumesUpdate.AddLambda(
-		[this]()
-		{
-			this->MarkRenderStateDirty();
-		}
-		);
+	UZZClipperSubsystem* ClipperSubsystem = GetZZClipperSubsystem(GetWorld());
+	if (ClipperSubsystem)
+	{
+		ClipperDelegateHandle = ClipperSubsystem->OnClippingVolumesUpdate.AddUObject(
+			this, &UQxClippedStaticMeshComponent::OnClippingVolumeBufferResize);
+	}
+
 }
 
 void UQxClippedStaticMeshComponent::OnUnregister()
@@ -1195,12 +1248,13 @@ void UQxClippedStaticMeshComponent::OnUnregister()
 
 	if (ClipperDelegateHandle.IsValid())
 	{
-		GEngine->GetEngineSubsystem<UZZClipperSubsystem>()->OnClippingVolumesUpdate.Remove(ClipperDelegateHandle);
-		// GetWorld()->GetSubsystem<UZZClipperSubsystem>()->OnClippingVolumesUpdate.Remove(ClipperDelegateHandle);
+		if (GetZZClipperSubsystem(GetWorld()))
+		{
+			GetZZClipperSubsystem(GetWorld())->OnClippingVolumesUpdate.Remove(ClipperDelegateHandle);
+		}
 		ClipperDelegateHandle.Reset();
 	}
 }
-
 
 // Called every frame
 void UQxClippedStaticMeshComponent::TickComponent(float DeltaTime, ELevelTick TickType,
@@ -1252,5 +1306,10 @@ void UQxClippedStaticMeshComponent::GenerateClippingVolumes()
             );
         TestClippingVolumes.Add(tmpParam);
     }
+}
+
+void UQxClippedStaticMeshComponent::OnClippingVolumeBufferResize()
+{
+	MarkRenderStateDirty();
 }
 

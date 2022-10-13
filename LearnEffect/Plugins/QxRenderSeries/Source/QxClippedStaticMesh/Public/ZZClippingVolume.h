@@ -7,11 +7,19 @@
 #include "GameFramework/Actor.h"
 #include "ZZClippingVolume.generated.h"
 
-UCLASS(hidecategories = (Collision, Brush, Attachment, Physics, Volume, BrushBuilder), MinimalAPI)
+UCLASS(hidecategories = (Collision, Attachment, Physics), Blueprintable, MinimalAPI)
 class AZZClippingVolume : public AVolume
 {
     GENERATED_BODY()
 
+public:
+    AZZClippingVolume();
+
+    virtual void PostInitializeComponents() override;
+
+private:
+    void OnTransformUpdated(USceneComponent* RootComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
+    
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clipping Volume")
     bool bEnabled;
@@ -27,5 +35,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clipping Volume")
     int32 Priority;
 
-    AZZClippingVolume();
+private:
+    bool bIsTransformUpdated = true;
 };

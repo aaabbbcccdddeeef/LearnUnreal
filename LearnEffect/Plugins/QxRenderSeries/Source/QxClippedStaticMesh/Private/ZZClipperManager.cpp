@@ -6,16 +6,128 @@
 #include "EngineUtils.h"
 #include "ZZClippingVolume.h"
 
+
+TAutoConsoleVariable<int32> CVarUseTestClipMatrix(
+TEXT("r.QxRender.UseTestClipMatrix"),
+0,
+TEXT("UseTestClipMatrix"),
+ECVF_RenderThreadSafe
+);
+
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FZZClippingVolumeParameters, "ZZClippingVolumeParam");
 
-void FZZCliperRenderData::ReInit(TArray<AZZClippingVolume*>* InClippingVolumes)
+
+void FZZClipperRenderResource::InitRHI()
 {
-    if (static_cast<uint32>(InClippingVolumes->Num()) >NumUploadedVolumes)
+    check(IsInRenderingThread());
+    check(Capcity > 0);
+
+    // bool IsSBNotEnogh = (ClippingVolumes.Num() * sizeof(FMatrix)) > ClippingVolumesSB->GetSize();
+        
+    //#TODO buffer已经分配并且够的情况不需要重新分配
+
+    // TResourceArray 是渲染资源的array，一般情况和tarray相同，UMA的情况下不同
+    // TResourceArray<FMatrix>* ResourceArray = new TResourceArray<FMatrix>(true);
+    // // ResourceArray->Reserve(RenderData->ClippingVolumes.Num());
+    // ResourceArray->Append(ClippingVolumes);
+			
+    // 预期回先用compute shader更新这个buffer，再渲染
+    FRHIResourceCreateInfo ResourceCI;
+			
+    // ResourceCI.ResourceArray = ResourceArray;
+    ResourceCI.DebugName = TEXT("QxTestSB");
+			
+    ClippingVolumesSB = RHICreateStructuredBuffer(
+        sizeof(FMatrix),
+        sizeof(FMatrix) * Capcity,
+        BUF_ShaderResource | BUF_Dynamic,
+        ResourceCI
+    );
+
+    ClippingVolumesSRV = RHICreateShaderResourceView(
+        ClippingVolumesSB
+    );
+
+    FZZClippingVolumeParameters ZZClippingVolumeParameters;
+    ZZClippingVolumeParameters.ZZClippingVolumeNum = ClippingVolumesNum;
+    ZZClippingVolumeParameters.ZZClipingVolumesSB = ClippingVolumesSRV;
+    // CachedZZClipVolumeParams = TUniformBuffer<FZZClippingVolumeParameters>::GetUniformBufferRef()
+    CachedZZClipVolumeParams = TUniformBufferRef<FZZClippingVolumeParameters>::CreateUniformBufferImmediate(
+        ZZClippingVolumeParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
+}
+
+void FZZClipperRenderResource::ReleaseRHI()
+{
+    check(IsInRenderingThread());
+    if (ClippingVolumesSB.IsValid())
     {
-        // 重新创建Buffer
-       
+        ClippingVolumesSB.SafeRelease();
+    }
+    if (ClippingVolumesSRV.IsValid())
+    {
+        ClippingVolumesSRV.SafeRelease();
+    }
+    if (CachedZZClipVolumeParams.IsValid())
+    {
+        CachedZZClipVolumeParams.SafeRelease();
     }
 }
+
+void FZZClipperRenderResource::Resize(uint32 RequestedCapcity)
+{
+    check(IsInRenderingThread());
+    if (Capcity != RequestedCapcity)
+    {
+        ReleaseResource();
+        Capcity = RequestedCapcity;
+        InitResource();
+    } else if (!IsInitialized())
+    {
+        InitResource();
+    }
+}
+
+uint32 FZZClipperRenderResource::GetCapcity() const
+{
+    return Capcity;
+}
+
+void FZZCliperRenderData::UpdateRenderData_RenderThread(
+    FRHICommandListImmediate& RHICmdList,
+    UZZClipperSubsystem* InZzClipperSubsystem,
+    TArray<FMatrix>& InTestMatrix)
+{
+    ClippingVolumes = MoveTemp(InTestMatrix);
+    // NumClippingVolumes = InTestNum;
+    // NumUploadedVolumes = ClippingVolumes.Num();
+
+    check(IsInRenderingThread())
+        
+    if (static_cast<uint32>(ClippingVolumes.Num()) > ZZClipperRenderResource->GetCapcity())
+    {
+        ZZClipperRenderResource->Resize(ClippingVolumes.Num() + 1); // 一次多请求10个capcity
+
+        AsyncTask(ENamedThreads::GameThread, [InZzClipperSubsystem]()
+           {
+               InZzClipperSubsystem->OnClippingVolumesUpdate.Broadcast();
+           });
+    }
+
+    if (ClippingVolumes.Num() > 0)
+    {
+        const uint32 UpdateSize = sizeof(FMatrix) * ClippingVolumes.Num();
+        uint8* DataPtr =  (uint8*)RHILockStructuredBuffer(
+            ZZClipperRenderResource->ClippingVolumesSB,
+            0,
+            UpdateSize,
+            RLM_WriteOnly);
+        // FMemory::Memzero(DataPtr, UpdateSize);
+        FMemory::Memcpy(DataPtr, ClippingVolumes.GetData(), UpdateSize);
+        RHIUnlockStructuredBuffer(ZZClipperRenderResource->ClippingVolumesSB);
+    }
+}
+
 
 void UZZClipperSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -23,7 +135,9 @@ void UZZClipperSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
     // GetWorld()->OnLevelsChanged().AddUObject(this, &UZZClipperSubsystem::OnLevelChanged);
 
-    TestUpdateRenderData();
+    // TestUpdateRenderData();
+    InitZZClipperRenderData();
+    UpdateTestData();
 }
 
 void UZZClipperSubsystem::Deinitialize()
@@ -43,6 +157,26 @@ void UZZClipperSubsystem::Deinitialize()
     
     ZZClippingVolumes.Reset();
     Super::Deinitialize();
+}
+
+void UZZClipperSubsystem::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+    if (bIsClippingVolumesDirty)
+    {
+        UpdateZZClipperRenderData();
+    }
+}
+
+bool UZZClipperSubsystem::IsTickableInEditor() const
+{
+    return true;
+}
+
+TStatId UZZClipperSubsystem::GetStatId() const
+{
+    RETURN_QUICK_DECLARE_CYCLE_STAT(UZZClipperSubsystem, STATGROUP_Tickables);   
+    // return Super::GetStatId();
 }
 
 void UZZClipperSubsystem::OnLevelChanged()
@@ -73,13 +207,8 @@ void UZZClipperSubsystem::OnLevelChanged()
     }
 }
 
-void UZZClipperSubsystem::TestUpdateRenderData()
+void UZZClipperSubsystem::UpdateTestData()
 {
-    if (ZZClipperRenderData == nullptr)
-    {
-        ZZClipperRenderData = new FZZCliperRenderData();
-    }
-
     if (TestMatrix.Num() == 0)
     {
         TestMatrix.AddUninitialized(10);
@@ -90,20 +219,73 @@ void UZZClipperSubsystem::TestUpdateRenderData()
         }
     }
     // ZZClipperRenderData->ReInit(TestMatrix, 10);
+    // TArray<FMatrix> TmpMatrix = TestMatrix;
+    // FZZCliperRenderData* RenderData = ZZClipperRenderData;
+    // uint32 TmpNumClippingVolumes = NumClippingVolumes;
+}
 
-    TArray<FMatrix> TmpMatrix = TestMatrix;
+void UZZClipperSubsystem::MarkClippingVolumesDirty()
+{
+    bIsClippingVolumesDirty = true;
+}
+
+void UZZClipperSubsystem::InitZZClipperRenderData()
+{
+    ZZClipperRenderData = new FZZCliperRenderData();
+}
+
+void UZZClipperSubsystem::UpdateZZClipperRenderData()
+{
+    TArray<FMatrix> TmpMatrix;
+    bool bUseTestMatrix = CVarUseTestClipMatrix.GetValueOnAnyThread() != 0;
+    if (bUseTestMatrix)
+    {
+        TmpMatrix = TestMatrix;
+    }
+    else
+    {
+        TmpMatrix = CollectClippingVolumes();
+    }
+    if (TmpMatrix.Num() <= 0)
+    {
+        return;
+    }
+    
     FZZCliperRenderData* RenderData = ZZClipperRenderData;
     uint32 TmpNumClippingVolumes = NumClippingVolumes;
     ENQUEUE_RENDER_COMMAND(QxTestUpdateBuffer)(
-          [RenderData, ClippingMatrix = MoveTemp(TmpMatrix), TmpNumClippingVolumes](FRHICommandListImmediate& RHICmdList)
+          [this, RenderData, ClippingMatrix = MoveTemp(TmpMatrix), TmpNumClippingVolumes](FRHICommandListImmediate& RHICmdList)
           {
               TArray<FMatrix>& Matrices = const_cast<TArray<FMatrix>&>(ClippingMatrix);
-              RenderData->ReInit_RenderThread(
-                  RHICmdList,Matrices, TmpNumClippingVolumes);
+              RenderData->UpdateRenderData_RenderThread(
+                  RHICmdList,this, Matrices);
           }
           );
     
-    OnClippingVolumesUpdate.Broadcast();
+    // OnClippingVolumesUpdate.Broadcast();
+
+    bIsClippingVolumesDirty = false;
+}
+
+TArray<FMatrix> UZZClipperSubsystem::CollectClippingVolumes() const
+{
+    TArray<FMatrix> ClippVolumeInfos;
+    UWorld* World = GetWorld();
+    for (TActorIterator<AZZClippingVolume> It(World); It; ++It)
+    {
+        AZZClippingVolume* ClippingVolume = *It;
+        if (ClippingVolume->bEnabled)
+        {
+            const FVector Extent = ClippingVolume->GetActorScale3D() * 100;
+            EZZClippingVolumeMode Mode = ClippingVolume->Mode;
+            FMatrix PackedShaderData = FMatrix( FPlane(ClippingVolume->GetActorLocation(), Mode == EZZClippingVolumeMode::ClipInside),
+                                        FPlane(ClippingVolume->GetActorForwardVector(), Extent.X),
+                                        FPlane(ClippingVolume->GetActorRightVector(), Extent.Y),
+                                        FPlane(ClippingVolume->GetActorUpVector(), Extent.Z));
+            ClippVolumeInfos.Add(PackedShaderData);
+        }
+    }
+    return MoveTemp(ClippVolumeInfos);
 }
 
 // void UZZClipperSubsystem::UpdateClipperData_RenderThread(

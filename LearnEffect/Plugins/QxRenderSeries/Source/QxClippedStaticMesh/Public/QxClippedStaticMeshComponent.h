@@ -33,7 +33,8 @@ public:
     virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 private:
     void GenerateClippingVolumes();
-    
+
+    void OnClippingVolumeBufferResize();
 private:
 
     // 这里用一个指针比较合适，但现在先不管#TODO

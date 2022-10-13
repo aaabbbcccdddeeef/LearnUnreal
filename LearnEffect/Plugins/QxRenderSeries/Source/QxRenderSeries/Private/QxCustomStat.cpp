@@ -8,6 +8,14 @@ DECLARE_STATS_GROUP(TEXT("QxTestGroup1"), STATGROUP_QxTestGroup, STATCAT_Advance
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("qx stat count"), STAT_COUNT, STATGROUP_QxTestGroup);
 DECLARE_CYCLE_STAT(TEXT("qx stat time"), STAT_MyTIME, STATGROUP_QxTestGroup); //统计时间, STAT_MyTIME 是宏名和SCOPE_CYCLE_COUNTER关联
 
+
+TAutoConsoleVariable<int32> CVarQxTest(
+TEXT("r.QxRender.TestCar"),
+0,
+TEXT("Number of passes to render bloom, override bloom asset setting"),
+ECVF_RenderThreadSafe
+);
+
 // Sets default values
 AQxCustomStat::AQxCustomStat()
 {

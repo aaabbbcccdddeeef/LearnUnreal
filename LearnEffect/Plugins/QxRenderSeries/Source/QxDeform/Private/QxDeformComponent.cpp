@@ -257,7 +257,7 @@ public:
 			
 		}
 
-		// #TODO 下面这段不对，执行到这里时还是主线程，这他妈在主线程里创建RenderResource了
+		// #TODO 下面这段不对，执行到这里时还是主线程，在主线程里创建RenderResource了
 		// 创建 deform transform 用的structed buffer相关
 		if (NumSections > 0)
 		{
