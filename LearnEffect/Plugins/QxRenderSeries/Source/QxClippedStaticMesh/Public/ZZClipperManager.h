@@ -34,7 +34,6 @@ public:
 
     virtual void InitRHI() override;
 
-
     virtual void ReleaseRHI() override;
 
     void Resize(uint32 RequestedCapcity);
@@ -42,7 +41,6 @@ public:
     uint32 GetCapcity() const;
 
 public:
-
     FStructuredBufferRHIRef ClippingVolumesSB;
     FShaderResourceViewRHIRef ClippingVolumesSRV;
     uint32 ClippingVolumesNum = 0;
@@ -112,6 +110,9 @@ public:
 
     virtual TStatId GetStatId() const override;
 
+    virtual void BeginDestroy() override;
+    virtual bool IsReadyForFinishDestroy() override;
+
     void OnLevelChanged();
 
     UFUNCTION(BlueprintCallable, Category="QxTest")
@@ -167,6 +168,11 @@ private:
     // 这个对象一旦创建就不会重新创建,只更新内容
     // 注意：这个对象是在游戏线程创建的，但由于内部有渲染资源，必须在渲染线程delete
     FZZCliperRenderData* ZZClipperRenderData = nullptr;
+
+
+    // 由于这个对象引用了一些渲染资源并且是一个UObject
+    // 参考UPrimitiveComponent实现延迟GC
+    FRenderCommandFence DetachFence;
 };
 
 UCLASS()

@@ -22,11 +22,15 @@ AZZClippingVolume::AZZClippingVolume()
     SetActorScale3D(FVector(50));
 }
 
-void AZZClippingVolume::PostInitializeComponents()
+void AZZClippingVolume::PostRegisterAllComponents()
 {
     Super::PostInitializeComponents();
 
     GetRootComponent()->TransformUpdated.AddUObject(this, &AZZClippingVolume::OnTransformUpdated);
+    if (UZZClipperSubsystem* ClipperSubsystem = GetWorld()->GetSubsystem<UZZClipperSubsystem>())
+    {
+        ClipperSubsystem->MarkClippingVolumesDirty();
+    }
 }
 
 void AZZClippingVolume::OnTransformUpdated(

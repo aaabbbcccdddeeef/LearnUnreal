@@ -153,6 +153,9 @@
     <ClInclude Include="MyAllocator.h" />
     <ClInclude Include="TypeTraitsTest.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="TestWinLock.cpp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

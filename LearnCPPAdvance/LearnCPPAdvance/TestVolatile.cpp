@@ -9,8 +9,8 @@ static void TestVolatile()
 
     printf("i = %d\n", a);
 
-    // ÏÂÃæ»ã±àÓï¾äµÄ×÷ÓÃ¾ÍÊÇ¸Ä±äÄÚ´æÖĞ i µÄÖµ
-    // µ«ÊÇÓÖ²»ÈÃ±àÒëÆ÷ÖªµÀ
+    // ä¸‹é¢æ±‡ç¼–è¯­å¥çš„ä½œç”¨å°±æ˜¯æ”¹å˜å†…å­˜ä¸­ i çš„å€¼
+    // ä½†æ˜¯åˆä¸è®©ç¼–è¯‘å™¨çŸ¥é“
     __asm {
         mov dword ptr[ebp - 4], 20h
     }
@@ -19,8 +19,4 @@ static void TestVolatile()
     printf("i = %d", b);
 }
 
-void main()
-{
-    TestVolatile();
-   
-}
+static voitd 

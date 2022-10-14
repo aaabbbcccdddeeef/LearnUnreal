@@ -15,7 +15,7 @@ class AZZClippingVolume : public AVolume
 public:
     AZZClippingVolume();
 
-    virtual void PostInitializeComponents() override;
+    virtual void PostRegisterAllComponents() override;
 
 private:
     void OnTransformUpdated(USceneComponent* RootComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
