@@ -52,3 +52,7 @@ LearnEditorEx/Content/TestGame/
 LearnEffect/Content/RenderProgramming/LearnEditor/EBP/LearnDataLoad/DataTables/
 LearnEffect/Content/RenderProgramming/LearnComputeShader/T_Wood_Oak_D_2.uasset
 *.ipch
+LearnEffect/Content/RenderProgramming/MultiPassMesh/M_Test.uasset
+LearnEffect/Content/RenderProgramming/LearnVT/
+LearnCPPAdvance/LearnCPPAdvance/Release/
+LearnUE5/.idea/

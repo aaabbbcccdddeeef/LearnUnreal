@@ -15,6 +15,7 @@ public:
     // Sets default values for this actor's properties
     AQxMultithreadTest();
 
+
     UFUNCTION(BlueprintCallable, Category="QxTest")
     void PrintTestData();
 
@@ -22,6 +23,18 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="QxTest")
     void Test();
+
+    UFUNCTION(BlueprintCallable, Category="QxMultiThreadTest")
+    void TestCriticalSectionOverhead();
+
+    UFUNCTION(BlueprintCallable, Category="QxMultiThreadTest")
+    void TestMutexOverhead();
+
+    UFUNCTION(BlueprintCallable, Category="QxMultiThreadTest")
+    void TestStdMutexOverhead();
+
+    UPROPERTY(EditAnywhere, Category="QxMultiThreadTest")
+    bool bEnableOverheadTest = true;
     
 protected:
     // Called when the game starts or when spawned

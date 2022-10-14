@@ -8,7 +8,9 @@ public class LearnCore : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine"});
  
-		PublicIncludePaths.AddRange(new string[] {"LearnCore/Public"});
+		// PublicIncludePaths.AddRange(new string[] {"LearnCore/Public"});
 		PrivateIncludePaths.AddRange(new string[] {"LearnCore/Private"});
+		
+		OptimizeCode = CodeOptimization.Never;
 	}
 }
