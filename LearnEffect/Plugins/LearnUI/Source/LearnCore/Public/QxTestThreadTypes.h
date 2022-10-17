@@ -12,6 +12,7 @@ class FQxTestRunnable : public FRunnable
 public:
     FQxTestRunnable(
         FString InThreadName,
+        TPromise<float>&& InPromise,
         AQxTestRunnable* InTester,
         FQxTestShared* InTestShared);
 
@@ -66,6 +67,8 @@ public:
 
 private:
     FQxTestShared* TestShared;
+
+    TPromise<float> TestPromise;
 private:
     // 预期下个会更新值的线程 index 
     static  int32 ExpectNextThreadIndex;

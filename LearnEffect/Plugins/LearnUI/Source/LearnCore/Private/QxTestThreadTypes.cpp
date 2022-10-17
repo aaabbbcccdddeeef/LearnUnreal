@@ -22,9 +22,11 @@ TAtomic<int32> FQxTestRunnable::bToUpdateThreadIndex = 0;
 
 FQxTestRunnable::FQxTestRunnable(
     FString InThreadName,
+    TPromise<float>&& InPromise,
     AQxTestRunnable* InTester,
     FQxTestShared* InTestShared)
-    : MyThreadName(InThreadName), Tester(InTester), TestShared(InTestShared)
+    : MyThreadName(InThreadName), Tester(InTester), TestShared(InTestShared), TestPromise(MoveTemp(InPromise))
+    , OtherTestRunnable(nullptr)
 {
     FString tmp = MyThreadName.Right(1);
     ThreadIndex = UKismetStringLibrary::Conv_StringToInt(tmp);
@@ -74,6 +76,7 @@ uint32 FQxTestRunnable::Run()
     }
     
     OtherTestRunnable = nullptr;
+    TestPromise.SetValue(TestIndex + 10);
     return 0;
 }
 
