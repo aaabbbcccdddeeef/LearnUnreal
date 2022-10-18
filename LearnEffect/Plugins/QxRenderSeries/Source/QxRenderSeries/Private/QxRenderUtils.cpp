@@ -70,6 +70,18 @@ bool FQxRenderUtils::RayCastHit(const FVector& RayOrigin, const FVector& RayDire
 		);
 }
 
+FTextureRHIRef FQxRenderUtils::GetUTextureRHIRef(UTexture2D* InTexture)
+{
+	if (InTexture)
+	{
+		return  InTexture->Resource->TextureRHI;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 void QxRenderUtils::RenderAverageToTarget_RenderThread(
 	FRHICommandListImmediate& RHICmdList,
 	UTexture2D* InTexture,

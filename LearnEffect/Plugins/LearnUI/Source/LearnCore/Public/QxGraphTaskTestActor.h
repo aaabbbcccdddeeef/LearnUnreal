@@ -42,7 +42,7 @@ public:
     }
 };
 
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, Blueprintable)
 class LEARNCORE_API AQxGraphTaskTestActor : public AActor
 {
     GENERATED_BODY()

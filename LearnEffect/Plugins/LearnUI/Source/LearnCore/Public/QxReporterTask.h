@@ -20,6 +20,11 @@ public:
         RETURN_QUICK_DECLARE_CYCLE_STAT(FQxReporterTask, STATGROUP_TaskGraphTasks);
     }
 
+    static ENamedThreads::Type GetDesiredThread()
+    {
+        return ENamedThreads::AnyThread;
+    }
+
     static  ESubsequentsMode::Type GetSubsequentsMode()
     {
         return ESubsequentsMode::TrackSubsequents;

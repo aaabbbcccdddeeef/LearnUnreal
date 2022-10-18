@@ -25,7 +25,7 @@ public:
         RETURN_QUICK_DECLARE_CYCLE_STAT(FQxWorkTask, STATGROUP_TaskGraphTasks);
     }
 
-    static ENamedThreads::Type GetDesiredThead()
+    static ENamedThreads::Type GetDesiredThread()
     {
         return ENamedThreads::AnyThread;
     }

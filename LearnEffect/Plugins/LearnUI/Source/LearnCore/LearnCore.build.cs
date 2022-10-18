@@ -6,7 +6,11 @@ public class LearnCore : ModuleRules
 	{
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine"});
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
+			"Core", "CoreUObject", "Engine",
+			"Renderer", "RenderCore", "RHI"
+		});
  
 		// PublicIncludePaths.AddRange(new string[] {"LearnCore/Public"});
 		PrivateIncludePaths.AddRange(new string[] {"LearnCore/Private"});

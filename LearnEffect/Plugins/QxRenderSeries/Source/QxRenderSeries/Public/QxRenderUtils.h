@@ -23,6 +23,8 @@ public:
 
 	static bool RayCastHit(const FVector& RayOrigin, const FVector& RayDirection,
 		float RayMarchingLength,  FHitResult& OutHitResult, AActor* InActor);
+
+	static FTextureRHIRef GetUTextureRHIRef(UTexture2D* InTexture);
 };
 
 

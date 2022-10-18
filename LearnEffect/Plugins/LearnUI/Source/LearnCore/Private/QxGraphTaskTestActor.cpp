@@ -5,6 +5,7 @@
 
 #include <stdexcept>
 
+#include "QxWorkTask.h"
 #include "LearnCore.h"
 
 
