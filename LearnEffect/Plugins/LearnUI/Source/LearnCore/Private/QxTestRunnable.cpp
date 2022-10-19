@@ -15,7 +15,7 @@ void AQxTestRunnable::BeginPlay()
     Super::BeginPlay();
 
     // 这里用智能指针应该是更合理的选择，但测试为了排除智能指针的线程安全的问题
-    TestShared = new FQxTestShared{TestCounter, CounterMax, TestLogLevel, bNeverStop,bWaitThreadComplete}; 
+    TestShared = new FQxTestShared{TestCounter, TestCounter, CounterMax, TestLogLevel, bNeverStop,bWaitThreadComplete}; 
 
     TPromise<float> TestPromise1;
     TPromise<float> TestPromise2;
@@ -23,8 +23,8 @@ void AQxTestRunnable::BeginPlay()
     TestFuture2.Reset();
     TestFuture1 = TestPromise1.GetFuture();
     TestFuture2 = TestPromise2.GetFuture();
-    FQxTestRunnable* Runnable1 = new FQxTestRunnable(TEXT("TestThread0"), MoveTemp(TestPromise1) , this, TestShared);
-    FQxTestRunnable* Runnable2 = new FQxTestRunnable(TEXT("TestThread1"), MoveTemp(TestPromise2), this, TestShared);
+    FQxTestRunnable* Runnable1 = new FQxTestRunnable(TEXT("TestThread0"), MoveTemp(TestPromise1) , this, TestShared, true);
+    FQxTestRunnable* Runnable2 = new FQxTestRunnable(TEXT("TestThread1"), MoveTemp(TestPromise2), this, TestShared, false);
     Runnable1->OtherTestRunnable = Runnable2;
     Runnable2->OtherTestRunnable = Runnable1;
 
@@ -75,17 +75,17 @@ void AQxTestRunnable::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
-    if (TestFuture1.IsValid() && TestFuture1.IsReady())
-    {
-        float FutureResult = TestFuture1.Get();
-        UE_LOG(LearnCore, Warning, TEXT("Future Result1 = %f"), FutureResult);
-    }
-
-    if (TestFuture2.IsValid() && TestFuture2.IsReady())
-    {
-        float FutureResult = TestFuture2.Get();
-        UE_LOG(LearnCore, Warning, TEXT("Future Result2 = %f"), FutureResult);
-    }
+    // if (TestFuture1.IsValid() && TestFuture1.IsReady())
+    // {
+    //     float FutureResult = TestFuture1.Get();
+    //     UE_LOG(LearnCore, Warning, TEXT("Future Result1 = %f"), FutureResult);
+    // }
+    //
+    // if (TestFuture2.IsValid() && TestFuture2.IsReady())
+    // {
+    //     float FutureResult = TestFuture2.Get();
+    //     UE_LOG(LearnCore, Warning, TEXT("Future Result2 = %f"), FutureResult);
+    // }
 }
 
 void AQxTestRunnable::KillTestThreads(bool WaitFinish)

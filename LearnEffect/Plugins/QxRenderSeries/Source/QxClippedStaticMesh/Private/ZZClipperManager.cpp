@@ -107,7 +107,8 @@ void FZZCliperRenderData::UpdateRenderData_RenderThread(
     if (static_cast<uint32>(ClippingVolumes.Num()) > ZZClipperRenderResource->GetCapcity())
     {
         ZZClipperRenderResource->Resize(ClippingVolumes.Num() + 1); // 一次多请求10个capcity
-
+        
+        
         // 下面的做法不对，
         // 当前帧中，引用的buffer完成是否
         // 由于渲染线程比游戏线程慢一帧,现在通知clipper，clipper再通知其他markdirty，当前帧中其他引用了buffer的东西可能已经回收
@@ -117,6 +118,7 @@ void FZZCliperRenderData::UpdateRenderData_RenderThread(
            });
     }
 
+    ZZClipperRenderResource->ClippingVolumesNum = ClippingVolumes.Num();
     if (ClippingVolumes.Num() > 0)
     {
         const uint32 UpdateSize = sizeof(FMatrix) * ClippingVolumes.Num();

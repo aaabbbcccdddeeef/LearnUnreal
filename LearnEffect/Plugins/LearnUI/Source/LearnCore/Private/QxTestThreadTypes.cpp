@@ -4,11 +4,12 @@
 #include "LearnCore.h"
 #include "QxMultithreadTest.h"
 #include "QxTestRunnable.h"
+#include "QxThreadSafeQueue.h"
 #include "Kismet/KismetStringLibrary.h"
 
 TAutoConsoleVariable<int32> CVarMultiTestIndex(
 TEXT("r.QxMulti.TestIndex"),
-4,
+6,
 TEXT("CVarMultiTestIndex"),
 ECVF_RenderThreadSafe 
 );
@@ -20,13 +21,18 @@ int32 FQxTestRunnable::ExpectNextThreadIndex = 0;
 
 TAtomic<int32> FQxTestRunnable::bToUpdateThreadIndex = 0;
 
+static  TQxThreadSafeQueue<bool> GQxThreadSafeQueue;
+
+static  TQueue<bool, EQueueMode::Spsc> GTestTheadSafeQueue;
+
 FQxTestRunnable::FQxTestRunnable(
     FString InThreadName,
     TPromise<float>&& InPromise,
     AQxTestRunnable* InTester,
-    FQxTestShared* InTestShared)
+    FQxTestShared* InTestShared,
+    bool InAsProducer)
     : MyThreadName(InThreadName), Tester(InTester), TestShared(InTestShared), TestPromise(MoveTemp(InPromise))
-    , OtherTestRunnable(nullptr)
+    , OtherTestRunnable(nullptr), bAsProducer(InAsProducer)
 {
     FString tmp = MyThreadName.Right(1);
     ThreadIndex = UKismetStringLibrary::Conv_StringToInt(tmp);
@@ -72,6 +78,9 @@ uint32 FQxTestRunnable::Run()
         break;
     case 6:
         InterleaveUpdate6();
+        break;
+    case 7:
+        InterleaveUpdate7();
         break;
     }
     
@@ -260,6 +269,162 @@ void FQxTestRunnable::InterleaveUpdate5()
 {
 }
 
+// 这个测试中只有一个producer 和consumer ，线程安全的问题少一些
 void FQxTestRunnable::InterleaveUpdate6()
 {
+    UE_LOG(LearnCore, Warning, TEXT("ThreadName Test method 6 "));
+    while (true)
+    {
+                // FScopeLock Lock(&FQxTestRunnable::CriticalSection);
+        if (bAsProducer && GQxThreadSafeQueue.Empty())
+        {
+            // print log or break
+            #pragma region NAME
+            if (TestShared->UnAtoTestCounter < TestShared->CounterMax
+              || TestShared->bNeverStop)
+            {
+#pragma region PrintLog
+                const int32 TmpCounter = TestShared->UnAtoTestCounter;
+                if (TestShared->TestLogLevel == EQxTestLog::LogVerbose)// &&
+                    {
+                    UE_LOG(LearnCore, Warning, TEXT("ThreadName: {%s} TestCounter = %d"),
+                        *MyThreadName, TmpCounter);
+                    }
+                else if (
+                    TestShared->TestLogLevel == EQxTestLog::LogSparse 
+                    && (TmpCounter % PrintStep == ThreadIndex)
+                    )
+                {
+                    UE_LOG(LearnCore, Warning, TEXT("ThreadName: {%s} TestCounter = %d"),
+                        *MyThreadName, TmpCounter);
+                }
+#pragma endregion
+
+                ++TestShared->UnAtoTestCounter;
+            }
+            else
+            {
+                break;
+            }
+#pragma endregion
+       
+            GQxThreadSafeQueue.Push(true);
+            
+        }
+        else if (!bAsProducer && !GQxThreadSafeQueue.Empty())
+        {
+
+            // print log or break
+            #pragma region NAME
+            if (TestShared->UnAtoTestCounter < TestShared->CounterMax
+              || TestShared->bNeverStop)
+            {
+#pragma region PrintLog
+                const int32 TmpCounter = TestShared->UnAtoTestCounter;
+                if (TestShared->TestLogLevel == EQxTestLog::LogVerbose)// &&
+                    {
+                    UE_LOG(LearnCore, Warning, TEXT("ThreadName: {%s} TestCounter = %d"),
+                        *MyThreadName, TmpCounter);
+                    }
+                else if (
+                    TestShared->TestLogLevel == EQxTestLog::LogSparse 
+                    && (TmpCounter % PrintStep == ThreadIndex)
+                    )
+                {
+                    UE_LOG(LearnCore, Warning, TEXT("ThreadName: {%s} TestCounter = %d"),
+                        *MyThreadName, TmpCounter);
+                }
+#pragma endregion
+
+                ++TestShared->UnAtoTestCounter;
+            }
+            else
+            {
+                break;
+            }
+#pragma endregion
+
+            bool tmp = true;
+            GQxThreadSafeQueue.TryPop(tmp);
+        }
+    }
+}
+
+void FQxTestRunnable::InterleaveUpdate7()
+{
+    UE_LOG(LearnCore, Warning, TEXT("ThreadName Test method 7 "));
+    while (true)
+    {
+        // FScopeLock Lock(&FQxTestRunnable::CriticalSection);
+        if (bAsProducer && GTestTheadSafeQueue.IsEmpty())
+        {
+            // print log or break
+            #pragma region NAME
+            if (TestShared->UnAtoTestCounter < TestShared->CounterMax
+              || TestShared->bNeverStop)
+            {
+#pragma region PrintLog
+                const int32 TmpCounter = TestShared->UnAtoTestCounter;
+                if (TestShared->TestLogLevel == EQxTestLog::LogVerbose)// &&
+                    {
+                    UE_LOG(LearnCore, Warning, TEXT("ThreadName: {%s} TestCounter = %d"),
+                        *MyThreadName, TmpCounter);
+                    }
+                else if (
+                    TestShared->TestLogLevel == EQxTestLog::LogSparse 
+                    && (TmpCounter % PrintStep == ThreadIndex)
+                    )
+                {
+                    UE_LOG(LearnCore, Warning, TEXT("ThreadName: {%s} TestCounter = %d"),
+                        *MyThreadName, TmpCounter);
+                }
+#pragma endregion
+
+                ++TestShared->UnAtoTestCounter;
+            }
+            else
+            {
+                break;
+            }
+#pragma endregion
+       
+            GTestTheadSafeQueue.Enqueue(true);
+            
+        }
+        else if (!bAsProducer && !GTestTheadSafeQueue.IsEmpty())
+        {
+
+            // print log or break
+            #pragma region NAME
+            if (TestShared->UnAtoTestCounter < TestShared->CounterMax
+              || TestShared->bNeverStop)
+            {
+#pragma region PrintLog
+                const int32 TmpCounter = TestShared->UnAtoTestCounter;
+                if (TestShared->TestLogLevel == EQxTestLog::LogVerbose)// &&
+                    {
+                    UE_LOG(LearnCore, Warning, TEXT("ThreadName: {%s} TestCounter = %d"),
+                        *MyThreadName, TmpCounter);
+                    }
+                else if (
+                    TestShared->TestLogLevel == EQxTestLog::LogSparse 
+                    && (TmpCounter % PrintStep == ThreadIndex)
+                    )
+                {
+                    UE_LOG(LearnCore, Warning, TEXT("ThreadName: {%s} TestCounter = %d"),
+                        *MyThreadName, TmpCounter);
+                }
+#pragma endregion
+
+                ++TestShared->UnAtoTestCounter;
+            }
+            else
+            {
+                break;
+            }
+#pragma endregion
+       
+            GTestTheadSafeQueue.Pop();
+        }
+    }
 }

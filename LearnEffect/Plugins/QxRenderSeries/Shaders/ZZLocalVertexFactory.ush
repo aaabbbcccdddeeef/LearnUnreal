@@ -421,6 +421,51 @@ float3 GetInstanceOrigin(FVertexFactoryIntermediates Intermediates)
 
 #endif	// USE_INSTANCING
 
+// 基本就是UE4 BoxMask的翻译， 不考虑旋转,在box内是1,不在box内是0
+float QxBoxMask(float3 InputA, float3 InputB, 
+	float3 Extends, float FallOff)
+{
+	float3 a =  abs(InputA - InputB) - Extends;
+	a = max(0, a);
+	float offsetLength = length(a);
+	offsetLength /= FallOff;
+	offsetLength = saturate(offsetLength);
+	float res = 1 - offsetLength;
+	return res;
+}
+
+// 返回0-1之间，0表示在clipping volume内，1表示不在clipping volume内
+float ApplyClipping(float3 PositionWS)
+{
+	ZZClippingVolumeParam.ZZClipingVolumesSB[ZZClippingVolumeParam.ZZClippingVolumeNum];
+	float bClipped = 0;
+	uint NumClippingVolumes = ZZClippingVolumeParam.ZZClippingVolumeNum;
+	float multiBoxMask = 0;
+	for (uint i = 0; i < NumClippingVolumes; ++i)
+	{
+		// 这个矩阵的encoding 方式是这样的, ClippingMatrix[0].xyz是center，
+		// ClippingMatrix[1].xyz/ClippingMatrix[2].xyz/ClippingMatrix[3].xyz是旋转向量,ClippingMatrix[1/2/3].w表示extent
+		float4x4 ClippingMatrix = ZZClippingVolumeParam.ZZClipingVolumesSB[i];
+		float3 ClipCenter = ClippingMatrix[0].xyz;
+		// float3 PositionWS = TransformLocalToWorld(Position).xyz;
+		float3 DeltaPosition = PositionWS - ClipCenter;
+		// 将model space的position转换到clipping volume space
+		
+		float3 PositionClipVolumeSpace = float3(
+			dot(DeltaPosition, ClippingMatrix[1].xyz),
+			dot(DeltaPosition, ClippingMatrix[2].xyz),
+			dot(DeltaPosition, ClippingMatrix[3].xyz)
+			);
+
+		float3 Extent = float3(ClippingMatrix[1].w, ClippingMatrix[2].w, ClippingMatrix[2].w);
+		float MaskResult = QxBoxMask(PositionClipVolumeSpace, float3(0, 0, 0), Extent, 1);
+		multiBoxMask += MaskResult;
+	}
+	float ClipResult = 1- saturate(multiBoxMask);
+	return ClipResult;
+}
+
+
 /** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
 FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVSToPS Interpolants, float4 SvPosition)
 {
@@ -447,9 +492,11 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 
 	Result.VertexColor = GetColor(Interpolants);
 
+	
 	// float4x4 TestElement = ZZClipingVolumesSB[ZZClippingVolumeNum];
-	float4x4 TestElement =  ZZClippingVolumeParam.ZZClipingVolumesSB[ZZClippingVolumeParam.ZZClippingVolumeNum];
-	Result.VertexColor = TestElement[0];
+	// float4x4 TestElement =  ZZClippingVolumeParam.ZZClipingVolumesSB[ZZClippingVolumeParam.ZZClippingVolumeNum];
+	float ClippResult = ApplyClipping(Result.AbsoluteWorldPosition);
+	Result.VertexColor.a = ClippResult;
 
 	// Required for previewing materials that use ParticleColor
 	Result.Particle.Color = half4(1,1,1,1);

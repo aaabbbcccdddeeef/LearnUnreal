@@ -14,7 +14,8 @@ public:
         FString InThreadName,
         TPromise<float>&& InPromise,
         AQxTestRunnable* InTester,
-        FQxTestShared* InTestShared);
+        FQxTestShared* InTestShared,
+        bool InAsProducer);
 
     virtual bool Init() override;
     virtual uint32 Run() override;
@@ -45,8 +46,11 @@ private:
     // #TODO UE4 好像没有spin lock的实现，需要用其他方法
     void InterleaveUpdate5();
 
-    // 通过共享的线程安全的队列实现 #TODO
+    // 通过共享的线程安全的队列实现, 这里尝试用自定义的线程安全队列实现 #TODO
     void InterleaveUpdate6();
+
+    // 用UE4 自己的线程安全的队列实现
+    void InterleaveUpdate7();
 #pragma endregion
 public:
     const FString MyThreadName;
@@ -65,6 +69,8 @@ public:
     // 这个用来处理interleave相关
     int32 ThreadIndex;
 
+    // true producer, false consumer
+    const bool bAsProducer;
 private:
     FQxTestShared* TestShared;
 
@@ -85,6 +91,9 @@ public:
     // 只有这个需要更新，其他全部是const,即只有这个的访问需要保护
     TAtomic<int32> AtoTestCounter = 0;
 
+    // 非Ato的Counter
+    int32 UnAtoTestCounter = 0;
+    
     const int32 CounterMax;
 
     // const bool bPrintVerboseLog;
