@@ -42,6 +42,11 @@
 			"name": "QxClippedStaticMesh",
 			"type": "Runtime",
 			"loadingPhase": "PostConfigInit"
+		},
+		{
+			"name": "QxAccelerate",
+			"type": "Runtime",
+			"loadingPhase": "Default"
 		}
 	]
 }
