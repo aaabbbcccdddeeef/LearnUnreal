@@ -39,4 +39,13 @@ class QXACCELERATE_API UQxAccelerationBPLib : public UObject
     // 查找距离target point 较近的k get点
     UFUNCTION(BlueprintCallable, Category="QxSpacialDataStructure")
     static void SearchKNNPoint(FQxKdtree& Tree, const FVector& TargetPoint, int32 k, TArray<FVector>& OutPoints);
+
+    // UFUNCTION(BlueprintCallable, Category="QxSpacialDataStructure")
+    // static void BuildOctree(FQxOctree& OutTree);
+
+    UFUNCTION(BlueprintCallable, Category="QxSpacialDataStructure")
+    static void BuildTestOctree(FQxOctree& OutTree, const FVector& Origin, float Extent);
+
+    UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject") ,Category="QxSpacialDataStructure")
+    static void DrawQxOctree(const FQxOctree& InOctree, const UObject* WorldContextObject,FColor InColor,float InLifeTime, float InThickness);
 };

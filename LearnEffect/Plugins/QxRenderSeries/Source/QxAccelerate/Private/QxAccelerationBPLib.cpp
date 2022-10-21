@@ -3,6 +3,8 @@
 
 #include "QxAccelerationBPLib.h"
 
+#include "DrawDebugHelpers.h"
+
 void UQxAccelerationBPLib::BuildKdtree(FQxKdtree& Tree, const TArray<FVector> InPoints)
 {
     // ClearKdtree(Tree);
@@ -52,3 +54,34 @@ void UQxAccelerationBPLib::SearchKNNPoint(FQxKdtree& Tree, const FVector& Target
         OutPoints.Add(Tree.Points[Node->Index]);
     }
 }
+
+void UQxAccelerationBPLib::BuildTestOctree(FQxOctree& OutTree, const FVector& Origin, float Extent)
+{
+    OutTree = FQxOctree(Origin, Extent);
+}
+
+
+void UQxAccelerationBPLib::DrawQxOctree(const FQxOctree& InOctree,
+                                        const UObject* WorldContextObject,
+                                        FColor InColor,
+                                        float InLifeTime, float InThickness)
+{
+    InOctree.Octree.RootNode->TraverseNodeHierachy(
+        [=](TQxOctreeNode* InNode)
+        {
+            DrawDebugBox(
+                WorldContextObject->GetWorld(),
+                FVector(InNode->Bounds.Center),
+                FVector(InNode->Extent),
+                InColor,
+                false,
+                InLifeTime,
+                0,
+                InThickness
+                );
+        }
+        );
+}
+
+
+

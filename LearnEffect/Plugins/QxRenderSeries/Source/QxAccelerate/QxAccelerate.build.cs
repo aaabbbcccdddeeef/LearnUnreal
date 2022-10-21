@@ -9,5 +9,7 @@ public class QxAccelerate : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine"});
  
 		PrivateIncludePaths.AddRange(new string[] {"QxAccelerate/Private"});
+
+		CppStandard = CppStandardVersion.Cpp17;
 	}
 }

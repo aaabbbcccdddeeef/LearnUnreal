@@ -1,5 +1,6 @@
 ﻿#include "QxAccelerationTypes.h"
 
+#include "DrawDebugHelpers.h"
 #include "QxAccelerate.h"
 
 void FQxKdtree::BuildKdtree(const TArray<FVector>& InPoints)
@@ -172,5 +173,6 @@ void FQxKdtree::SearchNearestNode(const FVector& TargetPoint, FQxKdtreeNode* InN
             MinDist);
     }
 }
+
 
 
