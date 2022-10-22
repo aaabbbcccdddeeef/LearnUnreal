@@ -4,6 +4,7 @@
 #include "QxAccelerationBPLib.h"
 
 #include "DrawDebugHelpers.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 void UQxAccelerationBPLib::BuildKdtree(FQxKdtree& Tree, const TArray<FVector> InPoints)
 {
@@ -60,25 +61,34 @@ void UQxAccelerationBPLib::BuildTestOctree(FQxOctree& OutTree, const FVector& Or
     OutTree = FQxOctree(Origin, Extent);
 }
 
+FQxOctree UQxAccelerationBPLib::BuiltTestOctree2(const FVector& Origin, float Extent, float InLooseness)
+{
+    return FQxOctree(Origin, Extent, InLooseness);
+}
+
+void UQxAccelerationBPLib::AddElement(FQxOctree& InOctree, UObject* InElement, const FBoxSphereBounds& InBounds)
+{
+    FBoxCenterAndExtent Bounds(InBounds.Origin, InBounds.BoxExtent);
+    InOctree.AddElement(InElement, Bounds);
+}
+
 
 void UQxAccelerationBPLib::DrawQxOctree(const FQxOctree& InOctree,
                                         const UObject* WorldContextObject,
-                                        FColor InColor,
+                                        FLinearColor InColor,
                                         float InLifeTime, float InThickness)
 {
     InOctree.Octree.RootNode->TraverseNodeHierachy(
         [=](TQxOctreeNode* InNode)
         {
-            DrawDebugBox(
-                WorldContextObject->GetWorld(),
+            UKismetSystemLibrary::DrawDebugBox(
+                WorldContextObject,
                 FVector(InNode->Bounds.Center),
-                FVector(InNode->Extent),
+                FVector(InNode->Extent * InNode->Looseness),
                 InColor,
-                false,
+                FRotator::ZeroRotator,
                 InLifeTime,
-                0,
-                InThickness
-                );
+                InThickness);
         }
         );
 }

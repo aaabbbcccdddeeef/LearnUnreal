@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "QxAccelerationTypes.h"
+#include "QxOctree.h"
 #include "UObject/Object.h"
 #include "QxAccelerationBPLib.generated.h"
 
@@ -46,6 +47,12 @@ class QXACCELERATE_API UQxAccelerationBPLib : public UObject
     UFUNCTION(BlueprintCallable, Category="QxSpacialDataStructure")
     static void BuildTestOctree(FQxOctree& OutTree, const FVector& Origin, float Extent);
 
+    UFUNCTION(BlueprintCallable, Category="QxSpacialDataStructure")
+    static  FQxOctree BuiltTestOctree2(const FVector& Origin, float Extent, float InLooseness = 1.f);
+
+    UFUNCTION(BlueprintCallable, Category="QxOctree")
+    void AddElement(FQxOctree& InOctree,  UObject* InElement, const FBoxSphereBounds& Bounds);
+
     UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject") ,Category="QxSpacialDataStructure")
-    static void DrawQxOctree(const FQxOctree& InOctree, const UObject* WorldContextObject,FColor InColor,float InLifeTime, float InThickness);
+    static void DrawQxOctree(const FQxOctree& InOctree, const UObject* WorldContextObject,FLinearColor InColor,float InLifeTime, float InThickness);
 };
