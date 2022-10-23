@@ -3,6 +3,8 @@
 
 #include "QxAccelerationBPLib.h"
 
+#include <stdexcept>
+
 #include "DrawDebugHelpers.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -66,11 +68,12 @@ FQxOctree UQxAccelerationBPLib::BuiltTestOctree2(const FVector& Origin, float Ex
     return FQxOctree(Origin, Extent, InLooseness);
 }
 
-void UQxAccelerationBPLib::AddElement(FQxOctree& InOctree, UObject* InElement, const FBoxSphereBounds& InBounds)
+void UQxAccelerationBPLib::AddOctreeElement(FQxOctree& InOctree, UObject* InElement, const FBoxSphereBounds& InBounds)
 {
     FBoxCenterAndExtent Bounds(InBounds.Origin, InBounds.BoxExtent);
     InOctree.AddElement(InElement, Bounds);
 }
+
 
 
 void UQxAccelerationBPLib::DrawQxOctree(const FQxOctree& InOctree,
@@ -92,6 +95,17 @@ void UQxAccelerationBPLib::DrawQxOctree(const FQxOctree& InOctree,
         }
         );
 }
+
+void UQxAccelerationBPLib::OctreeHighlightCollidings(FQxOctree& InOctree, const FVector& Start, const FVector& End)
+{
+    TArray<UObject*> Collidings;
+    InOctree.GetCollidings(Start, End, Collidings);
+    for (auto Colliding : Collidings)
+    {
+        
+    }
+}
+
 
 
 

@@ -51,8 +51,11 @@ class QXACCELERATE_API UQxAccelerationBPLib : public UObject
     static  FQxOctree BuiltTestOctree2(const FVector& Origin, float Extent, float InLooseness = 1.f);
 
     UFUNCTION(BlueprintCallable, Category="QxOctree")
-    void AddElement(FQxOctree& InOctree,  UObject* InElement, const FBoxSphereBounds& Bounds);
+    static void AddOctreeElement(FQxOctree& InOctree,  UObject* InElement, const FBoxSphereBounds& Bounds);
 
     UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject") ,Category="QxSpacialDataStructure")
     static void DrawQxOctree(const FQxOctree& InOctree, const UObject* WorldContextObject,FLinearColor InColor,float InLifeTime, float InThickness);
+
+    UFUNCTION(BlueprintCallable, Category="QxOctree")
+    static void OctreeHighlightCollidings(FQxOctree& InOctree,const FVector& Start, const FVector& End);
 };

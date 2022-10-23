@@ -291,6 +291,95 @@ public:
         return bAddResult;
     }
 
+    void GetWithInFrustum(const FConvexVolume& InFrustum, TArray<UObject*>& OutElements)
+    {
+        if (InFrustum.IntersectBox(Bounds.Center, Bounds.Extent))
+        {
+            return;
+        }
+
+        for (OctreeObject& Element : Elements)
+        {
+            if (InFrustum.IntersectBox(Element.ObjBounds.Center, Element.ObjBounds.Extent))
+            {
+                OutElements.Add(Element.Object);
+            }
+        }
+
+        for (auto Child : Children)
+        {
+            Child->GetWithInFrustum(InFrustum, OutElements);
+        }
+    }
+
+    bool IsColliding(const FBoxCenterAndExtent& CheckBounds)
+    {
+        if (!Bounds.GetBox().Intersect(CheckBounds.GetBox()))
+        {
+            return false;
+        }
+
+        for (OctreeObject& Element : Elements)
+        {
+            if (Element.ObjBounds.GetBox().Intersect(CheckBounds.GetBox()))
+            {
+                return true;
+            }
+        }
+
+        for (auto Child : Children)
+        {
+            if (Child->IsColliding(CheckBounds))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void GetCollidings(const FBoxCenterAndExtent& CheckBounds, TArray<UObject*> Result)
+    {
+        if (!Bounds.GetBox().Intersect(CheckBounds.GetBox()))
+        {
+            return;
+        }
+
+        for (OctreeObject& Element : Elements)
+        {
+            if (Element.ObjBounds.GetBox().Intersect(CheckBounds.GetBox()))
+            {
+                Result.Add(Element.Object);
+            }
+        }
+
+        for (auto Child : Children)
+        {
+            Child->GetCollidings(CheckBounds, Result);
+        }
+    }
+
+    void GetCollidings(const FVector& Start, const FVector& End,  TArray<UObject*>& OutResult)
+    {
+        if (!FMath::LineBoxIntersection(Bounds.GetBox(), Start, End, End - Start))
+        {
+            return;
+        }
+
+        for (OctreeObject& Element : Elements)
+        {
+            if (FMath::LineBoxIntersection(Element.ObjBounds.GetBox(), Start, End, End - Start))
+            {
+                OutResult.Add(Element.Object);
+            }
+        }
+
+        for (auto Child : Children)
+        {
+            Child->GetCollidings(Start, End, OutResult);
+        }
+    }
+
+
     // 8个child，这里或许有更好的数据结构选择
     // 这个8个child按照其中心和当前node的中心的关系，encode成1维的index, 算法参照FindBestFitChild
     TArray<TSharedPtr<TQxOctreeNode>, TInlineAllocator<8>> Children;
@@ -394,10 +483,10 @@ private:
 
 // template<typename  T>
 // #TODO 把element 类型换成模板类型
-class FTQxOctree
+class TQxOctree
 {
 public:
-    FTQxOctree(const FVector& InOrigin, float InExtent, float InLooseness = 1.f)
+    TQxOctree(const FVector& InOrigin, float InExtent, float InLooseness = 1.f)
     {
         RootNode = MakeShared<TQxOctreeNode>(nullptr, InOrigin, InExtent, InLooseness);
     }
@@ -455,7 +544,31 @@ public:
             }
         }
     }
-    
+
+
+    TArray<UObject*> GetWithinFrustum(const FConvexVolume& InFrustum)
+    {
+        TArray<UObject*> Result;
+        RootNode->GetWithInFrustum(InFrustum, Result);
+        return MoveTemp(Result);
+    }
+
+    bool IsColliding(const FBoxCenterAndExtent& CheckBounds)
+    {
+        return RootNode->IsColliding(CheckBounds);
+    }
+
+    void GetCollidings(const FBoxCenterAndExtent& CheckBounds, TArray<UObject*> OutResult)
+    {
+        RootNode->GetCollidings(CheckBounds, OutResult);
+    }
+
+    void GetCollidings(const FVector& Start,const FVector& End, TArray<UObject*> OutResult)
+    {
+        RootNode->GetCollidings(Start, End, OutResult);
+    }
+
+
     // 当前octree 内物体的总数量
     int32 ElementCount;
 
@@ -488,10 +601,30 @@ public:
         
     }
 
+    TArray<UObject*> GetWithinFrustum(const FConvexVolume& InFrustum)
+    {
+        return  Octree.GetWithinFrustum(InFrustum);
+    }
+
+    bool IsColliding(const FBoxCenterAndExtent& CheckBounds)
+    {
+        return Octree.IsColliding(CheckBounds);
+    }
+
+    void GetCollidings(const FBoxCenterAndExtent& CheckBounds, TArray<UObject*> OutResult)
+    {
+        Octree.GetCollidings(CheckBounds, OutResult);
+    }
+
+    void GetCollidings(const FVector& Start,const FVector& End, TArray<UObject*> OutResult)
+    {
+        Octree.GetCollidings(Start, End, OutResult);
+    }
+
     void AddElement(UObject* InElement, const FBoxCenterAndExtent& InBounds)
     {
         Octree.AddElement(InElement, InBounds);
     }
 
-    FTQxOctree Octree;
+    TQxOctree Octree;
 };
