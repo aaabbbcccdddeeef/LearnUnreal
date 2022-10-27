@@ -164,7 +164,7 @@ public:
     // 划分node 的最小extent
     static constexpr float NodeMinExtent =  50.f;
     // 每个节点允许添加的最大数量的objects，inclusive，包括16个
-    static constexpr int32 MaxObjNum = 16;
+    static constexpr int32 MaxObjNum = 8;
 
     TQxOctreeNode(const TQxOctreeNode* InParent,
         const FVector& Origin,
@@ -249,27 +249,16 @@ public:
         }
     }
 
-    bool HasAnyObjects()
-    {
-        if (Elements.Num() > 0)
-        {
-            return true;
-        }
-        for (auto Child : Children)
-        {
-            if (Child->HasAnyObjects())
-            {
-                return true;
-            }
-        }
-        return false;
-    }
+    bool HasAnyObjects();
 
     int32 FindBestFitChild(const FVector4& ObjCenter)
     {
-        return (ObjCenter.X <= Bounds.Center.X ? 0 : 2) +
-            (ObjCenter.Y <= Bounds.Center.Y ? 0 : 1) +
-                (ObjCenter.Z <= Bounds.Center.Z ? 0 : 4);
+        // return (ObjCenter.X <= Bounds.Center.X ? 0 : 2) +
+        //     (ObjCenter.Y <= Bounds.Center.Y ? 0 : 1) +
+        //         (ObjCenter.Z <= Bounds.Center.Z ? 0 : 4);
+
+        FVector Center = Bounds.Center;
+        return (ObjCenter.X <= Center.X ? 0 : 1) + (ObjCenter.Y >= Center.Y ? 0 : 4) + (ObjCenter.Z <= Center.Z ? 0 : 2);
     }
 
 
@@ -279,105 +268,15 @@ public:
      * @param InBounds 
      * @return 输入物体的bounds在当前节点内才添加
      */
-    bool Add(UObject* InElement, const FBoxCenterAndExtent& InBounds)
-    {
-        bool bAddResult = false;
-        if (InBounds.GetBox().IsInside(Bounds.GetBox()))
-        {
-            SubAdd(InElement, InBounds);
-            
-            bAddResult = true;
-        }
-        return bAddResult;
-    }
+    bool Add(UObject* InElement, const FBoxCenterAndExtent& InBounds);
 
-    void GetWithInFrustum(const FConvexVolume& InFrustum, TArray<UObject*>& OutElements)
-    {
-        if (InFrustum.IntersectBox(Bounds.Center, Bounds.Extent))
-        {
-            return;
-        }
+    void GetWithInFrustum(const FConvexVolume& InFrustum, TArray<UObject*>& OutElements);
 
-        for (OctreeObject& Element : Elements)
-        {
-            if (InFrustum.IntersectBox(Element.ObjBounds.Center, Element.ObjBounds.Extent))
-            {
-                OutElements.Add(Element.Object);
-            }
-        }
+    bool IsColliding(const FBoxCenterAndExtent& CheckBounds);
 
-        for (auto Child : Children)
-        {
-            Child->GetWithInFrustum(InFrustum, OutElements);
-        }
-    }
+    void GetCollidings(const FBoxCenterAndExtent& CheckBounds, TArray<UObject*>& Result);
 
-    bool IsColliding(const FBoxCenterAndExtent& CheckBounds)
-    {
-        if (!Bounds.GetBox().Intersect(CheckBounds.GetBox()))
-        {
-            return false;
-        }
-
-        for (OctreeObject& Element : Elements)
-        {
-            if (Element.ObjBounds.GetBox().Intersect(CheckBounds.GetBox()))
-            {
-                return true;
-            }
-        }
-
-        for (auto Child : Children)
-        {
-            if (Child->IsColliding(CheckBounds))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    void GetCollidings(const FBoxCenterAndExtent& CheckBounds, TArray<UObject*> Result)
-    {
-        if (!Bounds.GetBox().Intersect(CheckBounds.GetBox()))
-        {
-            return;
-        }
-
-        for (OctreeObject& Element : Elements)
-        {
-            if (Element.ObjBounds.GetBox().Intersect(CheckBounds.GetBox()))
-            {
-                Result.Add(Element.Object);
-            }
-        }
-
-        for (auto Child : Children)
-        {
-            Child->GetCollidings(CheckBounds, Result);
-        }
-    }
-
-    void GetCollidings(const FVector& Start, const FVector& End,  TArray<UObject*>& OutResult)
-    {
-        if (!FMath::LineBoxIntersection(Bounds.GetBox(), Start, End, End - Start))
-        {
-            return;
-        }
-
-        for (OctreeObject& Element : Elements)
-        {
-            if (FMath::LineBoxIntersection(Element.ObjBounds.GetBox(), Start, End, End - Start))
-            {
-                OutResult.Add(Element.Object);
-            }
-        }
-
-        for (auto Child : Children)
-        {
-            Child->GetCollidings(Start, End, OutResult);
-        }
-    }
+    void GetCollidings(const FVector& Start, const FVector& End,  TArray<UObject*>& OutResult);
 
 
     // 8个child，这里或许有更好的数据结构选择
@@ -417,7 +316,17 @@ public:
     // 当前节点的松散度，默认的非松散的八叉树是1.0， 非松散的大于1.0小于2.0
     float Looseness;
 
+    void SetSelected(bool InIsSelected)
+    {
+        bIsSelected = InIsSelected;
+    }
+
+    bool IsSelected()
+    {
+        return bIsSelected;
+    }
 private:
+    bool bIsSelected = false;
     // 当前节点是不是最深的，
     bool IsSplitable()
     {
@@ -430,7 +339,7 @@ private:
     // 超过允许的最大数量时，分裂8个子节点
     void SubAdd(UObject* InElement, const FBoxCenterAndExtent& InBounds)
     {
-        if (Children.Num() <= 0 || !IsSplitable())
+        if (!IsSplitable() || Elements.Num() < MaxObjNum)
         {
             Elements.Add(OctreeObject{InElement, InBounds});
             return;
@@ -462,7 +371,8 @@ private:
 
     inline  bool Encapsulates(const FBoxCenterAndExtent& Outer, const FBoxCenterAndExtent& Inner)
     {
-        return Inner.GetBox().IsInside(Outer.GetBox());
+        // return Inner.GetBox().IsInside(Outer.GetBox());
+        return Outer.GetBox().IsInside(Inner.GetBox());
     }
 
     void DistributeObjectsToChildren()
@@ -486,26 +396,26 @@ private:
 class TQxOctree
 {
 public:
+    TQxOctree()
+        : TQxOctree(FVector::ZeroVector, 10, 1.f)
+    {
+    }
+    
     TQxOctree(const FVector& InOrigin, float InExtent, float InLooseness = 1.f)
     {
         RootNode = MakeShared<TQxOctreeNode>(nullptr, InOrigin, InExtent, InLooseness);
     }
 
-    void AddElement(UObject* InElement, const FBoxCenterAndExtent& Bounds)
+    TQxOctree(const TQxOctree& OtherOctree)
     {
-        int GrowCount = 0;
-        while (!RootNode->Add(InElement, Bounds))
-        {
-            Grow(Bounds.Center - RootNode->Bounds.Center);
-            GrowCount++;
-            if (GrowCount > 20)
-            {
-                UE_LOG(QxAccelerate, Error, TEXT("Abort add operation  because it try to grow bounds more than 20 times"));
-                return;
-            }
-            ElementCount++;
-        }
+        RootNode.Reset();
+        RootNode = MakeShared<TQxOctreeNode>(nullptr,
+            OtherOctree.RootNode->Bounds.Center,
+            OtherOctree.RootNode->Extent,
+            OtherOctree.Looseness);
     }
+
+    void AddElement(UObject* InElement, const FBoxCenterAndExtent& Bounds);
 
     // 使当前八叉树沿growDirection增长到2倍
     void Grow(FVector GrowDirection)
@@ -558,16 +468,25 @@ public:
         return RootNode->IsColliding(CheckBounds);
     }
 
-    void GetCollidings(const FBoxCenterAndExtent& CheckBounds, TArray<UObject*> OutResult)
+    void GetCollidings(const FBoxCenterAndExtent& CheckBounds, TArray<UObject*>& OutResult)
     {
         RootNode->GetCollidings(CheckBounds, OutResult);
     }
 
-    void GetCollidings(const FVector& Start,const FVector& End, TArray<UObject*> OutResult)
+    void GetCollidings(const FVector& Start,const FVector& End, TArray<UObject*>& OutResult)
     {
         RootNode->GetCollidings(Start, End, OutResult);
     }
 
+    void ClearSelectedState()
+    {
+        RootNode->TraverseNodeHierachy(
+            [](TQxOctreeNode* InNode)
+            {
+                InNode->SetSelected(false);
+            }
+            );
+    }
 
     // 当前octree 内物体的总数量
     int32 ElementCount;
@@ -584,47 +503,92 @@ public:
     // }
 };
 
-
-USTRUCT(BlueprintType)
-struct FQxOctree
+UCLASS(BlueprintType)
+class UQxOctree : public UObject
 {
     GENERATED_BODY()
 public:
-    FQxOctree(FVector Origin, float Extent, float InLooseness = 1.f)
-        : Octree(Origin, Extent, InLooseness)
-    {
-        
-    }
-    FQxOctree()
-        : FQxOctree(FVector::ZeroVector, 100)
-    {
-        
-    }
+    // UQxOctree(FVector Origin, float Extent, float InLooseness = 1.f)
+    //     : Octree(Origin, Extent, InLooseness)
+    // {
+    //     
+    // }
+    // UQxOctree()
+    //     : UQxOctree(FVector::ZeroVector, 100)
+    // {
+    //     
+    // }
 
-    TArray<UObject*> GetWithinFrustum(const FConvexVolume& InFrustum)
+    void Init(FVector Origin, float Extent, float InLooseness = 1.f)
     {
+        Octree = TQxOctree(Origin, Extent, InLooseness);
+        bIsInitialized = true;
+    }
+    
+    //
+    // UFUNCTION(BlueprintCallable, Category="QxOctree")
+    // TArray<UObject*> GetWithinFrustum(const FConvexVolume& InFrustum)
+    // {
+    //     return  Octree.GetWithinFrustum(InFrustum);
+    // }
+
+    UFUNCTION(BlueprintCallable, Category="QxOctree")
+    TArray<UObject*> GetWithinFrustum(const TArray<FPlane>& InFrustumPlanes)
+    {
+        FConvexVolume InFrustum =  FConvexVolume(TArray<FPlane, TInlineAllocator<6>>(InFrustumPlanes));
         return  Octree.GetWithinFrustum(InFrustum);
     }
 
-    bool IsColliding(const FBoxCenterAndExtent& CheckBounds)
+    UFUNCTION(BlueprintCallable, Category="QxOctree")
+    bool IsColliding(const FBoxSphereBounds& CheckBounds)
     {
-        return Octree.IsColliding(CheckBounds);
+        return Octree.IsColliding(FBoxCenterAndExtent(CheckBounds.Origin, CheckBounds.BoxExtent));
     }
 
-    void GetCollidings(const FBoxCenterAndExtent& CheckBounds, TArray<UObject*> OutResult)
+    UFUNCTION(BlueprintCallable, Category="QxOctree")
+    void GetCollidings(const FBoxSphereBounds& CheckBounds, TArray<UObject*>& OutResult)
     {
-        Octree.GetCollidings(CheckBounds, OutResult);
+        Octree.GetCollidings(FBoxCenterAndExtent(CheckBounds.Origin, CheckBounds.BoxExtent), OutResult);
     }
 
-    void GetCollidings(const FVector& Start,const FVector& End, TArray<UObject*> OutResult)
+    UFUNCTION(BlueprintCallable, Category="QxOctree")
+    void GetVectorCollidings(const FVector& Start,const FVector& End, TArray<UObject*>& OutResult)
     {
         Octree.GetCollidings(Start, End, OutResult);
     }
 
-    void AddElement(UObject* InElement, const FBoxCenterAndExtent& InBounds)
+    UFUNCTION(BlueprintCallable, Category="QxOctree")
+    void AddElement(UObject* InElement, const FBoxSphereBounds& InBounds)
     {
-        Octree.AddElement(InElement, InBounds);
+        check(bIsInitialized);
+        Octree.AddElement(InElement, FBoxCenterAndExtent(InBounds.Origin, InBounds.BoxExtent));
     }
 
+    UFUNCTION(BlueprintPure, Category="QxOctree")
+    FVector GetCenter() const
+    {
+        return Octree.RootNode->Bounds.Center;
+    }
+
+    // 这里假设我们用x/y/z相等的extent
+    UFUNCTION(BlueprintPure, Category="QxOctree")
+    float GetExtent() const
+    {
+        return Octree.RootNode->Extent;
+    }
+
+    UFUNCTION(BlueprintCallable, Category="QxOctree")
+    void ClearSelected()
+    {
+        Octree.ClearSelectedState();
+    }
+
+#pragma region Test
+    
+    
+#pragma endregion
+
     TQxOctree Octree;
+private:
+    bool bIsInitialized = false;
 };

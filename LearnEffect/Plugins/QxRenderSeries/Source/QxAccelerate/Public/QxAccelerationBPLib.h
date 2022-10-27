@@ -45,17 +45,29 @@ class QXACCELERATE_API UQxAccelerationBPLib : public UObject
     // static void BuildOctree(FQxOctree& OutTree);
 
     UFUNCTION(BlueprintCallable, Category="QxSpacialDataStructure")
-    static void BuildTestOctree(FQxOctree& OutTree, const FVector& Origin, float Extent);
+    static UQxOctree*  BuildTestOctree(const FVector& Origin, float Extent);
 
     UFUNCTION(BlueprintCallable, Category="QxSpacialDataStructure")
-    static  FQxOctree BuiltTestOctree2(const FVector& Origin, float Extent, float InLooseness = 1.f);
+    static  UQxOctree* BuiltTestOctree2(const FVector& Origin, float Extent, float InLooseness = 1.f);
 
     UFUNCTION(BlueprintCallable, Category="QxOctree")
-    static void AddOctreeElement(FQxOctree& InOctree,  UObject* InElement, const FBoxSphereBounds& Bounds);
+    static void AddOctreeElement(UQxOctree* InOctree,  UObject* InElement, const FBoxSphereBounds& Bounds);
 
     UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject") ,Category="QxSpacialDataStructure")
-    static void DrawQxOctree(const FQxOctree& InOctree, const UObject* WorldContextObject,FLinearColor InColor,float InLifeTime, float InThickness);
+    static void DrawQxOctree(const UQxOctree* InOctree, const UObject* WorldContextObject,FLinearColor InColor,float InLifeTime, float InThickness);
+
+    UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject") ,Category="QxSpacialDataStructure")
+    static void GetCameraFrustumPlanes(const UObject* WorldContextObject, TArray<FPlane>& OutPlanes);
+    
+    UFUNCTION(BlueprintCallable, Category="QxOctree", meta=(WorldContext="WorldContextObject"))
+    static TArray<UObject*> TestCameraFrustumIntersect(const UObject* WorldContextObject, UQxOctree* InOctree);
+
+    UFUNCTION(BlueprintCallable, Category="QxOctree", meta=(WorldContext="WorldContextObject"))
+    static TArray<UObject*> TestCameraFrustumIntersect2(const UObject* WorldContextObject, UQxOctree* InOctree, const TArray<FPlane>& InFrustumPlanes);
 
     UFUNCTION(BlueprintCallable, Category="QxOctree")
-    static void OctreeHighlightCollidings(FQxOctree& InOctree,const FVector& Start, const FVector& End);
+    static float GetNearClipPlane();
+
+    UFUNCTION(BlueprintCallable, Category="QxOctree")
+    static FMinimalViewInfo GetCurViewInfo(APlayerCameraManager* InCameraManager);
 };
