@@ -494,8 +494,11 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 
 	
 	// float4x4 TestElement = ZZClipingVolumesSB[ZZClippingVolumeNum];
-	// float4x4 TestElement =  ZZClippingVolumeParam.ZZClipingVolumesSB[ZZClippingVolumeParam.ZZClippingVolumeNum];
+	float4x4 TestElement =  ZZClippingVolumeParam.ZZClipingVolumesSB[ZZClippingVolumeParam.ZZClippingVolumeNum];
 	float ClippResult = ApplyClipping(Result.AbsoluteWorldPosition);
+	float3 ClipCenter = TestElement[0].xyz;
+
+	Result.VertexColor.rgb = ClipCenter;
 	Result.VertexColor.a = ClippResult;
 
 	// Required for previewing materials that use ParticleColor

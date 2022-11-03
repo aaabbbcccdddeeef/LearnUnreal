@@ -5,7 +5,7 @@ float TestFunc(float InTest)
 }
 
 // 基本就是UE4 BoxMask的翻译， 不考虑旋转
-float QxBoxMask(float3 InputA, float3 InputB, 
+float ZZBoxMask(float3 InputA, float3 InputB, 
     float3 Extends, float FallOff)
 {
     float3 a =  abs(InputA - InputB) - Extends;
@@ -53,8 +53,18 @@ float QxBoxMaskWithRotation(
     float3 reletivePosition = InWorldPostion - InBoxOccluderCenter;
     float3 localPosition = QxInverseTransformWithXY(reletivePosition, InBoxOccluderBasisX, InBoxOccluderBasisY);
 
-    float maskRes = QxBoxMask(localPosition, float3(0, 0, 0), InBoxOccluderExtent, 1);
+    float maskRes = ZZBoxMask(localPosition, float3(0, 0, 0), InBoxOccluderExtent, 1);
     return maskRes;
+}
+
+// void Unity_SphereMask_float4(float4 Coords, float4 Center, float Radius, float Hardness, out float4 Out)
+// {
+//     Out = 1 - saturate((distance(Coords, Center) - Radius) / (1 - Hardness));
+// }
+
+float QxSphereMask(float3 InWorldPosition, float3 SphereCenter, float Radius, float Hardness)
+{
+    return 1 - saturate((distance(InWorldPosition, SphereCenter) - Radius) / (1 - Hardness));;
 }
 
 float2 GetInvTexSize(Texture2D SceneTex)

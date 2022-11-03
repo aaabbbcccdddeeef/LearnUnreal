@@ -93,6 +93,14 @@ uint32 FZZClipperRenderResource::GetCapcity() const
     return Capcity;
 }
 
+void FZZClipperRenderResource::UpdateClipVolumeUniforms()
+{
+    FZZClippingVolumeParameters ZZClippingVolumeParameters;
+    ZZClippingVolumeParameters.ZZClippingVolumeNum = ClippingVolumesNum;
+    ZZClippingVolumeParameters.ZZClipingVolumesSB = ClippingVolumesSRV;
+    CachedZZClipVolumeParams.UpdateUniformBufferImmediate(ZZClippingVolumeParameters);
+}
+
 void FZZCliperRenderData::UpdateRenderData_RenderThread(
     FRHICommandListImmediate& RHICmdList,
     UZZClipperSubsystem* InZzClipperSubsystem,
@@ -131,6 +139,8 @@ void FZZCliperRenderData::UpdateRenderData_RenderThread(
         FMemory::Memcpy(DataPtr, ClippingVolumes.GetData(), UpdateSize);
         RHIUnlockStructuredBuffer(ZZClipperRenderResource->ClippingVolumesSB);
     }
+   
+    ZZClipperRenderResource->UpdateClipVolumeUniforms();
 }
 
 
@@ -200,16 +210,16 @@ void UZZClipperSubsystem::OnLevelChanged()
 {
     ZZClippingVolumes.Reset();
     UWorld* World = GetWorld();
-    for (TActorIterator<AZZClippingVolume> It(World); It; ++It)
+    for (TActorIterator<AZZClippingVolume2> It(World); It; ++It)
     {
-        AZZClippingVolume* ClipVolume = *It;
+        AZZClippingVolume2* ClipVolume = *It;
         if (ClipVolume)
         {
             ZZClippingVolumes.Add(ClipVolume);
         }
     }
 
-    TArray<AZZClippingVolume*>* ZZClippingVolumesPtr = &ZZClippingVolumes;
+    TArray<AZZClippingVolume2*>* ZZClippingVolumesPtr = &ZZClippingVolumes;
 
     int32 Test = 54;
     int32& Test2 = Test;
@@ -295,9 +305,9 @@ TArray<FMatrix> UZZClipperSubsystem::CollectClippingVolumes() const
 {
     TArray<FMatrix> ClippVolumeInfos;
     UWorld* World = GetWorld();
-    for (TActorIterator<AZZClippingVolume> It(World); It; ++It)
+    for (TActorIterator<AZZClippingVolume2> It(World); It; ++It)
     {
-        AZZClippingVolume* ClippingVolume = *It;
+        AZZClippingVolume2* ClippingVolume = *It;
         if (ClippingVolume->bEnabled)
         {
             const FVector Extent = ClippingVolume->GetActorScale3D() * 100;

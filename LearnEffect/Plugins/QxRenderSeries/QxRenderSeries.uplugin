@@ -47,6 +47,16 @@
 			"name": "QxAccelerate",
 			"type": "Runtime",
 			"loadingPhase": "Default"
+		},
+		{
+			"name": "QxShaderReader",
+			"type": "Runtime",
+			"loadingPhase": "PostEngineInit"
+		},
+		{
+			"name": "ZZMultiClipper",
+			"type": "Runtime",
+			"loadingPhase": "Default"
 		}
 	]
 }

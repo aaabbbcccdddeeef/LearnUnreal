@@ -14,7 +14,7 @@
 #include "ZZClipperManager.generated.h"
 
 class UZZClipperSubsystem;
-class AZZClippingVolume;
+class AZZClippingVolume2;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FZZClippingVolumeParameters,)
     SHADER_PARAMETER(uint32, ZZClippingVolumeNum)
@@ -39,6 +39,7 @@ public:
     void Resize(uint32 RequestedCapcity);
 
     uint32 GetCapcity() const;
+    void UpdateClipVolumeUniforms();
 
 public:
     FStructuredBufferRHIRef ClippingVolumesSB;
@@ -157,7 +158,7 @@ protected:
 
 private:
     UPROPERTY()
-    TArray<AZZClippingVolume*> ZZClippingVolumes;
+    TArray<AZZClippingVolume2*> ZZClippingVolumes;
 
     
     bool bIsClippingVolumesDirty = true;

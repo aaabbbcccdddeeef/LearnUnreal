@@ -1,1 +1,1 @@
-"E:\DevTools\UE_5.0\Engine\Binaries\Win64\UnrealEditor.exe" "E:\WS\UE5WS\TestUE5\TestUE5.uproject" -dx12 -trace=memory
+"C:\Program Files\Epic Games\UE_4.27\Engine\Binaries\Win64\UE4Editor.exe" "C:\WS\UE4WorkWS\LearnUnreal\LearnEffect\LearnEffect.uproject" -dx12 -trace=gpu,cpu

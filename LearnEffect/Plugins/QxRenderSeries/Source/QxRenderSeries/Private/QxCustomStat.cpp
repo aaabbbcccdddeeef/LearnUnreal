@@ -35,11 +35,27 @@ void AQxCustomStat::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	SCOPE_CYCLE_COUNTER(STAT_MyTIME);
-	for (int i = 0; i < 100000; i++)
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("QxCustomStatTick")
+	FakeTimeConsumingFunc( TickMaxCounter);
+
+}
+
+void AQxCustomStat::TestQuickState()
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_TestQuickState);
+	FakeTimeConsumingFunc( TestQuickStateMaxCounter);
+}
+
+void AQxCustomStat::FakeTimeConsumingFunc(int32 MaxCounter)
+{
+	for (int i = 0; i < MaxCounter; i++)
 	{
 		int a = 1 + i;
 	}
-	
 
+	// Async()
+	// AsyncTask()
+	// AsyncThread()
+	// AsyncPool()
 }
 

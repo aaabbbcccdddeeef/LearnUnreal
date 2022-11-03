@@ -6,7 +6,7 @@
 #include "ZZClipperManager.h"
 #include "Components/BrushComponent.h"
 
-AZZClippingVolume::AZZClippingVolume()
+AZZClippingVolume2::AZZClippingVolume2()
     : bEnabled(true)
     , Mode(EZZClippingVolumeMode::ClipInside)
     , Priority(0)
@@ -22,18 +22,18 @@ AZZClippingVolume::AZZClippingVolume()
     SetActorScale3D(FVector(50));
 }
 
-void AZZClippingVolume::PostRegisterAllComponents()
+void AZZClippingVolume2::PostRegisterAllComponents()
 {
     Super::PostInitializeComponents();
 
-    GetRootComponent()->TransformUpdated.AddUObject(this, &AZZClippingVolume::OnTransformUpdated);
+    GetRootComponent()->TransformUpdated.AddUObject(this, &AZZClippingVolume2::OnTransformUpdated);
     if (UZZClipperSubsystem* ClipperSubsystem = GetWorld()->GetSubsystem<UZZClipperSubsystem>())
     {
         ClipperSubsystem->MarkClippingVolumesDirty();
     }
 }
 
-void AZZClippingVolume::OnTransformUpdated(
+void AZZClippingVolume2::OnTransformUpdated(
     USceneComponent* InComponent,
     EUpdateTransformFlags UpdateTransformFlags,
     ETeleportType Teleport)

@@ -8,12 +8,12 @@
 #include "ZZClippingVolume.generated.h"
 
 UCLASS(hidecategories = (Collision, Attachment, Physics), Blueprintable, MinimalAPI)
-class AZZClippingVolume : public AVolume
+class AZZClippingVolume2 : public AVolume
 {
     GENERATED_BODY()
 
 public:
-    AZZClippingVolume();
+    AZZClippingVolume2();
 
     virtual void PostRegisterAllComponents() override;
 

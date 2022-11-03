@@ -22,4 +22,17 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	UFUNCTION(BlueprintCallable, Category="QxTest")
+	void TestQuickState();
+
+
+	UPROPERTY(EditAnywhere, Category="QxTest")
+	int32 TickMaxCounter = 100000;
+
+	UPROPERTY(EditAnywhere, Category="QxTest")
+	int32 TestQuickStateMaxCounter = 100000;
+	
+private:
+	void FakeTimeConsumingFunc(int32 MaxCounter);
 };
