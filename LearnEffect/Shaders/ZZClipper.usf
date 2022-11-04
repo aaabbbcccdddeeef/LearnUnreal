@@ -11,6 +11,8 @@ float4 GetTixelValue(Texture2D InTexture, float indexX, float indexY)
 }
 
 //返回0-1, 1表示没有被clip，0表示被clip
+// 注意：由于这个函数内有循环的多次采样，开销可能很高，开销和ClipperNum成正比,
+// EnableClipping是为了在材质中用时方便利用dynamic branch节省开销
 float ZZMultiClipperMask(Texture2D ClipperInfoTex, float ClipperNum, float3 WorldPosition, float EnableClipping)
 {
     BRANCH
@@ -22,8 +24,6 @@ float ZZMultiClipperMask(Texture2D ClipperInfoTex, float ClipperNum, float3 Worl
         {
             float4 Pixel0 = ClipperInfoTex.Load(int3(0, i, 0));
             float4 Pixel1 = ClipperInfoTex.Load(int3(1, i, 0));
-            float3 BasisX = ClipperInfoTex.Load(int3(2, i, 0)).xyz;
-            float3 BasisY = ClipperInfoTex.Load(int3(3, i, 0)).xyz;
             float3 ClipperCenter = Pixel0.xyz;
             float bIsBox = Pixel0.w;
             float3 ClipperExtent = Pixel1.xyz;
@@ -32,6 +32,8 @@ float ZZMultiClipperMask(Texture2D ClipperInfoTex, float ClipperNum, float3 Worl
             BRANCH
             if (bIsBox >= 0.999)
             {
+                float3 BasisX = ClipperInfoTex.Load(int3(2, i, 0)).xyz;
+                float3 BasisY = ClipperInfoTex.Load(int3(3, i, 0)).xyz;
                 multiBoxMask += QxBoxMaskWithRotation(
                 WorldPosition,            
                 ClipperCenter,

@@ -78,8 +78,11 @@ protected:
     UPROPERTY(EditAnywhere, Category="ZZClippers")
     UMaterialParameterCollection* MPC_Clipper = nullptr;
 
+    // UPROPERTY(EditAnywhere, Category="ZZClippers")
+    // // FFloat16Color
+    // ETextureRenderTargetFormat  ClipperTextureFormat = ETextureRenderTargetFormat::RTF_RGBA32f;
     UPROPERTY(EditAnywhere, Category="ZZClippers")
-    ETextureRenderTargetFormat  ClipperTextureFormat = ETextureRenderTargetFormat::RTF_RGBA32f;
+    TEnumAsByte<ETextureRenderTargetFormat> ClipperTextureFormat = ETextureRenderTargetFormat::RTF_RGBA16f;
 private:
         
     int32 CachedClipperVolumeNum = 0;

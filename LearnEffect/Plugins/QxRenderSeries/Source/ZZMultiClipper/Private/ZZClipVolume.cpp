@@ -38,8 +38,9 @@ EDataValidationResult AZZClipVolume::IsDataValid(TArray<FText>& ValidationErrors
     return Super::IsDataValid(ValidationErrors);
 }
 
+
 void AZZClipVolume::OnTransformUpdated(USceneComponent* InComponent, EUpdateTransformFlags UpdateTransformFlags,
-                                        ETeleportType Teleport)
+                                       ETeleportType Teleport)
 {
     if (UZZClipperCollectorSubsystem* ClipperSubsystem = GetWorld()->GetSubsystem<UZZClipperCollectorSubsystem>())
     {

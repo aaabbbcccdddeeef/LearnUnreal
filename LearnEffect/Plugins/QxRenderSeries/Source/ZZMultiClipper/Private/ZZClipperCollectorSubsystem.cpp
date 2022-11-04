@@ -84,6 +84,12 @@ void UZZClipperCollectorSubsystem::CollectAndUpdateClipperTexture()
         return;
     }
 
+    if (!FApp::GetGraphicsRHI().Equals(TEXT("DirectX 11")))
+    {
+        UE_LOG(LogTemp, Error, TEXT("Clipper system only implemented in directX 11"));
+        return;
+    }
+
     TArray<FZZClipperInfos> ClipperInfos = CollectClipperInfos();
     CachedClipperVolumeNum = ClipperInfos.Num();
     
@@ -192,6 +198,7 @@ void UZZClipperCollectorSubsystem::UpdateClipperTexture(
     }
 }
 
+
 /**
  * @brief 更新clipperTexture 和count, 注意count的更新会慢1帧，不过应该可以接受
  * @param ClipperInfoColors 
@@ -205,18 +212,40 @@ void UZZClipperCollectorSubsystem::UpdateClipperTexAndCount(TArray<FLinearColor>
         {
             FRHITexture* TexRef = TargetTexRHI->GetTextureReference()->GetReferencedTexture();
             FRHITexture2D* TexRHIRef = static_cast<FRHITexture2D*>(TexRef);
-
+            
             uint32 LolStride = 0;
             char* TexDataPtr =  (char*)RHICmdList.LockTexture2D(TexRHIRef, 0, EResourceLockMode::RLM_WriteOnly, LolStride, false);
 
-            const int32 DataSize = ClippeColors.Num() * sizeof(FLinearColor);
-            FMemory::Memcpy(TexDataPtr, ClippeColors.GetData(), DataSize);
+            
+            if (TexRHIRef->GetFormat() == EPixelFormat::PF_FloatRGBA)
+            {
+                // 验证row pitch和每行数据的字节一致
+                if (LolStride == sizeof(FFloat16Color) * ClipperTexSizeX)
+                {
+                    TArray<FFloat16Color> ConvertedColors(ClippeColors);
+                    const int32 DataSize = ConvertedColors.Num() * sizeof(FFloat16Color);
+                    FMemory::Memcpy(TexDataPtr, ConvertedColors.GetData(), DataSize);
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Error, TEXT("clipper texture row stride doenot match with data"));
+                }
+            }
+            else
+            {
+                if (LolStride == sizeof(FLinearColor) * ClipperTexSizeX)
+                {
+                    const int32 DataSize = ClippeColors.Num() * sizeof(FLinearColor);
+                    FMemory::Memcpy(TexDataPtr, ClippeColors.GetData(), DataSize );
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Error, TEXT("clipper texture row stride doenot match with data"));
+                }
+            }
+            
 
             RHICmdList.UnlockTexture2D(TexRHIRef, 0, false);
-            // AsyncTask(ENamedThreads::GameThread, [ClipperSystem]()
-            // {
-            //     ClipperSystem->UpdateClipperVolumeNum();
-            // });
         }
         );
 }
@@ -241,7 +270,14 @@ void UZZClipperCollectorSubsystem::RegnerateTexture(int32 MinTexSizeY)
     ClipperInfosTexture->NeverStream = true;
     ClipperInfosTexture->SRGB = 0;
 
-    ClipperInfosTexture->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA32f;
+    if (ClipperTextureFormat == ETextureRenderTargetFormat::RTF_RGBA16f)
+    {
+        ClipperInfosTexture->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA16f;
+    }
+    else
+    {
+        ClipperInfosTexture->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA32f;
+    }
     if (MinTexSizeY > ClipperInfosTexture->SizeY)
     {
         // 选择大于 MinTexSizeY的最近的 power of two的数值

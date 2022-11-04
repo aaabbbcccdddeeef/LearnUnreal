@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ZZClipperTypes.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/TriggerBox.h"
 #include "GameFramework/Actor.h"
 #include "ZZClipVolume.generated.h"
 
@@ -20,8 +21,10 @@ public:
     virtual void PostRegisterAllComponents() override;
 
     virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+
 private:
     void OnTransformUpdated(USceneComponent* InComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
+    
 public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ZZClipper")

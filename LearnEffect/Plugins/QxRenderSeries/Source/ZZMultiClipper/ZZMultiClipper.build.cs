@@ -13,5 +13,7 @@ public class ZZMultiClipper : ModuleRules
 		});
  
 		PrivateIncludePaths.AddRange(new string[] {"ZZMultiClipper/Private"});
+
+		OptimizeCode = CodeOptimization.InShippingBuildsOnly;
 	}
 }
