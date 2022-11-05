@@ -33,7 +33,8 @@ public class QxRenderSeries : ModuleRules
                 "Projects",
                 "Slate",
                 "UMG",
-                "RHI"
+                "RHI",
+                "ModularGameplay"
             }
 
             );

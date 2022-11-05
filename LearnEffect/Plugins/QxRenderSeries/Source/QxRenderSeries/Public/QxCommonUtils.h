@@ -6,11 +6,20 @@
 #include "UObject/Object.h"
 #include "QxCommonUtils.generated.h"
 
-/**
- * 
- */
 UCLASS()
-class QXRENDERSERIES_API UQxCommonUtils : public UObject
+class QXRENDERSERIES_API UQxCommonUtils : public UBlueprintFunctionLibrary
 {
-    GENERATED_BODY()
+ GENERATED_BODY()
+
+#pragma region IterateActorOrComponents
+
+ UFUNCTION(BlueprintCallable)
+ static void TraverseActor(UObject* WorldContext);
+
+ UFUNCTION(BlueprintCallable)
+ static void GetComponents(AActor* InActor);
+#pragma endregion
 };
+
+
+
