@@ -36,6 +36,8 @@ public:
 	// #TODO 不知道为什么这个移动到cpp中无法编译通过
 	void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override
 	{
+		InViewFamily.SetTemporalUpscalerInterface()
+		
 		bool IsTemporalUpscalingRequest = false;
 		for (int32 ViewIndex = 0; ViewIndex < InViewFamily.Views.Num(); ++ViewIndex)
 		{
