@@ -1,0 +1,243 @@
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+#include "/Engine/Private/PostProcessCommon.ush"
+#include "/Engine/Private/EyeAdaptationCommon.ush"
+
+// 这个shader 参考UE4的TAAStandalone.usf
+
+float CurrentFrameWeight;
+
+float4 ViewportUVToInputBufferUV;
+
+
+
+RWTexture2D<float4> OutComputeTex_0;
+
+Texture2D InputSceneColor;
+SamplerState InputSceneColorSampler;
+
+float SampleWidhts[9];
+float PlusWeights[5];
+
+float4 HistoryBufferSize;
+float4 HistoryBufferUVMinMax;
+float4 ScreenPosToHistoryBufferUV;
+
+Texture2D HistoryBuffer_0;
+SamplerState HistoryBufferSampler_0;
+Texture2D HistoryBuffer_1;
+SamplerState HistoryBufferSampler_1;
+
+Texture2D SceneDepthTexture;
+SamplerState SceneDepthTextureSampler;
+Texture2D GBufferVelocityTexture;
+SamplerState GBufferVelocityTextureSampler;
+
+float4 OutputViewportSize;
+float4 OutputViewportRect;
+
+struct FTAAInputParameters
+{
+    uint2 GroupId;
+    uint2 GroupThreadId;
+    uint2 GroupThreadIndex;
+
+    // viewport uv of the output pixel
+    float2 ViewportUV;
+
+    // 这个是[-1,1]的左下角起始的范围
+    // Position of output pixel on screen
+    float2 ScreenPos;
+
+    // Buffer UV of the nearest input pixel
+    float2 NearestBufferUV;
+
+    // Frame exposure's scale
+    float FrameExposureScale;
+};
+
+struct FTAAHistoryPayload
+{
+    // transformed scene color and alpha channel
+    float4 Color;
+};
+
+
+
+struct FTAAIntermediaryResult
+{
+    //The Filtered Input
+    FTAAHistoryPayload Filtered;
+
+    // Temporal weight of the filtered result
+    float FilteredTeporalWeight;
+
+    // 1 / filter kernel scale for AA_UPSAMPLE_ADDPTIVE_FILTERING
+    float InvFilterScaleFactor;
+};
+
+FTAAHistoryPayload MulPayload(in FTAAHistoryPayload Payload, in float x)
+{
+    Payload.Color *= x;
+    return Payload;
+}
+
+FTAAHistoryPayload AddPayload(in FTAAHistoryPayload Payload0, in FTAAHistoryPayload Payload1)
+{
+    Payload0.Color += Payload1.Color;
+    return Payload0;
+}
+
+FTAAHistoryPayload MinPayload(in FTAAHistoryPayload Payload0, in FTAAHistoryPayload Payload1)
+{
+    Payload0.Color = min(Payload0.Color, Payload1.Color);
+    return Payload0;
+}
+
+FTAAHistoryPayload MaxPayload(in FTAAHistoryPayload Payload0, in FTAAHistoryPayload Payload1)
+{
+    Payload0.Color = max(Payload0.Color, Payload1.Color);
+    return Payload0;
+}
+
+FTAAIntermediaryResult CreateIntermediaryResult()
+{
+    // 这里为什么这样做
+#pragma warning(disable:4008)
+    FTAAIntermediaryResult IntermediaryResult = (FTAAIntermediaryResult)(1.0/0.0);
+#pragma warning(default:4008)
+
+    IntermediaryResult.FilteredTeporalWeight = 1;
+    IntermediaryResult.InvFilterScaleFactor = 1;
+    return IntermediaryResult;
+}
+
+float SampleCachedSceneDepthTexture(in FTAAInputParameters InputParameters, int2 PixelOffset)
+{
+    return SceneDepthTexture.SampleLevel(SceneDepthTextureSampler, InputParameters.NearestBufferUV, 0, PixelOffset).r; 
+}
+
+float2 WeightedLerpFactors(float WeightA, float WeightB, float Blend)
+{
+    float BlendA = (1 - Blend) * WeightA;
+    float BlendB = Blend * WeightB;
+    float RcpBlend = rcp(BlendA + BlendB);
+    BlendA *= RcpBlend;
+    BlendB *= RcpBlend;
+    return float2(BlendA, BlendB);
+}
+
+// Faster but less accurate luma computation
+// Luma includes a scaling by 4
+float Luma4(float3 Color)
+{
+    return (Color.g * 2.0) + (Color.r + Color.b);
+}
+
+// Optimized HDR weight function
+float HdrWeight4(float3 Color, float Exposure)
+{
+    // 这里为什么 + 4 #TODO ???
+    return rcp(Luma4(Color) * Exposure + 4.0);
+}
+
+float HdrWeightY(float Color, float Exposure)
+{
+    return rcp(Color * Exposure + 4.0);
+}
+
+
+float GetSceneColorHdrWeight(in FTAAInputParameters InputParams, float4 SceneColor)
+{
+    return HdrWeight4(SceneColor.rgb, InputParams.FrameExposureScale); 
+}
+
+FTAAHistoryPayload SampleHistory(in  float2 HistoryScreenPosition)
+{
+    float4 RawHistory0 = 0;
+    float4 RawHistory1 = 0;
+    
+}
+
+float4 QxTemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint GroupThreadIndex,
+    float2 ViewportUV, float FrameExposureScale)
+{
+    // Setup
+    FTAAInputParameters InputParams;
+
+#if USE_PREEXPOSURE
+    InputParams.FrameExposureScale = ToScalarMemory(FrameExposureScale * View.OneOverPreExposure);
+#else
+    InputParams.FrameExposureScale = ToScalarMemory(FrameExposureScale);
+#endif
+
+    // Per pixel setup
+    {
+        InputParams.GroupId = GroupId;
+        InputParams.GroupThreadId = GroupThreadId;
+        InputParams.GroupThreadIndex = GroupThreadIndex;
+        InputParams.ViewportUV = ViewportUV;
+        InputParams.ScreenPos = ViewportUVToScreenPos(ViewportUV);
+        InputParams.NearestBufferUV = ViewportUV * ViewportUVToInputBufferUV.xy + ViewportUVToInputBufferUV.zw;
+    }
+
+    FTAAIntermediaryResult IntermediaryResult = CreateIntermediaryResult();
+
+    // find motion of pixel and nearest in neightbood
+    // -------------
+    float3 PosN; // Position of the pixel, possibly later nearest pixel in neighborhood
+    PosN.xy  = InputParams.ScreenPos;
+    PosN.z = SampleCachedSceneDepthTexture(InputParams, int2(0, 0));
+
+    // Screen position of minimum depth
+    float2 VelocityOffset = float2(0.0, 0.0);
+
+    // Compute blend amount
+    float BlendFinal;
+    {
+        
+    }
+
+    // Do final blend between history and filtered color
+    // -----------
+    // Luma Weighted blend
+    FTAAHistoryPayload History = SampleHistory(HistoryScreenPosition);
+    float FilterWeight = GetSceneColorHdrWeight(InputParams, IntermediaryResult.Filtered.Color.x);
+    float HistoryWeight = 
+    
+    float4 OutputPayload;
+    {
+
+        float2 Weights = WeightedLerpFactors(HistoryWeight, FilterWeight, BlendFinal);
+        OutputPayload = AddPayload(MulPayload(History, Weights.x), MulPayload(IntermediaryResult.Filtered, Weights.y));
+    }
+    
+    return OutputPayload;
+}
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void MainCS(
+    uint2 DispatchThreadId : SV_DispatchThreadID,
+    uint2 GroupId : SV_GroupID,
+    uint2 GroupThreadId : SV_GroupThreadID,
+    uint GroupThreadIndex : SV_GroupIndex
+    )
+{
+    float2 ViewportUV = (float2(DispatchThreadId) + 0.5f) * OutputViewportSize.zw;
+
+    float FrameExposureScale = EyeAdaptationLookup();
+
+    
+    
+    float4 OutColor0 = QxTemporalAASample(GroupId, GroupThreadId, GroupThreadIndex,
+        ViewportUV, FrameExposureScale);
+
+    uint2 PixelPos = DispatchThreadId + OutputViewportRect.xy;
+    if (all(PixelPos < OutputViewportRect.zw))
+    {
+        float4 FinalOutput0 = min(MaxHalfFloat.xxxx, OutColor0);
+
+        OutComputeTex_0[PixelPos] = FinalOutput0;
+    }
+}
