@@ -16,6 +16,7 @@ FQxTestRenderer::FQxTestRenderer(): ThisModule(nullptr)
 FQxTestRenderer::~FQxTestRenderer()
 {
 	GetRendererModule().RemovePostOpaqueRenderDelegate(RenderHandle);
+	GetRendererModule().UnregisterCustomCullingImpl(QxTestCulling.Get());
 	QxTestCulling.Reset();
 	RenderHandle.Reset();
 
