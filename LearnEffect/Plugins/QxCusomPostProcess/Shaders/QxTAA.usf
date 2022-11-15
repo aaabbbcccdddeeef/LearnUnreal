@@ -1,0 +1,20 @@
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+#include "/Engine/Private/PostProcessCommon.ush"
+
+Texture2D HistoryTexture;
+SamplerState HistoryTextureSampler;
+
+// float2 InputViewportSize;
+
+void MainPS(
+    in noperspective float4 UVAndScreenPos : TEXCOORD0,
+    out float4 OutColor : SV_Target0
+    )
+{
+    float2 UV = UVAndScreenPos.xy;
+    OutColor = Texture2DSample(HistoryTexture, HistoryTextureSampler, UV);
+
+    
+}

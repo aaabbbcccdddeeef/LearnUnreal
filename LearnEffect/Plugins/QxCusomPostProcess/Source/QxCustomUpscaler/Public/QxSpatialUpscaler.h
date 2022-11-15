@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "PostProcess/PostProcessUpscale.h"
+#include "Renderer/Private/ScreenPass.h"
 
 /**
  * 

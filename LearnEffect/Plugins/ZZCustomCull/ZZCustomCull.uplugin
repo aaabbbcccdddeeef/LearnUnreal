@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
-	"FriendlyName": "QxCusomPostProcess",
+	"FriendlyName": "ZZCustomCull",
 	"Description": "",
 	"Category": "Other",
 	"CreatedBy": "",
@@ -16,19 +16,9 @@
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "QxCusomPostProcess",
+			"Name": "ZZCustomCull",
 			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit"
-		},
-		{
-			"name": "QxCustomUpscaler",
-			"type": "Runtime",
-			"loadingPhase": "PostConfigInit"
-		},
-		{
-			"name": "QxUpScalerRigister",
-			"type": "Runtime",
-			"loadingPhase": "PostEngineInit"
+			"LoadingPhase": "Default"
 		}
 	]
 }
