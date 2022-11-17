@@ -23,7 +23,11 @@ Texture2D  SceneColorTexture;
 Texture2D HistoryTexture;
 SamplerState HistoryTextureSampler;
 
+Texture2D SceneDepthTexture;
+SamplerState SceneDepthTextureSampler;
 
+Texture2D GBufferVelocityTexture;
+SamplerState GBufferVelocityTextureSampler;
 
 float4 OutputViewportSize;
 float4 OutputViewportRect;
@@ -39,8 +43,11 @@ int2 InputMaxPixelCoord;
 
 float2 ScreenPosAbsMax;
 float CurrentFrameWeight;
+int bCameraCut;
 
+float SampleWeights[9];
 float PlusWeights[5];
+
 
 RWTexture2D<float4> OutputComputeTex;
 
@@ -81,6 +88,7 @@ struct FTAAInputParameters
     float2 ScreenPos;
 
     // Buffer UV of the nearest input pixel
+    // 当前viewport 中的点对应于input buffer上最近的点
     float2 NearestBufferUV;
 
     float4 CachedNeighbors0[kNeighborsCount];
@@ -200,7 +208,7 @@ void PrecacheInputSceneColor(inout  FTAAInputParameters InputParameters)
 }
 
 FTAASceneColorSample SampleCachedSceneColorTexture(
-    inout FTAAInputParameters InputParams,
+    in FTAAInputParameters InputParams,
     int2 PixelOffset
     )
 {
@@ -226,7 +234,6 @@ void FilterCurrentFrameInputSamples(
         const uint SampleIndexes[5] = kPlusIndexes3x3; 
     #endif
 
-    float NeighborsHdrWeight = 0;
     float NeighborsFinalWeight = 0;
     float4 NeighborsColor = 0;
 
@@ -239,10 +246,25 @@ void FilterCurrentFrameInputSamples(
         SampleOffset = kOffsets3x3[SampleIndex];
 
         float2 fSampleOffset = float2(SampleOffset);
-        float SampleSpatialWeights = PlusWeights[i];
+        float SampleSpatialWeight = PlusWeights[i];
 
         FTAASceneColorSample SceneColorSample =  SampleCachedSceneColorTexture(InputParams, SampleOffset);
+        
+
+        float SampleHdrWeight = SceneColorSample.HdrWeight;
+
+        // SampleHdrWeight = 1.f;
+        float SampleFinalWeight = SampleSpatialWeight * SampleHdrWeight;
+        
+        // Apply pixel.
+        NeighborsColor += SceneColorSample.Color * SampleFinalWeight;
+        NeighborsFinalWeight += SampleFinalWeight;
     }
+
+    OutColor = NeighborsColor * rcp(NeighborsFinalWeight);
+
+    // OutColor = NeighborsColor;
+    IntermediaryResult.FilteredColor = OutColor;
 }
 
 FTAAIntermediaryResult CreateIntermediaryResult()
@@ -265,6 +287,58 @@ float2 WeightedLerpFactors(float WeightA, float WeightB, float Blend)
     BlendA *= RcpBlend;
     BlendB *= RcpBlend;
     return float2(BlendA, BlendB);
+}
+
+float SampleCachedSceneDepthTexture(
+    in FTAAInputParameters InputParameters,
+    int2 PixelOffset
+    )
+{
+    return SceneColorTexture.SampleLevel(SceneDepthTextureSampler, InputParameters.NearestBufferUV, 0, PixelOffset).r;
+}
+
+void ComputeNeighborhoodBoundingBox(
+    in FTAAInputParameters InputParameters,
+    in  FTAAIntermediaryResult IntermediaryResult,
+    out float4 OutNeighborMin,
+    out float4 OutNeighborMax
+    )
+{
+    float4 Neighbors[kNeighborsCount];
+    UNROLL
+    for (uint i = 0; i < kNeighborsCount; ++i)
+    {
+        Neighbors[i] = SampleCachedSceneColorTexture(InputParameters, kOffsets3x3[i]).Color;
+    }
+
+    float4 NeighborMin;
+    float4 NeighborMax;
+
+    NeighborMin = min3(Neighbors[1], Neighbors[3],  Neighbors[4]);
+    NeighborMin = min3(NeighborMin,  Neighbors[5],  Neighbors[7]);
+
+    NeighborMax = max3(Neighbors[1], Neighbors[3],  Neighbors[4]);
+    NeighborMax = max3(NeighborMax,  Neighbors[5],  Neighbors[7]);
+
+    OutNeighborMin = NeighborMin;
+    OutNeighborMax = NeighborMax;
+}
+
+float4 ClampHistory(
+    inout FTAAIntermediaryResult IntermediaryResult,
+    float4 HistoryColor,
+    float4 NeighborMin,
+    float4 NeighborMax
+    )
+{
+
+    float4 ClampedColor = clamp(HistoryColor, NeighborMin, NeighborMax);
+    return ClampedColor;
+}
+
+float GetSceneColorLuma4(float4 SceneColor)
+{
+    return Luma4(SceneColor.rgb);
 }
 
 float4 QxTemporalAASample(
@@ -292,22 +366,49 @@ float4 QxTemporalAASample(
     FTAAIntermediaryResult IntermediaryResult = CreateIntermediaryResult();
     
     
-    float4 OutputColor = 0;
+    
+    // find motion of pixel and nearest in neighborhood
+    // ----------
+    float3 PosN; // Position of this pixel, possibly later nearest pixel in neighborhood
+    PosN.xy = InputParams.ScreenPos;
+    PosN.z = SampleCachedSceneDepthTexture(InputParams, int2(0, 0));
 
-    // float4 HistoryColor = HistoryTexture[DispatchThreadId];
-    // float4 HistoryColor = HistoryTexture.SampleLevel(HistoryTextureSampler, ViewportUV, 0);
-
+    
     // Camera motion for pixel and nearest pixel in screen space
     bool OffScreen = false;
     float Velocity = 0;
     float HistoryBlur = 0;
     float2 HistoryScreenPosition = InputParams.ScreenPos;
+    float2 VelocityOffset = float2(0, 0);
+
+    // 更新history screen position和上面几个motion相关的变量
+    // Reprojection  的过程
     {
-            
+        float4 ThisClip = float4(PosN.xy, PosN.z, 1);
+        float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+        float2 PrevScreen = PrevClip.xy / PrevClip.w;
+        float2 BackN = PosN.xy - PrevScreen;
+
+        float2 BackTemp = BackN * OutputViewportSize.xy;
+
+        // #TODO 采样velocity buffer 更新backN/BackTemp
+        {
+            float4 EncodedVelocity = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV + VelocityOffset, 0);
+            bool DynamicN = EncodedVelocity.x > 0.f;
+            if (DynamicN)
+            {
+                BackN = DecodeVelocityFromTexture(EncodedVelocity).xy;
+            }
+            BackTemp = BackN * OutputViewportSize.xy;
+        }
+
+        Velocity = sqrt(dot(BackTemp, BackTemp));
+        HistoryScreenPosition = InputParams.ScreenPos - BackN;
+
+        // 检查historyScreenPosition是不是在viewport之外
+        OffScreen = max(abs(HistoryScreenPosition.x), abs(HistoryScreenPosition.y)) > 1;
     }
-    
-    float4 HistoryColor = SampleHistory(HistoryScreenPosition);
-    float4 CurrentFrameColor = SceneColorTexture[DispatchThreadId];
+    // Wether the feedback need to be reset
 
     PrecacheInputSceneColor(InputParams); //In out
     
@@ -316,20 +417,72 @@ float4 QxTemporalAASample(
         IntermediaryResult //Inout
         );
 
-    // Compute Blend amount
-    float BlendFinal = 1.f;
+    float4 HistoryColor = SampleHistory(HistoryScreenPosition);
+    
+    bool bIgnoreHistory = OffScreen || bCameraCut;
+    // Anti ghosting 
+    bool Dynamic4;
     {
+        bool Dynamic1 = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV, 0, int2(0, -1)).x > 0;
+        bool Dynamic3 = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV, 0, int2(-1, 0)).x > 0;
+        Dynamic4 = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV, 0, int2(0, 0)).x > 0;
+        bool Dynamic5 = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV, 0, int2(1, 0)).x > 0;
+        bool Dynamic7 = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV, 0, int2(0, 1)).x > 0;
+
+        bool Dynamic = Dynamic1 || Dynamic3 || Dynamic4 || Dynamic5 || Dynamic7;
+        bIgnoreHistory = bIgnoreHistory || (!Dynamic && HistoryColor.a > 0);
+        // bIgnoreHistory = bIgnoreHistory || (!Dynamic && HistoryColor.a > 0);
+    }
+
+    // History neighborhood clampping
+    {
+        float4 NeighborMin;
+        float4 NeighborMax;
+        ComputeNeighborhoodBoundingBox(InputParams, /* inout = */ IntermediaryResult, NeighborMin, NeighborMax);
         
+        HistoryColor = ClampHistory(IntermediaryResult, HistoryColor, NeighborMin, NeighborMax);
+    }
+
+    float LumaHistory = GetSceneColorLuma4(HistoryColor);
+    // Compute Blend amount
+    float BlendFinal = 0.04f;
+    // BlendFinal = 1.f;
+    {
+        float LumaFiltered = GetSceneColorLuma4(IntermediaryResult.FilteredColor);
+        BlendFinal = IntermediaryResult.FilteredTemporalWeight * CurrentFrameWeight;
+
+        BlendFinal = lerp(BlendFinal, 0.2, saturate(Velocity / 40));
+
+        // Make sure to have at least some small contribution
+        BlendFinal = max(BlendFinal, saturate(0.01 * LumaHistory / abs(LumaFiltered - LumaHistory) ) );
+        
+        if (bIgnoreHistory)
+        {
+            BlendFinal =  1.f;
+        }
+    }
+
+    // Offscreen feedback resets
+    // miss 的像素重置
+    if (bIgnoreHistory)
+    {
+        HistoryColor = IntermediaryResult.FilteredColor;
     }
 
     float CurFrameWeight = GetSceneColorHdrWeight(InputParams, IntermediaryResult.FilteredColor);
     float HistoryWeight = GetSceneColorHdrWeight(InputParams, HistoryColor);
-    OutputColor = lerp(HistoryColor, CurrentFrameColor, CurrentFrameWeight);
+
+    float4 OutputColor = 0;
+    // OutputColor = lerp(HistoryColor, CurrentFrameColor, CurrentFrameWeight);
     {
         float2 Weight = WeightedLerpFactors(HistoryWeight, CurFrameWeight, BlendFinal);
         OutputColor = HistoryColor * Weight.x +  IntermediaryResult.FilteredColor * Weight.y;
     }
-    
+
+    // OutputColor = IntermediaryResult.FilteredColor;
+    // OutputColor = InputParams.CachedNeighbors0[4];
+    OutputColor.a = Dynamic4 ? 1 : 0;
+    // OutputColor.a = 1;
     return OutputColor;
 }
 

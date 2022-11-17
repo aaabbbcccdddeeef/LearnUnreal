@@ -37,6 +37,13 @@ namespace QxTemporalAA
             SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
             SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryTexture)
             SHADER_PARAMETER_SAMPLER(SamlerState, HistoryTextureSampler)
+            SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
+            SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthTextureSampler)
+            SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GBufferVelocityTexture)
+            SHADER_PARAMETER_SAMPLER(SamplerState, GBufferVelocityTextureSampler)
+
+            SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+        
             SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, OutputComputeTex)
             SHADER_PARAMETER(FVector4, OutputViewportSize)
             SHADER_PARAMETER(FVector4, ScreenPosToHistoryTextureUV)
@@ -49,6 +56,10 @@ namespace QxTemporalAA
             SHADER_PARAMETER(FIntPoint, InputMaxPixelCoord)
             SHADER_PARAMETER(FVector2D, ScreenPosAbsMax)
             SHADER_PARAMETER(float, CurrentFrameWeight)
+            SHADER_PARAMETER(int32, bCameraCut)
+
+            SHADER_PARAMETER_ARRAY(float, SampleWeights, [9])
+            SHADER_PARAMETER_ARRAY(float, PlusWeights, [5])
         END_SHADER_PARAMETER_STRUCT()
         static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
         {
@@ -63,6 +74,88 @@ namespace QxTemporalAA
         
     };
     IMPLEMENT_GLOBAL_SHADER(FQxTAACS, "/QxAAShaders/QxTAACS.usf", "MainCS", SF_Compute);
+
+
+    float CatmullRoom(float x)
+    {
+        float ax = FMath::Abs(x);
+        if (ax > 1.0f)
+            return ((-0.5f * ax + 2.5f) * ax - 4.0f) *ax + 2.0f;
+        else
+            return (1.5f * ax - 2.5f) * ax*ax + 1.0f;
+    }
+    
+    void SetupSampleWeightParameters(
+        FQxTAACS::FParameters* OutTAAParams,
+        const FTAAPassParameters& PassParameters,
+        FVector2D TemporalJitterPixels
+        )
+    {
+        const float JitterX = TemporalJitterPixels.X;
+        const float JitterY = TemporalJitterPixels.Y;
+        const float ResDivisorInv = 1.f / float(PassParameters.ResolutionDivisor);
+
+        static const float SampleOffsets[9][2] =
+        {
+            { -1.0f, -1.0f },
+            {  0.0f, -1.0f },
+            {  1.0f, -1.0f },
+            { -1.0f,  0.0f },
+            {  0.0f,  0.0f },
+            {  1.0f,  0.0f },
+            { -1.0f,  1.0f },
+            {  0.0f,  1.0f },
+            {  1.0f,  1.0f },
+        };
+
+        float FilterSize = 1.f;
+        //  是否用CatmullRom 的采样分布,CatmulRom的表现应该比高斯分布稍微锐利一点，但实际效果感觉区别很小
+        bool bUseCatmullRom = false;
+        // compute 3x3 weights
+        {
+            float TotalWeight = 0.f;
+            for (int32 i = 0; i < 9; ++i)
+            {
+                float PixelOffsetX = SampleOffsets[i][0] - JitterX * ResDivisorInv;
+                float PixelOffsetY = SampleOffsets[i][1] - JitterY * ResDivisorInv;
+
+                PixelOffsetX /= FilterSize;
+                PixelOffsetY /= FilterSize;
+
+                if (bUseCatmullRom)
+                {
+                    OutTAAParams->SampleWeights[i] = CatmullRoom(PixelOffsetX) * CatmullRoom(PixelOffsetY);
+                }
+                else
+                {
+                    // Normal distribution, sigma = 0.47
+                    OutTAAParams->SampleWeights[i] = FMath::Exp(-2.29f * (PixelOffsetX*PixelOffsetX + PixelOffsetY*PixelOffsetY));
+                    TotalWeight += OutTAAParams->SampleWeights[i];
+                }
+            }
+            for (int32 i = 0; i < 9; ++i)
+            {
+                OutTAAParams->SampleWeights[i] /= TotalWeight;
+            }
+        }
+        // compute 3x3 + weights
+        {
+            OutTAAParams->PlusWeights[0] =OutTAAParams->SampleWeights[1];
+            OutTAAParams->PlusWeights[1] =OutTAAParams->SampleWeights[3];
+            OutTAAParams->PlusWeights[2] =OutTAAParams->SampleWeights[4];
+            OutTAAParams->PlusWeights[3] =OutTAAParams->SampleWeights[5];
+            OutTAAParams->PlusWeights[4] =OutTAAParams->SampleWeights[7];
+            float TotalWeightPlus = (
+                OutTAAParams->SampleWeights[1] +
+                OutTAAParams->SampleWeights[3] +
+                OutTAAParams->SampleWeights[4] +
+                OutTAAParams->SampleWeights[5] +
+                OutTAAParams->SampleWeights[7]);
+	
+            for (int32 i = 0; i < 5; i++)
+                OutTAAParams->PlusWeights[i] /= TotalWeightPlus;
+        }
+    }
     
     // 尝试自定义TAA
     FTAAOutputs QxAddTemporalAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FTAAPassParameters& Inputs,
@@ -143,7 +236,14 @@ namespace QxTemporalAA
             const TCHAR* PassName = TEXT("QxTAAPass");
             FQxTAACS::FParameters* PassParams = GraphBuilder.AllocParameters<FQxTAACS::FParameters>();
             PassParams->SceneColorTexture = Inputs.SceneColorInput;
+            PassParams->SceneDepthTexture = Inputs.SceneDepthTexture;
+            PassParams->SceneDepthTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+            PassParams->GBufferVelocityTexture = Inputs.SceneVelocityTexture;
+            PassParams->GBufferVelocityTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
+            PassParams->ViewUniformBuffer = View.ViewUniformBuffer;
+
+            SetupSampleWeightParameters(PassParams, Inputs, View.TemporalJitterPixels);
             
 #pragma region SetupHistoryTextureParam
             // #TODO History texture换成数组
@@ -191,12 +291,13 @@ namespace QxTemporalAA
                 1 - 1.f/float(ViewportSize.Y));
             
             PassParams->CurrentFrameWeight = CVarQxCurrentFrameWeight.GetValueOnAnyThread();
-
+            PassParams->bCameraCut = !InputHistory.IsValid();
+            
             PassParams->InputSceneColorSize = FVector4(
                 SceneColorExtent.X, SceneColorExtent.Y,
                 1.f/float(SceneColorExtent.X), 1.f/float(SceneColorExtent.Y)
                 );
-            PassParams->InputMaxPixelCoord = PracticableSrcRect.Min;
+            PassParams->InputMinPixelCoord = PracticableSrcRect.Min;
             PassParams->InputMaxPixelCoord = PracticableSrcRect.Max - FIntPoint(1, 1);
             {
                 const float InvSizeX = 1.f/ float(SceneColorExtent.X);

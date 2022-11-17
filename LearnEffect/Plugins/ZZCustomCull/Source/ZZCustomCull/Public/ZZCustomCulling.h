@@ -32,6 +32,9 @@ private:
     mutable  FThreadSafeCounter NumRefs  = 0;
 
     const FSceneView* const SceneView ;
+    const float ZZCullingThreshold;
+
+    int32 CullMethod;
 };
 
 
