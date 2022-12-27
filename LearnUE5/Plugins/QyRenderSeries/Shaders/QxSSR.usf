@@ -1,0 +1,27 @@
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+
+#include "/Engine/Private/ScreenPass.ush"
+#include "/Engine/Private/PostProcessCommon.ush"
+#include "/Engine/Private/SceneTextureParameters.ush"
+
+float4 SSRParams;
+
+void QxSSRPS(
+	float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+
+	// OutColor = float4(0, 0, 1, 1);
+	OutColor = SSRParams;
+
+	float2 UV = SvPositionToBufferUV(SvPosition);
+
+	FGBufferData GBufferData = GetGBufferData(UV);//GetGBufferDataFromSceneTextures(UV);
+
+	float Roughness = GBufferData.Roughness;
+
+	OutColor = float4(Roughness, 0, 0, 1);
+	OutColor = float4(GBufferData.DiffuseColor, 1);
+	OutColor.rgb = GBufferData.WorldNormal;
+}

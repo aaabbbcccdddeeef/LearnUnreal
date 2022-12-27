@@ -3,6 +3,7 @@
 #include "QyRenderSeries.h"
 
 #include "QxTestRenderer.h"
+#include "Interfaces/IPluginManager.h"
 
 #define LOCTEXT_NAMESPACE "FQyRenderSeriesModule"
 
@@ -10,12 +11,10 @@ void FQyRenderSeriesModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 
-	ENQUEUE_RENDER_COMMAND(CreateQxTestRenderer)(
-		[this](FRHICommandListImmediate& RHICmdList)
-		{
-			QxTestRenderer = MakeShared<FQxTestRenderer>();
-		}
-		);
+
+	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("QyRenderSeries"))->GetBaseDir(), TEXT("Shaders"));
+	// PluginShaderDir = FPaths::Combine(PluginShaderDir, TEXT("CustomPostProcess"));
+	AddShaderSourceDirectoryMapping(TEXT("/QxShaders"), PluginShaderDir);
 }
 
 void FQyRenderSeriesModule::ShutdownModule()

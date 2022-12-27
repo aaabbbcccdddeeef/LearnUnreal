@@ -30,6 +30,7 @@ class FQxTestCulling : public ICustomCulling
 {
 public:
 	FQxTestCulling();
+	virtual ~FQxTestCulling() {  }
 
 	virtual ICustomVisibilityQuery* CreateQuery(const FSceneView& View) override;
 

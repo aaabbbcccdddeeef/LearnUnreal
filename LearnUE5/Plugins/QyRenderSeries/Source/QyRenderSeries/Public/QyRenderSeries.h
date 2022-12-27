@@ -16,5 +16,5 @@ public:
 	virtual void ShutdownModule() override;
 	
 private:
-	TSharedPtr<FQxTestRenderer> QxTestRenderer;
+	
 };

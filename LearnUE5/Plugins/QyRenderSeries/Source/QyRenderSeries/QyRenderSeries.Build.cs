@@ -40,7 +40,8 @@ public class QyRenderSeries : ModuleRules
 				"SlateCore",
 				"Renderer",
 				"RenderCore",
-				"RHI"
+				"RHI",
+				"Projects"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
@@ -52,7 +53,13 @@ public class QyRenderSeries : ModuleRules
 				// ... add any modules that your module loads dynamically here ...
 			}
 			);
-
+		
+		PrivateIncludePaths.AddRange(new string[]
+		{
+			EngineDirectory + "/Source/Runtime/Renderer/Private"
+		});
+		
+		
 		OptimizeCode = CodeOptimization.Never;
 	}
 }
