@@ -5,7 +5,163 @@
 #include "/Engine/Private/PostProcessCommon.ush"
 #include "/Engine/Private/SceneTextureParameters.ush"
 
+#define SSRT_SAMPLE_BATCH_SIZE 4
+
+// .x是Intensity 0..1， .y: RoughnessMaskMul b:EnableDiscard for FPostProcessScreenSpaceReflectionsStencilPS, a:(bTemporalAAIsOn?TemporalAAIndex:StateFrameIndexMod8)*1551
 float4 SSRParams;
+
+
+struct FQxSSRRay
+{
+	float3 RayStartScreen;
+	// 屏幕空间的RayStepScreen.z 每一步是恒定的吗???????
+	float3 RayStepScreen;
+
+	float CompareTolerance;
+};
+
+float GetRoughness(const in FGBufferData GBuffer)
+{
+	float Roughness = GBuffer.Roughness;
+
+	// #TODO 学习ClearCoat的实现
+	BRANCH
+	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+	{
+		const float ClearCoat = GBuffer.CustomData.x;
+		const float ClearCoatRoughness = GBuffer.CustomData.y;
+
+		Roughness = lerp(Roughness, ClearCoatRoughness, ClearCoat);
+	}
+	return Roughness;
+}
+
+float GetRoughnessFade(float Roughness)
+{
+	// 还没设置好参数
+	float RoughnessMult = -6.66667; //SSRParams.y;
+	return min(Roughness * RoughnessMult + 2 ,1.0);
+}
+
+// 这里现在没考虑HZB的问题，一定需要吗 #TODO
+void QxCastScreenSpaceRay(
+	Texture2D Texture, SamplerState Sampler,
+	float StartMipLevel,
+	FQxSSRRay Ray,
+	float Roughness, uint NumSteps, float StepOffset,
+	out float3 OutHitUVz,
+	out float Level,
+	out bool bFoundHit
+	)
+{
+	const float3 RayStartScreen = Ray.RayStartScreen;
+	const float3 RayStepScreen = Ray.RayStepScreen;
+
+	//
+	float3 RayStartUVz = float3( (RayStartScreen.xy * float2(0.5, -0.5) + 0.5), RayStartScreen.z );
+	float3 RayStepUVz = float3( RayStepScreen.xy * float2(0.5, -0.5) , RayStepScreen.z);
+
+	const float Step = 1.0 / NumSteps;
+	float CompareTolerance = Step * Ray.CompareTolerance;
+
+	float LastDiff = 0;
+	Level = StartMipLevel;
+
+	RayStepUVz *= Step;
+	float RayUVz = RayStartUVz + RayStepUVz * StepOffset;
+
+	float4 MultiSampleDepthDiff;
+	bool4 bMultiSampleHit;
+
+	uint MaxIteration = NumSteps;
+
+	uint i;
+
+	bFoundHit = false;
+
+
+	float4 MultiSampleDepthDiff;
+	bool4 bMultiSampleHit;
+	
+	LOOP
+	for (i = 0; i < MaxIteration; i += SSRT_SAMPLE_BATCH_SIZE)
+	{
+		float2 SamplesUV[SSRT_SAMPLE_BATCH_SIZE];
+		float4 SamplesZ;
+		float4 SamplesMip;
+
+		UNROLL_N(SSRT_SAMPLE_BATCH_SIZE)
+		for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; ++j)
+		{
+			SamplesUV[j] = RayUVz.xy + (float(i) + float(j + 1)) * RayStepScreen.xy;
+			SamplesZ[j] = RayUVz.z + (float(i) + float(j + 1)) * RayStartScreen.z;
+		}
+
+		SamplesMip.xy = Level;
+		
+
+		SamplesMip.zw = Level;
+
+
+		// Sample the scene depth
+		float4 SamplesDepth;
+		{
+			for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; ++j)
+			{
+				SamplesDepth[j] = Texture.Sample(Sampler, SamplesUV[j], SamplesMip[j]).r;
+			}
+		}
+	}
+
+	BRANCH
+	if (bFoundHit)
+	{
+
+		float Time0 = float(i);
+
+		float TimeLerp;
+		float InterSectTime = Time0 + TimeLerp;
+
+		OutHitUVz = RayUVz + RayStepUVz * InterSectTime;
+	}
+	else
+	{
+		// Uncertain intersection - conservatively pull back to an iteration which didn't intersect
+		OutHitUVz = RayUVz + RayStepUVz * i;
+	}
+
+	// 把0..1的UV转换到BufferUV, 下面两种等价
+	// OutHitUVz.xy = OutHitUVz.xy * float2(2, -2) + float2(-1, 1);
+	// OutHitUVz.xy = OutHitUVz.xy * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
+	OutHitUVz.xy = ScreenAlignedUV(float2(OutHitUVz.xy));
+}
+
+bool QxRayCast(
+	Texture2D Texture, SamplerState Sampler,
+	float3 RayOrigin, float3 RayDirection,
+	float Roughness, float SceneDepth,
+	uint NumSteps, float StepOffset,
+	out float3 OutHitUVz,
+	out float Level
+	)
+{
+
+	bool bRayWasClipped;
+	FQxSSRRay Ray =  ;
+
+	bool bHit;
+	QxCastScreenSpaceRay(
+		Texture, Sampler,
+		1.0,
+		Ray,
+		Roughness, NumSteps, StepOffset,
+		OutHitUVz,
+		Level,
+		bHit
+		);
+
+	
+}
 
 void QxSSRPS(
 	float4 SvPosition : SV_POSITION,
@@ -13,15 +169,77 @@ void QxSSRPS(
 {
 
 	// OutColor = float4(0, 0, 1, 1);
-	OutColor = SSRParams;
+	OutColor = 0;
 
-	float2 UV = SvPositionToBufferUV(SvPosition);
+	float2 BufferUV = SvPositionToBufferUV(SvPosition);
+	float2 ViewportUV = BufferUVToViewportUV(BufferUV);
+	float2 ScreenPos = ViewportUVToScreenPos(ViewportUV);
+	uint2 PixelPos = (uint2)SvPosition.xy;
 
-	FGBufferData GBufferData = GetGBufferData(UV);//GetGBufferDataFromSceneTextures(UV);
+	FGBufferData GBufferData = GetGBufferData(BufferUV);//GetGBufferDataFromSceneTextures(UV);
 
-	float Roughness = GBufferData.Roughness;
+	float N = GBufferData.WorldNormal;
+	const float SceneDepth = GBufferData.Depth;
+	const float3 PositionTranlatedWorld = SvPositionToTranslatedWorld(SvPosition);
+	const float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranlatedWorld);
 
+	float Roughness = GetRoughness(GBufferData);
+	const bool bNoMaterial = GBufferData.ShadingModelID == 0;
+
+	float RoughnessFade = GetRoughnessFade(Roughness);
+
+	// Early out
+	BRANCH
+	if (RoughnessFade <= 0.0 || bNoMaterial)
+	// if (bNoMaterial)
+	{
+		return;
+	}
+
+	float a = Roughness * Roughness;
+	float a2 = a * a;
+
+	float NoV = saturate(dot(N, V));
+	float G_SmithV = 2 * NoV / (NoV + sqrt(NoV * (NoV - NoV * a2) + a2));
+
+	float ClosestHitDistanceSqr = INFINITE_FLOAT;
+
+
+	uint NumSteps = 8;
+	uint NumRays = 1;
+	bool bGlossy = false;
+
+	
+	if (NumRays > 1)
+	{
+		
+	}
+	else
+	{
+		float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
+
+		float3 L = reflect(-V, N);
+
+		float HitUVz;
+		float Level = 0;
+		bool bHit = QxRayCast(
+			);
+
+		BRANCH
+		if (bHit)
+		{
+
+			float2 SampleUV;
+			float Vignetee;
+
+			
+			
+			OutColor = QxSampleSceneColor(SceneColor, SceneColorSampler, SampleUV) * Vignetee;
+		}
+	}
+	
 	OutColor = float4(Roughness, 0, 0, 1);
 	OutColor = float4(GBufferData.DiffuseColor, 1);
 	OutColor.rgb = GBufferData.WorldNormal;
+	
 }
