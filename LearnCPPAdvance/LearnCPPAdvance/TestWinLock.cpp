@@ -44,7 +44,7 @@ static void Test()
     std::cout << "TestCounter = " << TestCounter << endl;
 }
 
-void main()
-{
-    Test();
-}
+// void main()
+// {
+//     Test();
+// }
