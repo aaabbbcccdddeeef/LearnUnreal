@@ -1,0 +1,31 @@
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+
+
+struct VSInput
+{
+	float3 Pos : ATTRIBUTE0;
+	float3 Normal : ATTRIBUTE1;
+	float2 UV : ATTRIBUTE2;
+};
+
+struct VSOut
+{
+	float4 PosClip : SV_POSITION;
+	float2 UV : TEXCOORD0;
+};
+
+VSOut MainCS(VSInput vIn)
+{
+	VSOut vOut;
+	vOut.PosClip = mul(float4(vIn.Pos, 1.f), View.TranslatedWorldToClip);
+	vOut.UV = vIn.UV;
+	return vOut;
+}
+
+
+float4 MainPS() : SV_Target
+{
+	float4 outColor = float4(1, 0, 0, 0);
+	return outColor;
+}

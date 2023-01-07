@@ -22,6 +22,13 @@ public:
 	UTextureRenderTarget2D* QxSSROutput = nullptr;
 
 
+	UPROPERTY(Transient, Category="QxRenderer")
+	UTextureRenderTarget2D* QxTestRT = nullptr;
+
+private:
+
+	UTextureRenderTarget2D* CreateTestRT();
+	
 private:
 	TSharedPtr<FQxTestRenderer> QxTestRenderer;
 };

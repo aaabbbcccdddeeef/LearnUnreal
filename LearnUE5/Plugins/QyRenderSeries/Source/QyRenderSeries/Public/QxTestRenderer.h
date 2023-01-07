@@ -5,6 +5,7 @@ class UQxRenderSubsystem;
 class FQxTestCulling;
 class FQyRenderSeriesModule;
 
+// 注意这个类的对象生命周期一定在QxRenderSubsystem内
 class FQxTestRenderer
 {
 public:

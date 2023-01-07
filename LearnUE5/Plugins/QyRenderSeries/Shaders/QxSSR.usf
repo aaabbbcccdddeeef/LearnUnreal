@@ -80,38 +80,41 @@ void QxCastScreenSpaceRay(
 	bFoundHit = false;
 
 
-	float4 MultiSampleDepthDiff;
-	bool4 bMultiSampleHit;
 	
-	LOOP
-	for (i = 0; i < MaxIteration; i += SSRT_SAMPLE_BATCH_SIZE)
-	{
-		float2 SamplesUV[SSRT_SAMPLE_BATCH_SIZE];
-		float4 SamplesZ;
-		float4 SamplesMip;
-
-		UNROLL_N(SSRT_SAMPLE_BATCH_SIZE)
-		for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; ++j)
-		{
-			SamplesUV[j] = RayUVz.xy + (float(i) + float(j + 1)) * RayStepScreen.xy;
-			SamplesZ[j] = RayUVz.z + (float(i) + float(j + 1)) * RayStartScreen.z;
-		}
-
-		SamplesMip.xy = Level;
-		
-
-		SamplesMip.zw = Level;
-
-
-		// Sample the scene depth
-		float4 SamplesDepth;
-		{
-			for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; ++j)
-			{
-				SamplesDepth[j] = Texture.Sample(Sampler, SamplesUV[j], SamplesMip[j]).r;
-			}
-		}
-	}
+	// LOOP
+	// for (i = 0; i < MaxIteration; i += SSRT_SAMPLE_BATCH_SIZE)
+	// {
+	// 	float2 SamplesUV[SSRT_SAMPLE_BATCH_SIZE];
+	// 	// ray 上的采样点的z
+	// 	float4 SamplesZ;
+	// 	float4 SamplesMip;
+	//
+	// 	UNROLL_N(SSRT_SAMPLE_BATCH_SIZE)
+	// 	for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; ++j)
+	// 	{
+	// 		SamplesUV[j] = RayUVz.xy + (float(i) + float(j + 1)) * RayStepScreen.xy;
+	// 		SamplesZ[j] = RayUVz.z + (float(i) + float(j + 1)) * RayStartScreen.z;
+	// 	}
+	//
+	// 	SamplesMip.xy = Level;
+	// 	
+	//
+	// 	SamplesMip.zw = Level;
+	//
+	//
+	// 	// Sample the scene depth, ray上的点采样深度得到的depth
+	// 	float4 SamplesDepth;
+	// 	{
+	// 		for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; ++j)
+	// 		{
+	// 			SamplesDepth[j] = Texture.Sample(Sampler, SamplesUV[j], SamplesMip[j]).r;
+	// 		}
+	// 	}
+	//
+	// 	// 求ray和surface 是否有交点
+	// 	MultiSampleDepthDiff = SamplesZ - SamplesDepth;
+	// 	bMultiSampleHit = abs(MultiSampleDepthDiff + CompareTolerance) < CompareTolerance;
+	// }
 
 	BRANCH
 	if (bFoundHit)
@@ -147,7 +150,7 @@ bool QxRayCast(
 {
 
 	bool bRayWasClipped;
-	FQxSSRRay Ray =  ;
+	FQxSSRRay Ray = (FQxSSRRay)0;
 
 	bool bHit;
 	QxCastScreenSpaceRay(
@@ -222,8 +225,9 @@ void QxSSRPS(
 
 		float HitUVz;
 		float Level = 0;
-		bool bHit = QxRayCast(
-			);
+		// bool bHit = QxRayCast(
+		// 	);
+		bool bHit = false;
 
 		BRANCH
 		if (bHit)
@@ -234,7 +238,7 @@ void QxSSRPS(
 
 			
 			
-			OutColor = QxSampleSceneColor(SceneColor, SceneColorSampler, SampleUV) * Vignetee;
+			// OutColor = QxSampleSceneColor(SceneColor, SceneColorSampler, SampleUV) * Vignetee;
 		}
 	}
 	
