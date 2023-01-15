@@ -33,7 +33,7 @@ void TestThreadFunc()
     }
 }
 
-static void Test()
+static void TestLock()
 {
     std::thread thread1(TestThreadFunc);
     std::thread thread2(TestThreadFunc);
@@ -44,7 +44,3 @@ static void Test()
     std::cout << "TestCounter = " << TestCounter << endl;
 }
 
-// void main()
-// {
-//     Test();
-// }
