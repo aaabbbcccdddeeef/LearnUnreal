@@ -39,12 +39,21 @@
     <ClCompile Include="TestVolatile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TestWinLock.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyAllocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TypeTraitsTest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TestAtomic.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
