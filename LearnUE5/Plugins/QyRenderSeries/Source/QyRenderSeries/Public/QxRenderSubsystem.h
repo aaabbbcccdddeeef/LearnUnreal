@@ -22,7 +22,7 @@ public:
 	UTextureRenderTarget2D* QxSSROutput = nullptr;
 
 
-	UPROPERTY(Transient, Category="QxRenderer")
+	UPROPERTY(Transient)
 	UTextureRenderTarget2D* QxTestRT = nullptr;
 
 private:

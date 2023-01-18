@@ -29,6 +29,7 @@ TAutoConsoleVariable<float> CVarQxBloomRadius(
 	);
 namespace
 {
+	
 	class FQxMixPass : public FGlobalShader
 	{
 	public:

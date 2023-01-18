@@ -6,6 +6,7 @@
 #include "QxTestCulling.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
+#include "SceneRendering.h"
 #include "SceneRenderTargetParameters.h"
 #include "Engine/TextureRenderTarget2D.h"
 
@@ -75,28 +76,99 @@ namespace
 
 		void InitRHI() override
 		{
+			constexpr  int32 VertexNum = 24;
 			TResourceArray<FQxVertexPosNormalUV, VERTEXBUFFER_ALIGNMENT> Vertices;
-			Vertices.SetNumUninitialized(8);
+			Vertices.SetNumUninitialized(VertexNum);
 
-			FVector3f CubePositions[8] =
+			FVector3f CubePositions[VertexNum] =
 				{
-					{-1.f, -1.f, -1.f},
-					{-1.f, -1.f, 1.f},
-					{1.f, -1.f, 1.f},
-					{1.f, -1.f, -1.f},
-					{-1.f, 1.f, -1.f},
-					{-1.f, 1.f, 1.f},
-					{1.f, 1.f, 1.f},
-					{1.f, 1.f, -1.f}
+						{1.00, -1.00, -1.00}, 
+						{1.00,  1.00, -1.00}, 
+						{1.00,  1.00,  1.00}, 
+						{1.00, -1.00,  1.00}, 
+						{1.00, -1.00,  1.00}, 
+						{1.00,  1.00,  1.00}, 
+						{1.00,  1.00, -1.00}, 
+						{1.00, -1.00, -1.00}, 
+						{1.00,  1.00, -1.00}, 
+						{1.00,  1.00,  1.00}, 
+						{1.00,  1.00,  1.00},
+						{1.00,  1.00, -1.00},
+						{1.00, -1.00, -1.00},
+						{1.00, -1.00,  1.00},
+						{-1.00, -1.00,  1.0},
+						{-1.00, -1.00, -1.0},
+						{1.00, -1.00,  1.00},
+						{1.00,  1.00,  1.00},
+						{-1.00,  1.00,  1.0},
+						{-1.00, -1.00,  1.0},
+						{-1.00, -1.00, -1.0},
+						{-1.00,  1.00, -1.0},
+						{1.00,  1.00, -1.00},
+						{1.00, -1.00, -1.00},
 				};
 			// #TODO 初始化normals
-			FVector3f Normals[8] =
+			FVector3f Normals[VertexNum] =
 				{
+					 {1.00,  0.00,  0.00}, 
+					 {1.00,  0.00,  0.00}, 
+					 {1.00,  0.00,  0.00}, 
+					 {1.00,  0.00,  0.00}, 
+					 {1.00,  0.00,  0.00}, 
+					 {1.00,  0.00,  0.00}, 
+					 {1.00,  0.00,  0.00}, 
+					 {1.00,  0.00,  0.00}, 
+					 {0.00,  1.00,  0.00}, 
+					 {0.00,  1.00,  0.00}, 
+					 {0.00,  1.00,  0.00},
+					 {0.00,  1.00,  0.00},
+					 {0.00, -1.00,  0.00},
+					 {0.00, -1.00,  0.00},
+					 {0.00, -1.00,  0.00},
+					 {0.00, -1.00,  0.00},
+					 {0.00,  0.00,  1.00},
+					 {0.00,  0.00,  1.00},
+					 {0.00,  0.00,  1.00},
+					 {0.00,  0.00,  1.00},
+					 {0.00,  0.00, -1.00},
+					 {0.00,  0.00, -1.00},
+					 {0.00,  0.00, -1.00},
+					 {0.00,  0.00, -1.00},
 				};
-			FVector2f UVs[8] =
+
+			for (int32 i = 0; i < VertexNum; ++i)
+			{
+				CubePositions[i] = FVector3f(CubePositions[i].Z, CubePositions[i].X, CubePositions[i].Y);
+				Normals[i] = FVector3f(Normals[i].Z, Normals[i].X, Normals[i].Y);
+			}
+			FVector2f UVs[VertexNum] =
 				{
+					 {0.00,  1.00},
+					 {0.00,  0.00},
+					 {1.00,  0.00},
+					 {1.00,  1.00},
+					 {0.00,  1.00},
+					 {0.00,  0.00},
+					 {1.00,  0.00},
+					 {1.00,  1.00},
+					 {0.00,  1.00},
+					 {0.00,  0.00},
+					 {1.00,  0.00},
+					 {1.00,  1.00},
+					 {0.00,  1.00},
+					 {0.00,  0.00},
+					 {1.00,  0.00},
+					 {1.00,  1.00},
+					 {0.00,  1.00},
+					 {0.00,  0.00},
+					 {1.00,  0.00},
+					 {1.00,  1.00},
+					 {0.00,  1.00},
+					 {0.00,  0.00},
+					 {1.00,  0.00},
+					 {1.00,  1.00},
 				};
-			for (int i = 0; i < 8; ++i)
+			for (int32 i = 0; i < VertexNum; ++i)
 			{
 				Vertices[i].Position = CubePositions[i];
 				Vertices[i].Normal = Normals[i];
@@ -138,7 +210,8 @@ namespace
 				NumIndices * sizeof(uint16));
 
 			FRHIResourceCreateInfo CreateInfo(TEXT("QxCubeIndexBuffer"), &IndexBuffer);
-			IndexBuffer = RHICreateIndexBuffer(sizeof(uint16),
+			IndexBufferRHI = RHICreateIndexBuffer(
+				sizeof(uint16),
 				IndexBuffer.GetResourceDataSize(),
 				BUF_Static, CreateInfo);
 		}
@@ -175,7 +248,8 @@ namespace
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 		{
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+			// return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+			return  true;
 		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -197,7 +271,8 @@ namespace
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 		{
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+			// return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+			return true;
 		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -223,7 +298,7 @@ namespace
 		TestParameters->RenderTargets[0] = FRenderTargetBinding(testRT, ERenderTargetLoadAction::ENoAction);
 		TestParameters->SceneTextures = InParams.SceneTexturesUniformParams;
 		TestParameters->TestColor = FLinearColor::Blue;
-		TestParameters->ViewUniformBuffer = InParams.ViewUniformBuffer;
+		TestParameters->ViewUniformBuffer = InParams.View->ViewUniformBuffer;
 		
 		//#TODO 这里有些疑惑AddPass只能添加一个参数，对于vs/ps传不同参数应该怎样处理
 		FQxTestVS::FParameters* VSParams = GraphicBuilder.AllocParameters<FQxTestVS::FParameters>();
@@ -231,7 +306,8 @@ namespace
 		VSParams->ViewUniformBuffer = TestParameters->ViewUniformBuffer;
 		PSParams->TestParams = *TestParameters;
 
-		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5)
+		
+		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(InParams.View->GetFeatureLevel());
 
 		TShaderMapRef<FQxTestVS> vertexShader(GlobalShaderMap);
 		TShaderMapRef<FQxTestPS> pixelShader(GlobalShaderMap);
@@ -243,7 +319,7 @@ namespace
 		
 		GraphicBuilder.AddPass(
 			RDG_EVENT_NAME("RenderTestGeometry"),
-			TestParameters,
+			PSParams,
 			ERDGPassFlags::Raster,
 			[pixelShader, vertexShader,VSParams, PSParams](
 				FRHICommandListImmediate& RHICmdListLambda)
@@ -251,11 +327,12 @@ namespace
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				RHICmdListLambda.ApplyCachedRenderTargets(GraphicsPSOInit);
 				
-				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_CCW>::GetRHI();
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-				GraphicsPSOInit.DepthStencilState =
-					TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI();
+				// GraphicsPSOInit.DepthStencilState =
+				// 	TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false>::GetRHI();
 				
 
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GQxVertexDeclartion_PosNormalUV.VertexDeclarationRHI;//= GEmptyVertexDeclaration.VertexDeclarationRHI;
@@ -268,8 +345,12 @@ namespace
 				SetShaderParameters(RHICmdListLambda, pixelShader,
 					pixelShader.GetPixelShader(), *PSParams);
 
+
+				FQxTestVS::FParameters lVSParams;
+				lVSParams.ViewUniformBuffer = PSParams->TestParams.ViewUniformBuffer;
+				
 				SetShaderParameters(RHICmdListLambda,vertexShader,
-					vertexShader.GetVertexShader(), *VSParams);
+					vertexShader.GetVertexShader(), lVSParams);
 
 
 				RHICmdListLambda.SetStreamSource(0, GQxCubeVertexBuffer.VertexBufferRHI, 0);
@@ -295,7 +376,7 @@ namespace
 		check(IsInRenderingThread());
 		SCOPED_DRAW_EVENT(RHICmdList, TestGeometryPass);
 
-		FTextureRHIRef testRTRhi  = RenderTargetResource->GetTextureRHI();
+		FTexture2DRHIRef testRTRhi  = RenderTargetResource->GetTextureRHI();
 		RHICmdList.TransitionResource(ERHIAccess::RTV, testRTRhi);
 		FRHIRenderPassInfo PassInfo(testRTRhi, ERenderTargetActions::DontLoad_Store);
 		RHICmdList.BeginRenderPass(PassInfo, TEXT("TestGeometryPass"));
@@ -372,7 +453,7 @@ void FQxTestRenderer::Render(FPostOpaqueRenderParameters& InParameters)
 
 	
 	FTextureRenderTarget2DResource* RenderTarget2DResource =
-		static_cast<FTextureRenderTarget2DResource*>(QxRenderSubsystem->QxTestRT->GameThread_GetRenderTargetResource());
+		static_cast<FTextureRenderTarget2DResource*>(QxRenderSubsystem->QxTestRT->GetRenderTargetResource());
 	check(RenderTarget2DResource);
 
 	RenderTestGeometryWithRDG(

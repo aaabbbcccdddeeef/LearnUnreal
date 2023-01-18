@@ -92,6 +92,14 @@
 		{
 			"Name": "RenderDocPlugin",
 			"Enabled": true
+		},
+		{
+			"Name": "Water",
+			"Enabled": true
+		},
+		{
+			"Name": "FSR",
+			"Enabled": false
 		}
 	],
 	"TargetPlatforms": [

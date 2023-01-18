@@ -15,7 +15,7 @@ struct VSOut
 	float2 UV : TEXCOORD0;
 };
 
-VSOut MainCS(VSInput vIn)
+VSOut MainVS(VSInput vIn)
 {
 	VSOut vOut;
 	vOut.PosClip = mul(float4(vIn.Pos, 1.f), View.TranslatedWorldToClip);

@@ -39,7 +39,7 @@ public:
 	{
 		// InViewFamily.SetTemporalUpscalerInterface()
 
-		InViewFamily.SetTemporalUpscalerInterface(new FQxTemporalUpscaler());
+		// InViewFamily.SetTemporalUpscalerInterface(new FQxTemporalUpscaler());
 		// bool IsTemporalUpscalingRequest = false;
 		// for (int32 ViewIndex = 0; ViewIndex < InViewFamily.Views.Num(); ++ViewIndex)
 		// {

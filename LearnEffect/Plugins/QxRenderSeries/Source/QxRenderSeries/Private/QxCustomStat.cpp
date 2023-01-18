@@ -27,7 +27,6 @@ AQxCustomStat::AQxCustomStat()
 void AQxCustomStat::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 // Called every frame

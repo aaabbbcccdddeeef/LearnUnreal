@@ -45,6 +45,5 @@ void AQxTestGeometryActor::AddDrawTestGeometryPass_RenderThread(
 	FTextureRenderTarget2DResource* RenderTargetResource)
 {
 	// RenderTestGeometryWithRDG(RHICmdList, RenderTargetResource);
-	RenderTestGeometryWithCommandList(RHICmdList, RenderTargetResource);
 }
 

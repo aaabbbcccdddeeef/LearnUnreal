@@ -399,7 +399,8 @@ void DrawCheckBoard_RenderThread(FRHICommandListImmediate& RHICmdList,
                                  ERHIFeatureLevel::Type InFeatureLevel)
 {
 	check(IsInRenderingThread());
-
+	// RHICmdList.SetScissorRect()
+	
 	FTexture2DRHIRef rtTexRHI = InTextureRTResource->GetRenderTargetTexture();
 	uint32 GGroupSize = 32;
 
