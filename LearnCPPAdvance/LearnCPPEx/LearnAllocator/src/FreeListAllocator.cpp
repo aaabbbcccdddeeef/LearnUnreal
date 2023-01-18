@@ -43,13 +43,29 @@ void* FreeListAllocator::Allocate(const std::size_t size, const std::size_t alig
         m_FreeList.insert(affectNode, newFreeNode);
     }
 
-    
-    
-    
+    m_FreeList.remove(prevousNode, affectNode);
+
+    size_t headerAddress = reinterpret_cast<size_t>(affectNode) + alignmentPadding;
+    size_t dataAddress = headerAddress + allocationHeaderSize;
+    AllocationHeader* headerPtr = reinterpret_cast<AllocationHeader*>(headerAddress);
+    headerPtr->blockSize = requiredSize;
+    headerPtr->padding = static_cast<char>(alignmentPadding);
+
+    m_used += requiredSize;
+    m_peak = std::max(m_peak, m_used);
+
+    return reinterpret_cast<void*>(dataAddress);
 }
 
 void FreeListAllocator::Free(void* ptr)
 {
+    size_t curAddress = reinterpret_cast<size_t>(ptr);
+    size_t headerAddress = curAddress - sizeof(AllocationHeader);
+    AllocationHeader* allocationHeaderPtr = reinterpret_cast<AllocationHeader*>(headerAddress);
+
+    FreeNode* freeNode = reinterpret_cast<FreeNode*>(curAddress);
+    freeNode->data.blockSize = allocationHeaderPtr->blockSize + allocationHeaderPtr->padding;
+       
 }
 
 void FreeListAllocator::Init()
