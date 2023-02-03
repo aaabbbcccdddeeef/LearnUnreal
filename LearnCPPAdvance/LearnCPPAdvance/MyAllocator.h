@@ -86,5 +86,6 @@ private:
 	size_type allocCount;
 };
 
+
 //template<typename T>
 //MyAllocator<T>::size_type allocCount = 0;

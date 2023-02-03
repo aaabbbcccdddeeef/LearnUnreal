@@ -2,7 +2,7 @@
 #include "Allocator.h"
 
 /**
- * \brief Linear allocator的策略是，初始化时预分配一大段内存
+ * \brief Linear allocator的策略是，初始化时预分配一大段内存, 不支持回收
  * 记录内存起始位置和已分配内存的末尾的offset，每次分配移动offset, O(1)
  * 效率非常高
  * 碎片只有padding

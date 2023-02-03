@@ -1,3 +1,4 @@
+#include <bitset>
 #include <stdio.h>
 #include <windows.h>
 
@@ -136,6 +137,47 @@ void TestAlignment()
     cout << test->x << endl;
 
     delete test;
+}
+
+void TestMemoryOperate()
+{
+    int testSize = 10;
+    int* testArray = new int[testSize];
+
+    ZeroMemory(testArray, sizeof(int) * testSize);
+
+    // int a[4];
+    int a[1] = {0};
+    using bits = bitset<sizeof(int)*CHAR_BIT>;
+    // memset的参数虽然是int，但事实上要求输入在unsighed char范围内，否则发生截断 static_cast<unsighed char>(int ch)
+    std::memset(a, 0b1011'1001'0011, 2);
+    for (int ai : a) std::cout << bits(ai) << '\n';
+}
+
+namespace 
+{
+    struct TestA
+    {
+        int a;
+        int b;
+    };
+}
+
+void TestPointIncrement()
+{
+    using namespace std;
+    int test1[10] = {0};
+    char test2[10] = {0};
+    TestA test3[10] = {TestA{0,0}};
+
+    cout << test1 << endl;
+    cout << test1 + 1 << endl;
+    
+    auto diff1 = reinterpret_cast<char*>(test1 + 1) - reinterpret_cast<char*>(test1);
+    cout << "int point + move bytes:" << diff1 << endl;
+
+    auto diff3 = reinterpret_cast<char*>(test3 + 1) - reinterpret_cast<char*>(test3);
+    cout << "TestA pointer + move bytes:" << diff3 << endl;
 }
 
 // int main()
