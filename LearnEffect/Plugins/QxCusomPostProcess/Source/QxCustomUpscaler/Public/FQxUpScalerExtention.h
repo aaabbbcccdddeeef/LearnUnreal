@@ -17,7 +17,7 @@ public:
 		FSceneViewExtensionIsActiveFunctor IsActiveFunctor;
 		IsActiveFunctor.IsActiveFunction = [](const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context)
 		{
-			IConsoleVariable* CvarQxUpscalerEnable =  IConsoleManager::Get().FindConsoleVariable(TEXT("r.QxUpscaler.Enable"));
+			static IConsoleVariable* CvarQxUpscalerEnable =  IConsoleManager::Get().FindConsoleVariable(TEXT("r.QxUpscaler.Enable"));
 			
 			return CvarQxUpscalerEnable->GetBool();
 		};

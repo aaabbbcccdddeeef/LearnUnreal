@@ -2,6 +2,8 @@
 
 #include "LearnUECore.h"
 
+DEFINE_LOG_CATEGORY(LearnUECore);
+
 #define LOCTEXT_NAMESPACE "FLearnUECoreModule"
 
 void FLearnUECoreModule::StartupModule()

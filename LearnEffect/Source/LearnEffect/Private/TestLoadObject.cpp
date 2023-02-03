@@ -19,7 +19,7 @@ void ATestLoadObject::BeginPlay()
 {
 	Super::BeginPlay();
 	
-
+	// TArray<int32, TInlineAllocator<int>> test;
 }
 
 // Called every frame
