@@ -148,6 +148,7 @@
     <ClCompile Include="TestCast.cpp" />
     <ClInclude Include="Test.h" />
     <ClInclude Include="TestAtomic.hpp" />
+    <ClCompile Include="TestCPPClass.cpp" />
     <ClCompile Include="TestFuncPointer.cpp" />
     <ClCompile Include="TestFuncPointerPair.cpp" />
     <ClCompile Include="TestMemoryAlignment.cpp" />

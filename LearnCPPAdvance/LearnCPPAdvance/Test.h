@@ -9,3 +9,4 @@ void TestPointIncrement();
 
 
 void TestStdAllocator();
+void TestCPPClass();

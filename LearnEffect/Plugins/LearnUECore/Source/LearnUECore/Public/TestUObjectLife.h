@@ -88,6 +88,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Test")
     void TestContainterAllocators();
+
+    UFUNCTION(BlueprintCallable, Category="Test")
+    void TestQxTestAllocaotr();
 protected:
 
     UPROPERTY(VisibleAnywhere, Category="Test")
