@@ -4,3 +4,4 @@ project(LearnCPPEx LANGUAGES CXX)
 
 add_subdirectory(LearnAllocator)
 add_subdirectory(LearnAlgorithm)
+add_subdirectory(QxTinyRender)
