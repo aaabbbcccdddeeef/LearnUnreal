@@ -57,6 +57,8 @@ struct TGAColor {
         }
         return *this;
     }
+
+    
 };
 
 
