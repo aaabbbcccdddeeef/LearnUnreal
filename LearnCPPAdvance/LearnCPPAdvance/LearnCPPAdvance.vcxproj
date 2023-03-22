@@ -153,6 +153,7 @@
     <ClCompile Include="TestFuncPointerPair.cpp" />
     <ClCompile Include="TestMemoryAlignment.cpp" />
     <ClCompile Include="TestMemoryOrder.cpp" />
+    <ClCompile Include="TestStdContainers.cpp" />
     <ClCompile Include="TestStringView.cpp" />
     <ClCompile Include="TestVolatile.cpp" />
     <ClCompile Include="TestWinThread.cpp" />

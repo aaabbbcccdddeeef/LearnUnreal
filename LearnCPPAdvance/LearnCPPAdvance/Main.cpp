@@ -19,6 +19,7 @@ void main()
     // TestMemoryOperate();
     // TestPointIncrement();
     // TestStdAllocator();
-    TestCPPClass();
+    // TestCPPClass();
+    TestStdVector1();
 }
 

@@ -10,3 +10,5 @@ void TestPointIncrement();
 
 void TestStdAllocator();
 void TestCPPClass();
+
+void TestStdVector1();
