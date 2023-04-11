@@ -1,0 +1,51 @@
+#pragma once
+
+#include "/Engine/Private/Common.ush"
+
+
+// 参考 ReconstructWorldPositionFromDepth RayTracingCommon.ush
+float3 QxGetWorldPosition(float2 uv, float eyeDepth)
+{
+    // float2 screenPosition = SvPositionToScreenPosition() // uv * 2  - 1;
+    // float4 res = mul( float4(screenPosition , eyeDepth, 1) ,View.ScreenToWorld);
+    //
+    // return res.xyz;
+    // float2 ScreenPosition = (uv - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+    float deviceZ = ConvertToDeviceZ(eyeDepth);
+    float2 ndcXY = (uv * 2 - 1) * float2(1, -1);
+    float4 ndcPos = float4(ndcXY, deviceZ, 1);
+
+    float4 hPosition = mul(ndcPos, View.ClipToWorld);
+    
+    float3 WorldPosition = hPosition.xyz / hPosition.w;
+    // float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * eyeDepth, eyeDepth, 1), View.ScreenToWorld);
+    // float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+
+    return WorldPosition;
+}
+
+float3 QxGetWorldPosition2(float2 screenUV, float inSceneDepth)
+{
+    // 下面右面的公式计算ScreenPosition需要输入的是buffer uv
+    float2 ScreenPosition;//(bufferUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+    ScreenPosition = (screenUV * 2 - 1) * float2(1, -1); 
+    float sceneDepth = CalcSceneDepth(screenUV);
+    sceneDepth = inSceneDepth;
+    float4 worldPositionClip = mul(float4(ScreenPosition * sceneDepth, sceneDepth, 1), View.ScreenToWorld);
+    float3 worldPosition = worldPositionClip.xyz / worldPositionClip.w;
+    worldPosition = worldPositionClip.xyz;
+    return worldPosition;
+}
+
+float3 QxGetWorldPosition3(float2 SvPosition, float inSceneDepth)
+{
+    float2 bufferUV = SvPosition.xy * View.BufferSizeAndInvSize.zw;
+    float2 ScreenPosition = (bufferUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+    // ScreenPosition = (bufferUV * 2 - 1) * float2(1, -1); 
+    float sceneDepth = CalcSceneDepth(bufferUV);
+    sceneDepth = inSceneDepth;
+    float4 worldPositionClip = mul(float4(ScreenPosition * sceneDepth, sceneDepth, 1), View.ScreenToWorld);
+    float3 worldPosition = worldPositionClip.xyz / worldPositionClip.w;
+    // worldPosition = worldPositionClip.xyz;
+    return worldPosition;
+}
