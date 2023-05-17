@@ -9,6 +9,8 @@
 //#include "FileHelpers.h"
 #include <Containers/UnrealString.h>
 
+#include "Kismet/GameplayStatics.h"
+
 
 void URuntimeCreateAsset_BPLib::CreateTestTexture2()
 {
@@ -51,7 +53,7 @@ void URuntimeCreateAsset_BPLib::CreateTestTexture2()
 		}
 	}
 
-	FTexture2DMipMap* Mip = new(NewTexture->PlatformData->Mips)FTexture2DMipMap(); //Node *q = new (p)Node(10); 就是从p为首地址分配一段内存给q
+	FTexture2DMipMap* Mip = new(NewTexture->PlatformData->Mips)FTexture2DMipMap(); //Node *q = new (p)Node(10); 灏辨槸浠巔涓洪鍦板潃鍒嗛厤涓�娈靛唴瀛樼粰q
 	Mip->SizeX = TextureWidth;
 	Mip->SizeY = TextureHeight;
 	Mip->BulkData.Lock(LOCK_READ_WRITE);
@@ -95,6 +97,7 @@ void URuntimeCreateAsset_BPLib::CreateTestTexture2()
 		*FString::Printf(
 			TEXT("OBJ SAVEPACKAGE PACKAGE=\"%s\" FILE=\"%s\" SILENT=true"),
 			*testPackageName, *PackageFileName));
+
 }
 
 
@@ -140,7 +143,7 @@ void URuntimeCreateAsset_BPLib::CreateTestTexture3()
 		}
 	}
 
-	FTexture2DMipMap* Mip = new(NewTexture->PlatformData->Mips)FTexture2DMipMap(); //Node *q = new (p)Node(10); 就是从p为首地址分配一段内存给q
+	FTexture2DMipMap* Mip = new(NewTexture->PlatformData->Mips)FTexture2DMipMap(); //Node *q = new (p)Node(10); 灏辨槸浠巔涓洪鍦板潃鍒嗛厤涓�娈靛唴瀛樼粰q
 	Mip->SizeX = TextureWidth;
 	Mip->SizeY = TextureHeight;
 	Mip->BulkData.Lock(LOCK_READ_WRITE);

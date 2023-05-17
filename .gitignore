@@ -67,3 +67,7 @@ LearnCPPAdvance/LearnCPPEx/build/
 LearnCPPAdvance/LearnCPPEx/LearnAlgorithm/.idea/
 *.umap
 *.uasset
+LearnCPPAdvance/LearnCPPEx/QxTinyRender/obj/
+LearnEffect/Content/Mannequin/
+LearnCPPAdvance/LearnCPPEx/fft-real/
+LearnEffect/Plugins/ShaderReaderPro/

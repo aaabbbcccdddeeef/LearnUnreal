@@ -9,7 +9,7 @@
 
 TAutoConsoleVariable<int32> CVarMultiTestIndex(
 TEXT("r.QxMulti.TestIndex"),
-6,
+2,
 TEXT("CVarMultiTestIndex"),
 ECVF_RenderThreadSafe 
 );
@@ -147,7 +147,7 @@ void FQxTestRunnable::InterleaveUpdate2()
     while (IsValid(Tester))
     {
         // FScopeLock Lock(&FQxTestRunnable::CriticalSection);
-        FQxTestRunnable::CriticalSection.Lock();
+        // FQxTestRunnable::CriticalSection.Lock();
 
         
         if (Tester->TestCounter < Tester->CounterMax
@@ -168,7 +168,7 @@ void FQxTestRunnable::InterleaveUpdate2()
             }
             const bool  bNeedWait = (Tester->TestCounter < Tester->CounterMax
                     || Tester->bNeverStop);
-            CriticalSection.Unlock();
+            // CriticalSection.Unlock();
 
             // 
             if (bNeedWait)
@@ -178,7 +178,7 @@ void FQxTestRunnable::InterleaveUpdate2()
         }
         else
         {
-            CriticalSection.Unlock();
+            // CriticalSection.Unlock();
             break;
         }
     }

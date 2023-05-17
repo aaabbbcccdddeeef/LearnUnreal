@@ -33,13 +33,18 @@ void AQxTestRunnable::BeginPlay()
     RunnableThread1 = FRunnableThread::Create(Runnable1, *Runnable1->MyThreadName);
     RunnableThread2 = FRunnableThread::Create(Runnable2, *Runnable2->MyThreadName);
 
+    
+
+
     if (bWaitThreadComplete)
     {
-        RunnableThread1->WaitForCompletion();
-        if (Runnable2)
-        {
-            RunnableThread2->WaitForCompletion();
-        }
+        UE_LOG(LogTemp, Warning, TEXT("TestFuture1 = %f"), TestFuture1.Get()) ;
+        UE_LOG(LogTemp, Warning, TEXT("TestFuture2 = %f"), TestFuture2.Get()) ;
+        // RunnableThread1->WaitForCompletion();
+        // if (Runnable2)
+        // {
+        //     RunnableThread2->WaitForCompletion();
+        // }
     }
     
 }

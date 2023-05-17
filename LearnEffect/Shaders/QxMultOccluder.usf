@@ -15,7 +15,7 @@ struct MultiOccluder
     }
 
 
-     float3 Test2()
+    float3 Test2()
     {
         uint2 texSize;
         SceneTex.GetDimensions(texSize.x, texSize.y);

@@ -1,0 +1,103 @@
+#ifndef QX_WATER
+#define QX_WATER
+#include "/Engine/Private/Common.ush"
+
+#define Gravity 980
+#define SteepnessThreshold 50
+
+struct QxGerstnerWaveParam
+{
+    float2 Direction;
+    float2 Position;
+    float WaveLength;
+    float Amplitude;
+    float Time;
+    float steepness; // 应该是 0..1的值
+};
+
+struct QxWaveOutput
+{
+    float3 Normal;
+    float3 WPO;
+};
+
+// 这里的实现基本参考GerstnerWaveFunctions.h GetSingleGerstnerWaveNew函数
+// , out float3 outNormal, out float outHeight, out float3 outOffset
+QxWaveOutput QxGetSingleGerstnerWave(QxGerstnerWaveParam params)
+{
+    QxWaveOutput waveOutput = (QxWaveOutput)0;
+    float2 xy = float2(0.f, 0.f);
+    float z = 0.f;
+    
+    float2 nxy = float2(0.f, 0.f);
+    float nz = 0.f;
+    
+    float frequency = 2 * PI / params.WaveLength;
+    float2 waveVector = params.Direction * frequency;
+    float waveSpeed = sqrt(frequency * Gravity); // 按一些文档中的意思，这里是表示速度受重力影响
+    float wavetime = waveSpeed * params.Time;
+
+    float wavePos =  dot(params.Position, waveVector) - wavetime;
+    
+    float waveSin = sin(wavePos);
+    float waveCos = cos(wavePos);
+
+    //这里的wKA <= 1才比较合理
+    float wKA = params.Amplitude * frequency;
+
+    // 这里的q也应该是 <= 1的
+    float q = params.steepness / wKA;
+
+    // xy = q * waveCos * params.Direction * params.Amplitude;
+    // z = waveSin * params.Amplitude;
+    xy = -q * waveSin * params.Direction * params.Amplitude;
+    z = waveCos * params.Amplitude;
+    
+    // normal 由于编码限制，需要限制法线的z分量
+    nxy = waveSin * wKA * params.Direction;
+    // nz = waveSin * params.steepness * saturate((params.Amplitude * 50.f) / params.WaveLength);
+    nz = waveCos * params.steepness * saturate((params.Amplitude * SteepnessThreshold) / params.WaveLength);
+
+    // outNormal = float3(nxy, nz);
+    // outHeight = z;
+    // outOffset = float3(xy, z);
+    waveOutput.Normal = float3(nxy, nz);
+    waveOutput.WPO = float3(xy, z);
+    return waveOutput;
+}
+
+// 这里先假设不同wave参数一样
+QxWaveOutput QxGetAllGerstnerWaves(QxGerstnerWaveParam params, int numWaves)
+{
+    QxWaveOutput outWave = (QxWaveOutput)0;
+    QxWaveOutput curWave = (QxWaveOutput)0;
+
+    for (int i = 0; i < numWaves; ++i)
+    {
+        curWave = QxGetSingleGerstnerWave(params);
+        outWave.Normal += curWave.Normal;
+        outWave.WPO += curWave.WPO;
+    }
+
+    // 之前处理normal叠加都是以 offset z作为处理的，返回之前修正回来
+    outWave.Normal = normalize(float3(outWave.Normal.xy, 1. - outWave.Normal.z));
+    return outWave;
+}
+
+
+// void Test()
+// {
+//     QxGerstnerWaveParam params;
+//     params.Position = position;
+//     params.Time = time;
+//     params.Direction = direction;
+//     params.WaveLength = wavelength;
+//     params.Amplitude = amplitude;
+//     params.steepness = 1;
+
+//     QxWaveOutput waveOut = QxGetAllGerstnerWaves(params, 5);
+//     normal = waveOut.Normal;
+//     return waveOut.WPO;
+// }
+
+#endif

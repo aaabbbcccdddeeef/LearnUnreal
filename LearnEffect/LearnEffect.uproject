@@ -100,6 +100,14 @@
 		{
 			"Name": "FSR",
 			"Enabled": false
+		},
+		{
+			"Name": "HoudiniEngine",
+			"Enabled": true
+		},
+		{
+			"Name": "RHITests",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [

@@ -1,0 +1,96 @@
+#pragma once
+
+// 这里的目的是为了测试UE4 hlsl中矩阵的使用
+// 结论， 向量乘矩阵统一用mul(vec, matrix)的形式
+// 构造matrix 的方法是{轴1， 轴2， 轴3， translate}
+
+
+
+#include "/Engine/Private/Common.ush"
+static  const float4x4 testMatrix1 =
+    {
+    1, 2, 3, 4,
+    5, 6, 7, 8,
+    9, 10, 11, 12,
+    13, 14, 15, 16
+    };
+
+float4 QxTestTransform2(float4 inPosition)
+{
+    float testValues[16] = {
+        1, 2, 3, 4,
+        5, 6, 7, 8,
+        9, 10, 11, 12,
+        13, 14, 15, 16
+    };
+    // float4x4 testMatrix = {};
+}
+
+float4 QxTestTransform(float4 inPosition, float3 inTestTranslation)
+{
+    float4 testTranslation = float4(inTestTranslation, 1);
+    float4x4 testMatrix =
+        {
+        {1, 0, 0, 0},
+        {0, 1, 0, 0},
+        {0, 0, 1, 0},
+        testTranslation
+        };
+
+    float4 res = mul(inPosition, testMatrix1);
+    return res;
+}
+
+float4 QxGetTestMatrixLine(float lineIndex)
+{
+    int iLineIndex = (int)lineIndex;
+    // float4 testTranslation = float4(inTestTranslation, 1);
+    row_major  float4x4 testMatrix = 0;
+        // {
+        // 1, 2, 3, 4,
+        // 5, 6, 7, 8,
+        // 9, 10, 11, 12,
+        // 13, 14, 15, 16
+        // };
+    float4 line0 = float4(1, 2, 3, 4);
+    float4 line1 = float4(5, 6, 7, 8);
+    float4 line2 = float4(9, 10, 11, 12);
+    float4 line3 = float4(13, 14, 15, 16);
+    testMatrix[0] = line0;
+    testMatrix[1] = line1;
+    testMatrix[2] = line2;
+    testMatrix[3] = line3;
+    
+    return testMatrix1[iLineIndex];
+}
+
+float testGetElement(float inRowIndex, float inColumnIndex)
+{
+    return testMatrix1[inRowIndex][inColumnIndex];
+}
+
+// 这个函数的目的是为了测试ddx 在branch中的工作情况
+// 参考http://www.aclockworkberry.com/shader-derivative-functions/#footnote_3_1104
+// 理论上来说 在branch过渡的地方会有spike，但现实中没有看到，估计原因是ue4 shader编译做了优化
+// 但总之，ddx、ddy不要用在条件分支中
+float3 TestDDX(float xpos, float side)
+{
+    float tmp = 10000;
+    float3 color;
+
+    BRANCH
+    // FLATTEN
+    if (xpos > side)
+    {
+        tmp = xpos * xpos;
+        float dx = ddx(tmp);
+        color = float3(dx, 0, 0);
+    }
+    else
+    {
+        tmp = xpos * xpos;
+        float dx = ddx(tmp);
+        color = float3(0, dx, 0);
+    }
+    return color;
+}

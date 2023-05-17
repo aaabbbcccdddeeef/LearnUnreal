@@ -20,6 +20,11 @@ void UTestObjectLife::TestOuterAndPackage(UObject* InObject)
         UE_LOG(LogTemp, Warning, TEXT("Object name = %s"), *targetObj->GetName());
     }
 
+    int32 test = TNumericLimits<int32>::Min();
+
+    FVector2D testVec2 = {1, 2};
+    FMatrix2x2 testMatrix = {1, 2, 3, 4};
+    FVector2D resultVect = testMatrix.TransformPoint(testVec2);
 }
 
 // void UTestObjectLife::TestMemoryAllocate()
@@ -60,7 +65,6 @@ void ATestUObjectLife::TestMemoryAllocate()
     constexpr uint32 TestSize = 1;
     // 通过GMalloc进行操作
     {
-        
         void* testPtr = GMalloc->Malloc(sizeof(FMyTestClass) * TestSize);
         FMyTestClass* myPtr = reinterpret_cast<FMyTestClass*>(testPtr);
         myPtr->Test1 = 100;
@@ -377,4 +381,6 @@ void ATestUObjectLife::TestQxTestAllocaotr()
         Element = FMath::RandRange(0, 800);
     }
     PrintTArray(test);
+
+    // Algo::BinarySearch()
 }

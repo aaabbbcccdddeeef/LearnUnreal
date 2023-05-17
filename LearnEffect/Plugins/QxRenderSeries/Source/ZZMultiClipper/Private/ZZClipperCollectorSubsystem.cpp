@@ -58,7 +58,7 @@ void UZZClipperCollectorSubsystem::Deinitialize()
 
 void UZZClipperCollectorSubsystem::Tick(float DeltaTime)
 {
-    bIsClippingVolumesDirty = true;
+    // bIsClippingVolumesDirty = true;
     if (bIsClippingVolumesDirty && ClipperInfosTexture)
     {
         CollectAndUpdateClipperTexture();

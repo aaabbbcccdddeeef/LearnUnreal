@@ -39,6 +39,19 @@ public:
     int32 Test2 = 0;
 };
 
+UCLASS(Blueprintable)
+class UQxTestClass2 : public UObject
+{
+    GENERATED_BODY()
+public:
+
+    UPROPERTY(EditAnywhere, Category="Test")
+    int32 Test1 = 0;
+
+    UPROPERTY(VisibleAnywhere,Transient)
+    int32 Test2 = 0;
+};
+
 UCLASS()
 class UTestObjectLife : public UBlueprintFunctionLibrary
 {

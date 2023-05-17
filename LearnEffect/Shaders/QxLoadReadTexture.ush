@@ -1,0 +1,52 @@
+// #pragma once
+#include "/Engine/Private/Common.ush"
+
+#define Epsilon 0.01
+
+// 查询QueryID是否在QueryTexture存的值中
+// length 查询的长度，目的是不需要遍历整个QueryTexture
+// 1表示找到, QueryTexture 是n*1的纬度
+// 纹素值0表示没有存储，所以QueryID为0表示当前查找无效
+float IsIDinQueryTexture(Texture2D QueryTexture, uint QueryID, uint length)
+{
+	BRANCH
+	if (QueryID == 0)
+	{
+		return 0;
+	}
+	float result = 0;
+	LOOP
+	for (uint i = 0; i < length; ++i)
+	{
+		float4 CurTexel =  QueryTexture.Load(int3(i, 0, 0));
+		bool4 bQuery = abs(CurTexel - QueryID) < Epsilon;
+		if (any(bQuery))
+		{
+			result = 1;
+			break;
+		}
+	}
+	return result;
+}
+
+float4 TestLoad(Texture2D QueryTexture, int testX, int testY)
+{
+	float4 res = QueryTexture.Load(int3(testX, testY, 0));
+	// uint4 tmp = asint(res);
+	// res = tmp > 1;
+	// float4 res2 = float4(tmp.x, tmp.y, tmp.z, tmp.w);
+	return res;
+}
+
+float4 Test1(Texture2D QueryTexture)
+{
+	float4 res = QueryTexture.Load(int3(0, 0, 0));
+	// res.x = float(asuint(res.x));
+	// return float4(1, 2, 3, 4);
+	// res = float4(asuint(res));
+	// res.x = asuint(res.x);
+	// res.y = asuint(res.y);
+	// uint4 tmp = asuint(res);
+	// float4 res2 = float4(tmp.x, tmp.y, tmp.z, tmp.w);
+	return res;
+}
