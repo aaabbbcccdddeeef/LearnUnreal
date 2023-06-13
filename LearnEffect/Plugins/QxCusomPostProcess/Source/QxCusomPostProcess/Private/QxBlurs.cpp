@@ -5,6 +5,7 @@
 #include "QxPostProcessBloom.h"
 #include "QxRenderPPUtils.h"
 
+DECLARE_GPU_STAT(QxGuassian);
 namespace 
 {
 	// Blur shader use Kawase method
@@ -44,6 +45,25 @@ namespace
 		}
 	};
 	IMPLEMENT_GLOBAL_SHADER(FQxKawaseBlurUpPS, "/QxPPShaders/QxDualKawaseBlur.usf", "KawaseBlurUpsamplePS", SF_Pixel);
+
+	class FQxGuassianCS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FQxGuassianCS);
+		SHADER_USE_PARAMETER_STRUCT(FQxGuassianCS, FGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+			SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
+			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, BluredTexture)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
+		{
+			return RHISupportsComputeShaders(Parameters.Platform) && !IsHlslccShaderPlatform(Parameters.Platform);;
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FQxGuassianCS, "/QxPPShaders/QxGuassianBlur.usf", "MainCS", SF_Compute);
 }
 
 FScreenPassTexture QxRenderPPUtils::RenderKawaseBlur(
@@ -166,4 +186,47 @@ FScreenPassTexture QxRenderPPUtils::RenderKawaseBlur(
 	OutputTexture.Texture = PreviousBuffer;
 	OutputTexture.ViewRect = ViewRects.Last();
 	return OutputTexture;
+}
+
+FScreenPassTexture QxRenderPPUtils::RenderQxGuassianBlur(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo,
+	const FScreenPassTexture& InputTexture, bool bUseComputeShader)
+{
+	RDG_GPU_STAT_SCOPE(GraphBuilder, QxGuassian);
+	RDG_EVENT_SCOPE(GraphBuilder, "QxGuassian");
+
+	const FString PassName("QxGuassian");
+	
+	FRDGTextureRef BluredTexture;
+
+	{
+		FRDGTextureDesc Desc = InputTexture.Texture->Desc;
+		BluredTexture = GraphBuilder.CreateTexture(Desc, *PassName);
+	}
+
+	TShaderMapRef<FQxGuassianCS> ComputeShader(GetGlobalShaderMap(ViewInfo.GetFeatureLevel()));
+
+	FQxGuassianCS::FParameters* PassParameters =
+		GraphBuilder.AllocParameters<FQxGuassianCS::FParameters>();
+	PassParameters->InputTexture = InputTexture.Texture;
+	PassParameters->InputTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	// EPixelFormat OutFormat = InputTexture.Texture->Desc.Format;
+	PassParameters->BluredTexture =
+		GraphBuilder.CreateUAV(BluredTexture);
+
+	FIntVector GroupCount;
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("QxGuassianBlur"),
+		ComputeShader, PassParameters,
+		GroupCount
+		);
+
+	FScreenPassTexture OutTexture;
+	OutTexture.ViewRect = FIntRect(
+		0, 0,
+		ViewInfo.ViewRect.Width(),
+		ViewInfo.ViewRect.Height()
+		);
+
+	return OutTexture;
 }

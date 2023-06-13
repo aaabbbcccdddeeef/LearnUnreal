@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include "PixelShaderUtils.h"
+#include "QxBlurs.h"
 #include "QxLensFlareAsset.h"
 #include "QxPostProcessBloom.h"
 #include "QxPostprocessSubsystem.h"
@@ -14,6 +15,9 @@
 #include "ScreenPass.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "PostProcess/PostProcessMaterial.h"
+
+
+
 
 FQxBloomSceneViewExtension::FQxBloomSceneViewExtension(const FAutoRegister& AutoRegister,
 	UQxPostprocessSubsystem* InSubsystem)
@@ -65,6 +69,13 @@ void FQxBloomSceneViewExtension::SubscribeToPostProcessingPass(EPostProcessingPa
 	{
 		InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(
 			this, &FQxBloomSceneViewExtension::RenderQxBloom_RenderThread));
+	}
+
+	if (PassId == EPostProcessingPass::Tonemap)
+	{
+		InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(
+			this, &FQxBloomSceneViewExtension::RenderQxGuassianBlur
+			));
 	}
 }
 
@@ -304,6 +315,29 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderQxBloom_RenderThread(
 	// 	);
 	// BloomTexture.ViewRect = TestViewRect;
 	return BloomTexture;
+}
+
+
+FScreenPassTexture FQxBloomSceneViewExtension::RenderQxGuassianBlur(
+	FRDGBuilder& GraphBuilder,
+	const FSceneView& View,
+	const FPostProcessMaterialInputs& PostProcessMaterialInputs)
+{
+	FScreenPassTexture SceneColor = PostProcessMaterialInputs.GetInput(EPostProcessMaterialInput::SceneColor);
+	if (nullptr == QxPostprocessSubsystem->GetBloomSettingAsset() ||
+		!QxPostprocessSubsystem->GetBloomSettingAsset()->bEnableQxGuassianBlur)
+	{
+		return SceneColor;
+	}
+	FScopeLock PostSettingLock(&QxPostprocessSubsystem->PostAssetMutex);
+	const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(View);
+
+	
+
+	FScreenPassTexture BluredTexture =
+		QxRenderPPUtils::RenderQxGuassianBlur(GraphBuilder, ViewInfo, SceneColor, true);
+	
+	return BluredTexture;
 }
 
 

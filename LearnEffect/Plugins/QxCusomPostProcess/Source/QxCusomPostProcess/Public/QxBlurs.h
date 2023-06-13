@@ -18,4 +18,11 @@ namespace QxRenderPPUtils
 		const FViewInfo& ViewInfo,
 		const FScreenPassTexture& InputTexture,
 		int32 BlurSteps);
+
+	FScreenPassTexture RenderQxGuassianBlur(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& ViewInfo,
+		const FScreenPassTexture& InputTexture,
+		bool bUseComputeShader
+		);
 }

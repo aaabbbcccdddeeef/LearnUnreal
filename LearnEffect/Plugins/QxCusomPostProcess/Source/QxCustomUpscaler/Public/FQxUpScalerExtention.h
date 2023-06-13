@@ -39,17 +39,17 @@ public:
 	{
 		// InViewFamily.SetTemporalUpscalerInterface()
 
-		// InViewFamily.SetTemporalUpscalerInterface(new FQxTemporalUpscaler());
-		// bool IsTemporalUpscalingRequest = false;
-		// for (int32 ViewIndex = 0; ViewIndex < InViewFamily.Views.Num(); ++ViewIndex)
-		// {
-		// 	const FSceneView* View = InViewFamily.Views[ViewIndex];
-		// 	if (ensure(View))
-		// 	{
-		// 		IsTemporalUpscalingRequest |= (View->PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale);
-		// 	}
-		// }
-		//
+		InViewFamily.SetTemporalUpscalerInterface(new FQxTemporalUpscaler());
+		bool IsTemporalUpscalingRequest = false;
+		for (int32 ViewIndex = 0; ViewIndex < InViewFamily.Views.Num(); ++ViewIndex)
+		{
+			const FSceneView* View = InViewFamily.Views[ViewIndex];
+			if (ensure(View))
+			{
+				IsTemporalUpscalingRequest |= (View->PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale);
+			}
+		}
+		
 		// if (!IsTemporalUpscalingRequest)
 		// {
 		// 	InViewFamily.SetPrimarySpatialUpscalerInterface(new FQxSpatialUpscaler());

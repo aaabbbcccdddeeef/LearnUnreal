@@ -1,0 +1,31 @@
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+#include "/Engine/Private/PostProcessCommon.ush"
+
+static const int gBlurRadius = 5;
+
+// 一行或一列的权重矩阵，半径是5
+float BlurWeights[11];
+
+Texture2D InputTexture;
+RWTexture2D<float4> BluredTexture;
+
+#define N 256
+#define CacheSize (N + 2 * gBlurRadius)
+groupshared float4 gCache[CacheSize];
+
+//numthreads(N, 1, 1)，代表着线程的数量，可以是多维的
+//groupThreadID，线程在线程组中的ID
+//dispatchThreadID，在一次dispatch线程中的ID
+[numthreads(N, 1, 1)]
+void HorzBlurCS(
+    int3 groupThreadID : SV_GroupThreadID,
+    int3 dispatchThreadID : SV_DispatchThreadID
+    )
+{
+    if (groupThreadID.x )
+    {
+        
+    }
+}

@@ -533,6 +533,11 @@ TArray<FVector> UQxRenderBPLib::GetMeshVerticesWS(UStaticMeshComponent* InMeshCo
 	return FQxRenderUtils::GetVertexPositonsWS(InMeshComponent);
 }
 
+void UQxRenderBPLib::UpdateSkyCaptureContents(UWorld* InWorld)
+{
+	USkyLightComponent::UpdateSkyCaptureContents(InWorld);
+}
+
 void UQxRenderBPLib::PostResolveSceneColor_RenderThread(
 	FRHICommandListImmediate& RHICmdList,
 	FSceneRenderTargets& SceneRenderTargets)

@@ -43,6 +43,9 @@ public:
 public:
 #pragma region EffectFlags
 	UPROPERTY(EditAnywhere, Category="Flags")
+	bool bEnableQxGuassianBlur = false;
+	
+	UPROPERTY(EditAnywhere, Category="Flags")
 	bool bEnableQxPPEffect = true;
 
 	UPROPERTY(EditAnywhere, Category="Flags")

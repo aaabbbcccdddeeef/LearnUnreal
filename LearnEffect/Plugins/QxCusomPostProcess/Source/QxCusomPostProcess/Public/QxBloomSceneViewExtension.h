@@ -44,7 +44,8 @@ public:
 
 private:
 
-	FScreenPassTexture RenderQxBloom_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& PPMaterialInputs);
+	FScreenPassTexture RenderQxBloom_RenderThread(FRDGBuilder& GraphBuilder,
+		const FSceneView& View, const FPostProcessMaterialInputs& PPMaterialInputs);
 	
 	FScreenPassTexture RenderBloomFlare(FRDGBuilder& GraphBuilder,
 		const FViewInfo& ViewInfo,
@@ -52,6 +53,9 @@ private:
 		const FScreenPassTexture& SceneColor,
 		const UQxBloomFlareAsset* QxBloomSettingAsset);
 
+	FScreenPassTexture RenderQxGuassianBlur(FRDGBuilder& GraphBuilder,
+		const FSceneView& View,
+		const FPostProcessMaterialInputs& PostProcessMaterialInputs);
 	
 	/**
 	 * @brief 

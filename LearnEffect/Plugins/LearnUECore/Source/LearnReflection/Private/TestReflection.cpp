@@ -10,6 +10,7 @@ UTestReflection::UTestReflection(const FObjectInitializer& ObjectInitializer)
 
 void UTestReflection::CallableFunc()
 {
+    FCriticalSection test;
     MyTestFunc();
 }
 

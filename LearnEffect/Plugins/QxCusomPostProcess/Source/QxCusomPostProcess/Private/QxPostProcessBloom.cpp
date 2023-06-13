@@ -364,6 +364,8 @@ FScreenPassTexture FQxBloomSceneViewExtension::RenderBloomFlare(FRDGBuilder& Gra
 }
 
 
+
+
 FScreenPassTexture FQxBloomSceneViewExtension::RenderBloom(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& ViewInfo,

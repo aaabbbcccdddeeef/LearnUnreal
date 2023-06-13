@@ -72,6 +72,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "QxRender")
 	static TArray<FVector> GetMeshVerticesWS(UStaticMeshComponent* InMeshComponent);
 
+	UFUNCTION(BlueprintCallable, Category = "QxRender")
+	static void UpdateSkyCaptureContents(UWorld* InWorld);
+
 	static void PostResolveSceneColor_RenderThread(FRHICommandListImmediate& FrhiCommandListImmediate,
 		FSceneRenderTargets& SceneRenderTargets);
 
