@@ -63,7 +63,7 @@ namespace
 			return RHISupportsComputeShaders(Parameters.Platform) && !IsHlslccShaderPlatform(Parameters.Platform);;
 		}
 	};
-	IMPLEMENT_GLOBAL_SHADER(FQxGuassianCS, "/QxPPShaders/QxGuassianBlur.usf", "MainCS", SF_Compute);
+	IMPLEMENT_GLOBAL_SHADER(FQxGuassianCS, "/QxPPShaders/QxGuassianBlur.usf", "HorzBlurCS", SF_Compute);
 }
 
 FScreenPassTexture QxRenderPPUtils::RenderKawaseBlur(

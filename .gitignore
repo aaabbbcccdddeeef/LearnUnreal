@@ -65,8 +65,8 @@ LearnEffect/Content/ContentExampleTest/
 LearnUE5/Plugins/QyRenderSeries/Content/QxSSR/TestSSR_HLOD0_Instancing.uasset
 LearnCPPAdvance/LearnCPPEx/build/
 LearnCPPAdvance/LearnCPPEx/LearnAlgorithm/.idea/
-*.umap
-*.uasset
+# *.umap
+# *.uasset
 LearnCPPAdvance/LearnCPPEx/QxTinyRender/obj/
 LearnEffect/Content/Mannequin/
 LearnCPPAdvance/LearnCPPEx/fft-real/
